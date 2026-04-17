@@ -57,6 +57,7 @@ import {
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
+import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
 import {
   GIFTS,
   type GiftId,
@@ -100,6 +101,7 @@ export default function GodgameDashboard() {
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   /** Se abre solo cuando el jugador pulsa un círculo en el mapa. */
   const [cardOpen, setCardOpen] = useState(false);
+  const [verdictOpen, setVerdictOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -241,6 +243,8 @@ export default function GodgameDashboard() {
   const tutorialHighlight = state.tutorial_active
     ? state.tutorial_highlight_id
     : null;
+  const verdictRows = useMemo(() => topByInfluence(state, 3), [state]);
+  const lineageWins = useMemo(() => lineageInTop3(state), [state]);
 
   // Auto-dismiss del toast.
   useEffect(() => {
@@ -343,6 +347,16 @@ export default function GodgameDashboard() {
             faithPoints={state.player_god.faith_points}
             giftsGranted={state.player_god.gifts_granted}
           />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setVerdictOpen(true)}
+            data-testid="open-verdict"
+            className="w-full text-xs"
+          >
+            <Crown className="w-3 h-3 mr-1" /> Ver veredicto de la era
+          </Button>
           <ChroniclePanel entries={chronicleReversed} />
         </aside>
       </main>
@@ -355,6 +369,17 @@ export default function GodgameDashboard() {
             isChosen={chosenOnes.includes(selectedNpc.id)}
             allNpcs={state.npcs}
             onClose={() => setCardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {verdictOpen && (
+          <VerdictModal
+            rows={verdictRows}
+            lineageWins={lineageWins}
+            chosenOnes={chosenOnes}
+            onClose={() => setVerdictOpen(false)}
           />
         )}
       </AnimatePresence>
@@ -757,6 +782,84 @@ function EmptyIntervention() {
         </p>
       </div>
     </div>
+  );
+}
+
+function VerdictModal(props: {
+  rows: ReturnType<typeof topByInfluence>;
+  lineageWins: boolean;
+  chosenOnes: string[];
+  onClose: () => void;
+}) {
+  const { rows, lineageWins, chosenOnes } = props;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-8"
+      data-testid="verdict-modal"
+      onClick={props.onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4"
+      >
+        <div>
+          <h2 className="text-lg font-bold tracking-tight flex items-center gap-2">
+            <Crown className="w-5 h-5 text-orange-500" /> Veredicto de la era
+          </h2>
+          <p
+            className={`text-sm mt-1 font-semibold ${lineageWins ? 'text-orange-600' : 'text-slate-500'}`}
+            data-testid="verdict-headline"
+          >
+            {lineageWins ? '¿Reina tu linaje? SÍ.' : '¿Reina tu linaje? AÚN NO.'}
+          </p>
+        </div>
+        <ol className="space-y-1.5" data-testid="verdict-top">
+          {rows.map((row, idx) => {
+            const isChosen = chosenOnes.includes(row.npc.id);
+            const isDescendant = row.npc.descends_from_chosen;
+            return (
+              <li
+                key={row.npc.id}
+                data-testid={`verdict-row-${idx}`}
+                className={`flex items-center justify-between text-sm px-3 py-2 rounded-lg border ${
+                  isChosen || isDescendant
+                    ? 'border-orange-200 bg-orange-50'
+                    : 'border-slate-100 bg-slate-50'
+                }`}
+              >
+                <span className="flex items-center gap-2 font-semibold">
+                  <span className="text-slate-400 font-mono text-xs w-4">
+                    {idx + 1}.
+                  </span>
+                  {isChosen && <Crown className="w-3 h-3 text-orange-500" />}
+                  {row.npc.name}
+                  {isDescendant && !isChosen && (
+                    <Badge className="text-[9px] bg-orange-100 text-orange-700">
+                      descendiente
+                    </Badge>
+                  )}
+                </span>
+                <span className="text-xs text-slate-600 font-mono">
+                  inf {row.influence.toFixed(0)} · seg {row.followers} · des{' '}
+                  {row.descendants}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+        <div className="pt-2 flex justify-end">
+          <Button size="sm" onClick={props.onClose} data-testid="verdict-close">
+            Cerrar
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

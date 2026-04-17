@@ -42,7 +42,7 @@ Ambicioso con halo dorado 10-30s, evento dramático forzado 30-60s
 del tutorial. Flag `tutorial_active` en estado. Todos los eventos
 forzados consumen el PRNG compartido — replay determinista.
 
-### Sprint 5b — Victoria por era
+### Sprint 5b — Victoria por era ✅ done
 Métrica de influencia (§A4): `influence = Fuerza + Carisma + 10 ×
 seguidores + 5 × descendientes_vivos`. UI de veredicto al final de la
 era: *¿reina tu linaje?* (top-3 contiene a Elegido o descendiente
