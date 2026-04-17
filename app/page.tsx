@@ -58,6 +58,7 @@ import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
 import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
+import { exportChronicle, exportFilename } from '@/lib/export';
 import {
   GIFTS,
   type GiftId,
@@ -205,6 +206,27 @@ export default function GodgameDashboard() {
     setToast('Mundo reiniciado.');
   }, []);
 
+  const handleExportChronicle = useCallback(() => {
+    setState((current) => {
+      const text = exportChronicle(current, {
+        groupName:
+          current.groups.find((g) => g.id === current.player_god.group_id)?.name,
+      });
+      if (typeof window === 'undefined') return current;
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = exportFilename(current);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setToast('Crónica exportada.');
+      return current;
+    });
+  }, []);
+
   const handleSkipTutorial = useCallback(() => {
     setState((current) => {
       const next = endTutorial(current);
@@ -302,6 +324,7 @@ export default function GodgameDashboard() {
             selectedId={selectedNpcId}
             chosenOnes={chosenOnes}
             mapSize={MAP_SIZE}
+            seed={state.seed}
             highlightId={tutorialHighlight}
             onSelect={(id) => {
               setSelectedNpcId(id);
@@ -357,7 +380,10 @@ export default function GodgameDashboard() {
           >
             <Crown className="w-3 h-3 mr-1" /> Ver veredicto de la era
           </Button>
-          <ChroniclePanel entries={chronicleReversed} />
+          <ChroniclePanel
+            entries={chronicleReversed}
+            onExport={handleExportChronicle}
+          />
         </aside>
       </main>
 
@@ -785,6 +811,43 @@ function EmptyIntervention() {
   );
 }
 
+function NpcSilhouette(props: { npc: NPC; isChosen: boolean }) {
+  const { npc, isChosen } = props;
+  // Color de la silueta según estado — mantiene el feeling hand-drawn.
+  const fill = !npc.alive
+    ? '#cbd5e1'
+    : isChosen
+      ? '#f59e0b'
+      : npc.partner_id
+        ? '#065f46'
+        : '#1f2937';
+  return (
+    <svg
+      width="48"
+      height="48"
+      viewBox="0 0 24 24"
+      data-testid="npc-silhouette"
+      aria-hidden="true"
+      className="shrink-0 rounded-full bg-[#f5ecd2] border border-amber-900/20 p-1"
+    >
+      {/* Silueta de persona: cabeza + torso. Simple, legible a 48px. */}
+      <circle cx="12" cy="7" r="3.2" fill={fill} />
+      <path
+        d="M4.5 22 C 5 16, 9 14, 12 14 C 15 14, 19 16, 19.5 22 Z"
+        fill={fill}
+      />
+      {isChosen && (
+        <path
+          d="M8 3.5 L10 1.5 L12 3 L14 1.5 L16 3.5 L15 5.5 L9 5.5 Z"
+          fill="#f97316"
+          stroke="#7c2d12"
+          strokeWidth="0.3"
+        />
+      )}
+    </svg>
+  );
+}
+
 function VerdictModal(props: {
   rows: ReturnType<typeof topByInfluence>;
   lineageWins: boolean;
@@ -1048,8 +1111,9 @@ function CharacterCardOverlay(props: {
         onClick={(e) => e.stopPropagation()}
         data-testid="character-card"
       >
-        <div className="flex items-start justify-between mb-4">
-          <div>
+        <div className="flex items-start gap-4 mb-4">
+          <NpcSilhouette npc={npc} isChosen={isChosen} />
+          <div className="flex-grow">
             <h2
               className="font-bold text-lg tracking-tight flex items-center gap-2"
               data-testid="character-card-name"
@@ -1153,17 +1217,32 @@ function CharacterCardOverlay(props: {
   );
 }
 
-function ChroniclePanel(props: { entries: { day: number; text: string }[] }) {
+function ChroniclePanel(props: {
+  entries: { day: number; text: string }[];
+  onExport: () => void;
+}) {
   return (
     <Card className="border-slate-200 h-[calc(100vh-260px)] flex flex-col bg-white">
-      <CardHeader className="p-4 border-b border-slate-50">
-        <div className="flex items-center gap-2 font-bold text-sm text-slate-900 tracking-tight">
-          <HistoryIcon className="w-4 h-4 text-slate-400" />
-          CRÓNICAS
+      <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 font-bold text-sm text-slate-900 tracking-tight">
+            <HistoryIcon className="w-4 h-4 text-slate-400" />
+            CRÓNICAS
+          </div>
+          <CardDescription className="text-[10px]">
+            La voz del cronista — parcial, no neutral.
+          </CardDescription>
         </div>
-        <CardDescription className="text-[10px]">
-          La voz del cronista — parcial, no neutral.
-        </CardDescription>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={props.onExport}
+          data-testid="export-chronicle"
+          className="text-[10px]"
+          title="Descargar como texto"
+        >
+          Exportar
+        </Button>
       </CardHeader>
       <CardContent className="p-0 flex-grow">
         <ScrollArea className="h-full p-4">

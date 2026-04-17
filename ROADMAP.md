@@ -48,7 +48,7 @@ seguidores + 5 × descendientes_vivos`. UI de veredicto al final de la
 era: *¿reina tu linaje?* (top-3 contiene a Elegido o descendiente
 directo). **Pillars 4 & 5** shipean.
 
-### Sprint 6 — Visual Polish Pass
+### Sprint 6 — Visual Polish Pass ✅ done
 Estética hand-drawn en el mapa (símbolos de montaña/bosque, textura de
 pergamino, líneas de costa a tinta). Retratos de NPCs (aunque sean
 siluetas SVG). Panel de crónica actualizado en vivo. Exportar crónica a
