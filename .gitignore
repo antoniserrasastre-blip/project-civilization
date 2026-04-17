@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# build / runtime
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# test artifacts
+coverage/
+test-results/
+playwright-report/
+playwright/.cache/
+
+# env
+.env*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
