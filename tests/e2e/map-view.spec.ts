@@ -33,10 +33,11 @@ test.describe('Sprint 2 — mapa y overlay de carácter', () => {
     await page.getByTestId('clock-slower').click();
 
     const firstNpc = page.getByTestId('map-npc-npc_0000');
-    // force: otros círculos pueden intersectar sobre el mismo pixel por el
-    // determinismo de posiciones iniciales — aquí lo que validamos es el
-    // handler, no el hit-testing.
-    await firstNpc.click({ force: true });
+    // Usamos dispatchEvent para invocar el handler del círculo concreto
+    // sin depender del hit-testing del navegador: otros círculos pueden
+    // superponerse en el mismo pixel según la seed y engañarían a un
+    // click real. Lo que validamos aquí es el listener, no el pointer path.
+    await firstNpc.dispatchEvent('click');
 
     const card = page.getByTestId('character-card');
     await expect(card).toBeVisible();

@@ -21,7 +21,7 @@ el terreno para los eventos forzados de onboarding en S5a). Controles
 de velocidad canónicos **[0, 1×, 10×, 100×]** (ya alineados al código
 actual). **Pillar 2** pasa a ser testeable.
 
-### Sprint 3 — Gifts with Real Mechanics
+### Sprint 3 — Gifts with Real Mechanics ✅ done
 Fuerza Sobrehumana, Aura de Carisma, mecánica `follower_of`, herencia de
 dones. La character card crece para mostrar linaje + dones. El efecto
 "empuja al heroísmo físico si es Ambicioso, a la irrelevancia si es

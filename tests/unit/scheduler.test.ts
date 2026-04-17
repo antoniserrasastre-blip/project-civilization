@@ -156,6 +156,7 @@ describe('applyEvents — aplicación', () => {
       parents: [a.id, b.id],
       alive: true,
       partner_id: null,
+      follower_of: null,
     };
     const next = applyEvents(s, [{ type: 'birth', newborn }]);
     expect(next.npcs).toHaveLength(s.npcs.length + 1);

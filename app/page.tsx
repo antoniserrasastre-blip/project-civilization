@@ -13,7 +13,7 @@
  * `anoint`, `narrate*`. Si algo de gameplay vive aquí, está mal colocado.
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Card,
@@ -56,6 +56,8 @@ import {
 } from '@/lib/persistence';
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
+import { GIFTS, type GiftId, canGrantGift, grantGift } from '@/lib/gifts';
+import { narrateGift } from '@/lib/chronicle';
 // ---------------------------------------------------------------------------
 // Constantes de cadencia
 // ---------------------------------------------------------------------------
@@ -93,14 +95,6 @@ export default function GodgameDashboard() {
   const [cardOpen, setCardOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
-
-  // Ref sincronizada con state, poblada en efecto (no en render, para
-  // cumplir la regla de refs de React 19). La usan los event handlers
-  // que no deben cerrar sobre snapshots obsoletos.
-  const stateRef = useRef<WorldState>(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
 
   // ---- Boot: intentar cargar snapshot ---------------------------------
   // Necesariamente hacemos setState en efecto de montaje: la carga
@@ -144,27 +138,54 @@ export default function GodgameDashboard() {
 
   // ---- Acciones del jugador -------------------------------------------
 
+  // Usamos setState funcional en vez de stateRef.current para evitar carreras
+  // entre clicks rápidos del jugador: el updater siempre ve la versión más
+  // reciente del estado, sin depender de que useEffect haya sincronizado la
+  // ref.
   const handleAnoint = useCallback(() => {
     if (!selectedNpcId) return;
-    const current = stateRef.current;
-    const check = canAnoint(current, selectedNpcId);
-    if (!check.ok) {
-      setToast(anointRejectionMessage(check.reason));
-      return;
-    }
-    const npc = current.npcs.find((n) => n.id === selectedNpcId);
-    if (!npc) return;
-    const afterAnoint = anoint(current, selectedNpcId);
-    const withChronicle = appendChronicle(
-      afterAnoint,
-      narrateAnointment(current, npc),
-    );
-    setState(withChronicle);
-    // Persistimos al instante: una acción del jugador no debe perderse
-    // si cierra la pestaña antes del próximo save periódico.
-    saveSnapshot(withChronicle);
-    setToast('Has ungido a un Elegido.');
+    setState((current) => {
+      const check = canAnoint(current, selectedNpcId);
+      if (!check.ok) {
+        setToast(anointRejectionMessage(check.reason));
+        return current;
+      }
+      const npc = current.npcs.find((n) => n.id === selectedNpcId);
+      if (!npc) return current;
+      const afterAnoint = anoint(current, selectedNpcId);
+      const withChronicle = appendChronicle(
+        afterAnoint,
+        narrateAnointment(current, npc),
+      );
+      saveSnapshot(withChronicle);
+      setToast('Has ungido a un Elegido.');
+      return withChronicle;
+    });
   }, [selectedNpcId]);
+
+  const handleGrantGift = useCallback(
+    (gift_id: GiftId) => {
+      if (!selectedNpcId) return;
+      setState((current) => {
+        const check = canGrantGift(current, selectedNpcId, gift_id);
+        if (!check.ok) {
+          setToast(giftRejectionMessage(check.reason));
+          return current;
+        }
+        const npc = current.npcs.find((n) => n.id === selectedNpcId);
+        if (!npc) return current;
+        const afterGrant = grantGift(current, selectedNpcId, gift_id);
+        const withChronicle = appendChronicle(
+          afterGrant,
+          narrateGift(current, npc, GIFTS[gift_id].name),
+        );
+        saveSnapshot(withChronicle);
+        setToast(`Has concedido ${GIFTS[gift_id].name}.`);
+        return withChronicle;
+      });
+    },
+    [selectedNpcId],
+  );
 
   const handleReset = useCallback(() => {
     clearSnapshot();
@@ -276,6 +297,7 @@ export default function GodgameDashboard() {
                 npc={selectedNpc}
                 isChosen={chosenOnes.includes(selectedNpc.id)}
                 onAnoint={handleAnoint}
+                onGrantGift={handleGrantGift}
               />
             ) : (
               <EmptyIntervention />
@@ -294,6 +316,7 @@ export default function GodgameDashboard() {
             key={selectedNpc.id}
             npc={selectedNpc}
             isChosen={chosenOnes.includes(selectedNpc.id)}
+            allNpcs={state.npcs}
             onClose={() => setCardOpen(false)}
           />
         )}
@@ -522,9 +545,11 @@ function InterventionPanel(props: {
   npc: NPC;
   isChosen: boolean;
   onAnoint: () => void;
+  onGrantGift: (gift_id: GiftId) => void;
 }) {
   const { npc, isChosen } = props;
   const years = Math.floor(npc.age_days / 365);
+  const giftEntries = Object.values(GIFTS);
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -583,6 +608,56 @@ function InterventionPanel(props: {
               {isChosen ? 'Ya ungido' : 'Ungir como Elegido'}
             </Button>
           </div>
+
+          {isChosen && (
+            <div className="space-y-3" data-testid="gifts-panel">
+              <Separator />
+              <p className="text-[10px] uppercase tracking-widest text-slate-400 font-bold">
+                Dones concedidos
+              </p>
+              {npc.gifts.length > 0 ? (
+                <ul className="flex flex-wrap gap-1.5" data-testid="gifts-granted-list">
+                  {npc.gifts.map((gid) => {
+                    const def = GIFTS[gid as GiftId];
+                    const label = def?.name ?? gid;
+                    return (
+                      <li key={gid} data-testid={`gift-granted-${gid}`}>
+                        <Badge className="bg-orange-100 text-orange-700 text-[10px] font-semibold">
+                          <Sparkles className="w-3 h-3 mr-1" />
+                          {label}
+                        </Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-xs text-slate-400 italic">
+                  Aún no ha recibido ningún don.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2 pt-1">
+                {giftEntries.map((def) => {
+                  const already = npc.gifts.includes(def.id);
+                  return (
+                    <Button
+                      key={def.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => props.onGrantGift(def.id)}
+                      disabled={already || !npc.alive}
+                      data-testid={`grant-gift-${def.id}`}
+                      className="text-xs"
+                      title={def.description}
+                    >
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      {already ? `${def.name} (ya)` : `Conceder ${def.name}`}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>
@@ -619,10 +694,18 @@ function EmptyIntervention() {
 function CharacterCardOverlay(props: {
   npc: NPC;
   isChosen: boolean;
+  allNpcs: NPC[];
   onClose: () => void;
 }) {
-  const { npc, isChosen } = props;
+  const { npc, isChosen, allNpcs } = props;
   const years = Math.floor(npc.age_days / 365);
+  const parents = npc.parents
+    .map((pid) => allNpcs.find((n) => n.id === pid))
+    .filter((n): n is NPC => Boolean(n));
+  const leader = npc.follower_of
+    ? allNpcs.find((n) => n.id === npc.follower_of)
+    : null;
+  const followers = allNpcs.filter((n) => n.follower_of === npc.id);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -636,7 +719,7 @@ function CharacterCardOverlay(props: {
         initial={{ y: -12, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -12, opacity: 0 }}
-        className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-6"
+        className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-6 max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         data-testid="character-card"
       >
@@ -664,7 +747,7 @@ function CharacterCardOverlay(props: {
             <XIcon className="w-4 h-4" />
           </button>
         </div>
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs mb-4">
           <dt className="text-slate-400 font-medium uppercase tracking-widest">Fuerza</dt>
           <dd className="text-slate-900 font-mono">{npc.stats.fuerza}</dd>
           <dt className="text-slate-400 font-medium uppercase tracking-widest">Intel.</dt>
@@ -680,6 +763,66 @@ function CharacterCardOverlay(props: {
           <dt className="text-slate-400 font-medium uppercase tracking-widest">Carisma</dt>
           <dd className="text-slate-900 font-mono">{npc.traits.carisma}</dd>
         </dl>
+
+        <div className="space-y-3">
+          <section data-testid="card-gifts">
+            <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1.5">
+              Dones
+            </h3>
+            {npc.gifts.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">Ninguno.</p>
+            ) : (
+              <ul className="flex flex-wrap gap-1.5">
+                {npc.gifts.map((gid) => (
+                  <li key={gid} data-testid={`card-gift-${gid}`}>
+                    <Badge className="bg-orange-100 text-orange-700 text-[10px] font-semibold">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      {GIFTS[gid as GiftId]?.name ?? gid}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section data-testid="card-lineage">
+            <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1.5">
+              Linaje
+            </h3>
+            {parents.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">
+                De la generación fundacional — sin padres conocidos.
+              </p>
+            ) : (
+              <p className="text-xs text-slate-700">
+                Hijo/a de{' '}
+                <span className="font-semibold">
+                  {parents.map((p) => p.name).join(' y ')}
+                </span>
+                .
+              </p>
+            )}
+          </section>
+
+          <section data-testid="card-social">
+            <h3 className="text-[10px] uppercase tracking-widest text-slate-400 font-bold mb-1.5">
+              Vínculos
+            </h3>
+            <p className="text-xs text-slate-700">
+              {leader ? (
+                <>Sigue a <span className="font-semibold">{leader.name}</span>.</>
+              ) : followers.length > 0 ? (
+                <>
+                  Lidera a{' '}
+                  <span className="font-semibold">{followers.length}</span>{' '}
+                  seguidor{followers.length === 1 ? '' : 'es'}.
+                </>
+              ) : (
+                <span className="text-slate-400 italic">Camina en solitario.</span>
+              )}
+            </p>
+          </section>
+        </div>
       </motion.div>
     </motion.div>
   );
@@ -740,5 +883,27 @@ function anointRejectionMessage(
       return 'No puedes ungir fuera de tu pueblo.';
     case 'already_chosen':
       return 'Ya es uno de tus Elegidos.';
+  }
+}
+
+function giftRejectionMessage(
+  reason:
+    | 'unknown_npc'
+    | 'unknown_gift'
+    | 'dead_npc'
+    | 'not_chosen'
+    | 'already_has_gift',
+): string {
+  switch (reason) {
+    case 'unknown_npc':
+      return 'Ese mortal no existe en esta realidad.';
+    case 'unknown_gift':
+      return 'Ese don no existe.';
+    case 'dead_npc':
+      return 'Los muertos no reciben dones.';
+    case 'not_chosen':
+      return 'Solo los Elegidos pueden recibir dones.';
+    case 'already_has_gift':
+      return 'Ese don ya ha sido concedido.';
   }
 }

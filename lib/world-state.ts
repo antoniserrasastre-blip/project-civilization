@@ -57,6 +57,12 @@ export interface NPC {
    * entonces b.partner_id = a.id. Si uno de los dos muere, el otro vuelve a null.
    */
   partner_id: string | null;
+  /**
+   * Id del líder al que este NPC sigue. `null` si no es seguidor. El bono
+   * del liderazgo (Pillar 1) se evalúa en función de los traits del líder,
+   * no de los del seguidor. Al morir el líder, el seguidor vuelve a null.
+   */
+  follower_of: string | null;
 }
 
 export interface Group {
@@ -197,6 +203,7 @@ function generateNpc(
       parents: [],
       alive: true,
       partner_id: null,
+      follower_of: null,
     },
     next: s,
   };
@@ -342,6 +349,7 @@ export function generateNewborn(
       parents: [parentA.id, parentB.id],
       alive: true,
       partner_id: null,
+      follower_of: null,
     },
     next: s,
   };

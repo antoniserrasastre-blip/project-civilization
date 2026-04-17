@@ -33,6 +33,7 @@ import {
   narrateConflict,
   narrateDeath,
 } from './chronicle';
+import { applyGifts } from './gifts';
 
 // ---------------------------------------------------------------------------
 // Constantes tunables — valores de arranque. Se ajustarán en Sprint 7.
@@ -60,6 +61,19 @@ const CONFLICT_BASE_PROB_PER_TICK = 0.0015;
 /** Umbral de ambición para iniciar conflicto. */
 const AMBICION_CONFLICT_THRESHOLD = 60;
 
+/** Follower attraction — Sprint 3. */
+const FOLLOWER_PROX_RADIUS = 8;
+/** El líder requiere carisma ≥ 80 + ambición ≥ 50. Aura de Carisma sube el carisma a ~150. */
+const LEADER_CARISMA_THRESHOLD = 80;
+const LEADER_AMBICION_THRESHOLD = 50;
+/** El potencial seguidor necesita ambicion ≤ 40 (§A2: los tímidos siguen). */
+const FOLLOWER_AMBICION_THRESHOLD = 40;
+/** Probabilidad base por tick para que un candidato entre en órbita de un líder. */
+const FOLLOWER_PROB_PER_TICK = 0.01;
+
+/** Probabilidad de heredar cada don del padre/madre en el nacimiento. */
+const GIFT_INHERITANCE_PROB = 0.5;
+
 // ---------------------------------------------------------------------------
 // Tipos públicos
 // ---------------------------------------------------------------------------
@@ -73,7 +87,8 @@ export type LifecycleEvent =
       reason: string;
     }
   | { type: 'pairing'; a_id: string; b_id: string }
-  | { type: 'birth'; newborn: NPC };
+  | { type: 'birth'; newborn: NPC }
+  | { type: 'follower_formed'; follower_id: string; leader_id: string };
 
 export interface ScheduleResult {
   events: LifecycleEvent[];
@@ -212,7 +227,7 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     pairedThisTick.add(partner.id);
   }
 
-  // Pase 4 — nacimientos
+  // Pase 4 — nacimientos (con herencia de dones)
   for (const npc of state.npcs) {
     if (!isAlive(npc)) continue;
     if (!npc.partner_id) continue;
@@ -231,14 +246,58 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     if (roll.value >= BIRTH_PROB_PER_TICK) continue;
 
     const id = npcIdString(nextId++);
-    const { npc: newborn, next: nextPrng } = generateNewborn(
+    const { npc: babyBase, next: nextPrng } = generateNewborn(
       prng,
       id,
       npc,
       partner,
     );
     prng = nextPrng;
+
+    // Herencia de dones — cada don único presente en algún padre se tira
+    // con probabilidad GIFT_INHERITANCE_PROB. Los dones son acumulativos
+    // en el efecto pero no dobles: `applyGifts` bakea stats/traits y evita
+    // duplicar ids.
+    const candidateGifts = Array.from(
+      new Set([...npc.gifts, ...partner.gifts]),
+    );
+    const inherited: string[] = [];
+    for (const g of candidateGifts) {
+      const r = next(prng);
+      prng = r.next;
+      if (r.value < GIFT_INHERITANCE_PROB) inherited.push(g);
+    }
+    const newborn = inherited.length > 0 ? applyGifts(babyBase, inherited) : babyBase;
     events.push({ type: 'birth', newborn });
+  }
+
+  // Pase 5 — atracción por aura de carisma (§A2 — Pillar 1)
+  for (const npc of state.npcs) {
+    if (!isAlive(npc)) continue;
+    if (npc.follower_of) continue; // ya sigue a alguien
+    if (npc.traits.ambicion > FOLLOWER_AMBICION_THRESHOLD) continue;
+    const y = npc.age_days / 365;
+    if (y < ADULT_MIN_AGE_YEARS) continue;
+
+    const roll = next(prng);
+    prng = roll.next;
+    if (roll.value >= FOLLOWER_PROB_PER_TICK) continue;
+
+    const radSq = FOLLOWER_PROX_RADIUS * FOLLOWER_PROX_RADIUS;
+    const leaders = state.npcs.filter((o) => {
+      if (o.id === npc.id) return false;
+      if (!isAlive(o)) return false;
+      if (o.group_id !== npc.group_id) return false;
+      if (o.traits.carisma < LEADER_CARISMA_THRESHOLD) return false;
+      if (o.traits.ambicion < LEADER_AMBICION_THRESHOLD) return false;
+      return distSq(o.position, npc.position) <= radSq;
+    });
+    if (leaders.length === 0) continue;
+
+    const pick = nextChoice(prng, leaders);
+    prng = pick.next;
+    const leader = pick.value;
+    events.push({ type: 'follower_formed', follower_id: npc.id, leader_id: leader.id });
   }
 
   return { events, prng_cursor: prng.cursor };
@@ -286,6 +345,13 @@ export function applyEvents(
           return n;
         }),
       };
+    } else if (ev.type === 'follower_formed') {
+      out = {
+        ...out,
+        npcs: out.npcs.map((n) =>
+          n.id === ev.follower_id ? { ...n, follower_of: ev.leader_id } : n,
+        ),
+      };
     } else if (ev.type === 'birth') {
       out = {
         ...out,
@@ -306,9 +372,17 @@ function applyDeath(state: WorldState, victim_id: string): WorldState {
   return {
     ...state,
     npcs: state.npcs.map((n) => {
-      if (n.id === victim_id) return { ...n, alive: false, partner_id: null };
-      if (n.partner_id === victim_id) return { ...n, partner_id: null };
-      return n;
+      if (n.id === victim_id) {
+        return { ...n, alive: false, partner_id: null, follower_of: null };
+      }
+      let updated = n;
+      if (updated.partner_id === victim_id) {
+        updated = { ...updated, partner_id: null };
+      }
+      if (updated.follower_of === victim_id) {
+        updated = { ...updated, follower_of: null };
+      }
+      return updated;
     }),
   };
 }
