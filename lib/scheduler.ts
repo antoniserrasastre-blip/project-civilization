@@ -57,9 +57,10 @@ const FERTILE_MAX_AGE_YEARS = 45;
 const PAIR_PROX_RADIUS = 8;
 const CONFLICT_PROX_RADIUS = 6;
 
-/** Probabilidades base por tick (día). */
+/** Probabilidades base por tick (día). Ajustadas en Sprint 7 para que la
+ *  población no explote a 10k ticks (pre-Sprint 7 saturaba ≥599). */
 const PAIRING_PROB_PER_TICK = 0.004;
-const BIRTH_PROB_PER_TICK = 0.003;
+const BIRTH_PROB_PER_TICK = 0.0015;
 const CONFLICT_BASE_PROB_PER_TICK = 0.0015;
 
 /** Umbral de ambición para iniciar conflicto. */

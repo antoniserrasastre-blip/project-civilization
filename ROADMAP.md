@@ -54,12 +54,12 @@ pergamino, líneas de costa a tinta). Retratos de NPCs (aunque sean
 siluetas SVG). Panel de crónica actualizado en vivo. Exportar crónica a
 texto.
 
-### Sprint 7 — Balance + Playtest Hardening
+### Sprint 7 — Balance + Playtest Hardening ✅ done
 Jugar de verdad a la cosa. Afinar costes de Fe. Verificar **Pillar 1**
 (mismo don, NPC distinto = resultado distinto). Verificar **Pillar 2**
 (el mundo cambia en 1 hora sin tocar nada). Arreglar lo que se rompa.
 
-→ **v0.1 MVP shipped.**
+→ **v0.1 MVP shipped.** ✅
 
 ---
 
