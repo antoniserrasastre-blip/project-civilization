@@ -38,6 +38,7 @@ import {
   TUTORIAL_END_DAY,
   TUTORIAL_FORCED_EVENT_DAY,
 } from './tutorial';
+import { nextEra, pendingTechs, shouldAdvanceEra, TECH_POOLS } from './tech';
 
 // ---------------------------------------------------------------------------
 // Constantes tunables — valores de arranque. Se ajustarán en Sprint 7.
@@ -90,6 +91,11 @@ const FAITH_PER_ENEMY_FALLEN = 10;
 /** Fe extra por descendencia nacida de al menos un padre sagrado. */
 const FAITH_PER_HOLY_BIRTH = 5;
 
+/** Probabilidad base por tick de descubrir UNA tecnología pendiente. */
+const TECH_DISCOVERY_BASE_PROB = 0.0008;
+/** Bonus por inteligencia media del pueblo vivo (0..1). */
+const TECH_DISCOVERY_INTEL_WEIGHT = 0.002;
+
 // ---------------------------------------------------------------------------
 // Tipos públicos
 // ---------------------------------------------------------------------------
@@ -110,7 +116,9 @@ export type LifecycleEvent =
       amount: number;
       reason: 'rezar' | 'enemigo_caido' | 'descendencia';
     }
-  | { type: 'tutorial_end' };
+  | { type: 'tutorial_end' }
+  | { type: 'tech_discovered'; tech_id: string }
+  | { type: 'era_transition'; from: string; to: string };
 
 export interface ScheduleResult {
   events: LifecycleEvent[];
@@ -401,6 +409,50 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     events.push({ type: 'faith_gained', amount: passive, reason: 'rezar' });
   }
 
+  // Pase 7 — descubrimiento tecnológico. Probabilidad proporcional a
+  // inteligencia media del pueblo vivo. Solo si hay pool pendiente.
+  const pending = pendingTechs(state);
+  if (pending.length > 0) {
+    let intelSum = 0;
+    let aliveCount = 0;
+    for (const npc of state.npcs) {
+      if (!isAlive(npc)) continue;
+      intelSum += npc.stats.inteligencia;
+      aliveCount++;
+    }
+    if (aliveCount > 0) {
+      const avgIntel = intelSum / aliveCount; // ~50
+      const p =
+        TECH_DISCOVERY_BASE_PROB +
+        (avgIntel / 100) * TECH_DISCOVERY_INTEL_WEIGHT;
+      const roll = next(prng);
+      prng = roll.next;
+      if (roll.value < p) {
+        const pick = nextChoice(prng, pending);
+        prng = pick.next;
+        events.push({ type: 'tech_discovered', tech_id: pick.value.id });
+      }
+    }
+  }
+
+  // Pase 8 — transición de era (§A4 escalabilidad). Requiere que el pool
+  // de la era actual quede completo — anticipamos que el event de tech
+  // recién emitido también cuenta porque aplicaremos todos juntos.
+  const projectedTechs = new Set(state.technologies);
+  for (const ev of events) {
+    if (ev.type === 'tech_discovered') projectedTechs.add(ev.tech_id);
+  }
+  const projectedState: WorldState = {
+    ...state,
+    technologies: Array.from(projectedTechs),
+  };
+  if (shouldAdvanceEra(projectedState)) {
+    const to = nextEra(state.era);
+    if (to && TECH_POOLS[to].length > 0) {
+      events.push({ type: 'era_transition', from: state.era, to });
+    }
+  }
+
   return { events, prng_cursor: prng.cursor };
 }
 
@@ -463,6 +515,22 @@ export function applyEvents(
       };
     } else if (ev.type === 'tutorial_end') {
       if (out.tutorial_active) out = { ...out, tutorial_active: false };
+    } else if (ev.type === 'tech_discovered') {
+      if (!out.technologies.includes(ev.tech_id)) {
+        out = { ...out, technologies: [...out.technologies, ev.tech_id] };
+        const def = TECH_POOLS[out.era].find((t) => t.id === ev.tech_id);
+        const label = def?.name ?? ev.tech_id;
+        out = appendChronicle(out, {
+          day: out.day,
+          text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. Los nuestros han descubierto ${label}.`,
+        });
+      }
+    } else if (ev.type === 'era_transition') {
+      out = { ...out, era: ev.to as WorldState['era'] };
+      out = appendChronicle(out, {
+        day: out.day,
+        text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. Una era nueva llega: cae la era ${ev.from} y asciende la era ${ev.to}.`,
+      });
     } else if (ev.type === 'birth') {
       out = {
         ...out,

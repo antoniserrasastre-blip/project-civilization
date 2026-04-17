@@ -13,7 +13,7 @@
  * `anoint`, `narrate*`. Si algo de gameplay vive aquí, está mal colocado.
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Card,
@@ -59,6 +59,7 @@ import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
 import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
 import { exportChronicle, exportFilename } from '@/lib/export';
+import { TECH_POOLS, pendingTechs } from '@/lib/tech';
 import {
   GIFTS,
   type GiftId,
@@ -103,6 +104,8 @@ export default function GodgameDashboard() {
   /** Se abre solo cuando el jugador pulsa un círculo en el mapa. */
   const [cardOpen, setCardOpen] = useState(false);
   const [verdictOpen, setVerdictOpen] = useState(false);
+  /** Era anterior: guardada para detectar transición y mostrar cinemática. */
+  const [eraCinematic, setEraCinematic] = useState<null | { from: string; to: string }>(null);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -267,6 +270,20 @@ export default function GodgameDashboard() {
     : null;
   const verdictRows = useMemo(() => topByInfluence(state, 3), [state]);
   const lineageWins = useMemo(() => lineageInTop3(state), [state]);
+  const techList = useMemo(
+    () => state.technologies.map((id) => ({ id, name: techLabel(id) })),
+    [state.technologies],
+  );
+  const techPending = useMemo(() => pendingTechs(state).length, [state]);
+
+  // Detección de transición de era — mostrar cinemática.
+  const previousEraRef = useRef<string>(state.era);
+  useEffect(() => {
+    if (state.era !== previousEraRef.current) {
+      setEraCinematic({ from: previousEraRef.current, to: state.era });
+      previousEraRef.current = state.era;
+    }
+  }, [state.era]);
 
   // Auto-dismiss del toast.
   useEffect(() => {
@@ -370,6 +387,7 @@ export default function GodgameDashboard() {
             faithPoints={state.player_god.faith_points}
             giftsGranted={state.player_god.gifts_granted}
           />
+          <TechPanel era={state.era} tech={techList} pendingCount={techPending} />
           <Button
             type="button"
             variant="outline"
@@ -395,6 +413,16 @@ export default function GodgameDashboard() {
             isChosen={chosenOnes.includes(selectedNpc.id)}
             allNpcs={state.npcs}
             onClose={() => setCardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {eraCinematic && (
+          <EraCinematicModal
+            from={eraCinematic.from}
+            to={eraCinematic.to}
+            onClose={() => setEraCinematic(null)}
           />
         )}
       </AnimatePresence>
@@ -1028,6 +1056,95 @@ function phaseLabel(phase: TutorialPhase, highlightName: string | null): string 
     case 'done':
       return null;
   }
+}
+
+function TechPanel(props: {
+  era: string;
+  tech: Array<{ id: string; name: string }>;
+  pendingCount: number;
+}) {
+  return (
+    <Card className="border-slate-200 bg-white" data-testid="tech-panel">
+      <CardHeader className="p-4 border-b border-slate-50">
+        <CardTitle className="tracking-tight text-base">Tecnología</CardTitle>
+        <CardDescription className="text-[11px]">
+          Era actual: <span className="font-semibold uppercase">{props.era}</span>
+          {' · '}
+          <span data-testid="tech-pending">
+            {props.pendingCount} pendientes
+          </span>
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4">
+        {props.tech.length === 0 ? (
+          <p className="text-xs text-slate-400 italic">
+            Los tuyos aún tropiezan en la oscuridad.
+          </p>
+        ) : (
+          <ul
+            className="flex flex-wrap gap-1.5"
+            data-testid="tech-known-list"
+          >
+            {props.tech.map((t) => (
+              <li key={t.id} data-testid={`tech-known-${t.id}`}>
+                <Badge variant="outline" className="text-[10px]">
+                  {t.name}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function EraCinematicModal(props: {
+  from: string;
+  to: string;
+  onClose: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-950/75 flex items-center justify-center p-8"
+      data-testid="era-cinematic"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="max-w-md bg-[#f5ecd2] border border-amber-900/30 rounded-2xl shadow-2xl p-8 text-center space-y-4"
+      >
+        <p className="text-[10px] uppercase tracking-widest text-amber-800 font-bold">
+          Fin de era
+        </p>
+        <h2 className="text-2xl font-bold tracking-tight text-amber-900">
+          La era {props.from} cae.
+        </h2>
+        <p className="text-sm text-amber-700">
+          Llega la era <strong className="uppercase">{props.to}</strong>. Los
+          tuyos ya no son lo que eran.
+        </p>
+        <Button
+          onClick={props.onClose}
+          data-testid="era-cinematic-close"
+          className="bg-amber-900 hover:bg-amber-950 text-amber-50"
+        >
+          Seguir observando
+        </Button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function techLabel(id: string): string {
+  for (const pool of Object.values(TECH_POOLS)) {
+    const def = pool.find((t) => t.id === id);
+    if (def) return def.name;
+  }
+  return id;
 }
 
 function FaithPanel(props: { faithPoints: number; giftsGranted: number }) {

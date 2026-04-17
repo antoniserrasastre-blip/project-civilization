@@ -126,6 +126,13 @@ export interface WorldState {
    * supere `npc_9999` el padding se ensancha (mientras tanto trivial-correcto).
    */
   next_npc_id: number;
+  /**
+   * Tecnologías descubiertas hasta ahora. En tribal arranca con ['fuego'].
+   * Las siguientes se obtienen mediante el pase de descubrimiento del
+   * scheduler (probabilidad proporcional a población viva + intelig.).
+   * El pool de cada era está definido en `lib/tech.ts`.
+   */
+  technologies: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +309,7 @@ export function initialState(
     npcs,
     chronicle: [],
     next_npc_id: npcs.length,
+    technologies: ['fuego'],
   };
 }
 

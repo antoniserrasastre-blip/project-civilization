@@ -65,7 +65,7 @@ Jugar de verdad a la cosa. Afinar costes de Fe. Verificar **Pillar 1**
 
 ## v0.2 — Second Era
 
-### Sprint 8 — Second Era
+### Sprint 8 — Second Era ✅ done
 Lógica de transición Tribal → Bronce. Sistema de tecnología/descubrimiento
 (fuego ya está; añadir herramientas, escritura). Cinemáticas de fin de
 era. Esto valida que la arquitectura escala entre eras.
