@@ -11,26 +11,42 @@ sprint desbloquea los siguientes.
 ### Sprint 1 — Foundation ✅ done
 Núcleo puro, PRNG, ungimiento, plantillas de crónica, persistencia, tests.
 
-### Sprint 2 — NPC Lifecycle + Basic Procedural Map
+### Sprint 2 — NPC Lifecycle + Basic Procedural Map + Scheduler
 Muerte, nacimiento, emparejamiento, conflicto básico. Costa procedural
 semillada (sine-wave layered, determinista). NPCs renderizados como
 círculos de color sobre canvas. Click → character card overlay (solo
-texto). **Pillar 2** pasa a ser testeable.
+texto). Nuevo módulo `lib/scheduler.ts` que emite los eventos de
+lifecycle/conflicto consumiendo el mismo PRNG que el `tick` (prepara
+el terreno para los eventos forzados de onboarding en S5a). Controles
+de velocidad canónicos **[0, 1×, 10×, 100×]** (ya alineados al código
+actual). **Pillar 2** pasa a ser testeable.
 
 ### Sprint 3 — Gifts with Real Mechanics
 Fuerza Sobrehumana, Aura de Carisma, mecánica `follower_of`, herencia de
-dones. La character card crece para mostrar linaje + dones. **Pillar 1**
-pasa a ser testeable.
+dones. La character card crece para mostrar linaje + dones. El efecto
+"empuja al heroísmo físico si es Ambicioso, a la irrelevancia si es
+tímido" (§A2) se implementa **mecánicamente** vía selección de
+comportamiento gatillada por traits en el tick — el stat queda sin
+usar si los traits relevantes son bajos. Sin sistema de archetypes:
+sólo weighting por traits existentes. **Pillar 1** pasa a ser testeable.
 
 ### Sprint 4 — Faith Economy
 Tres verbos (descendencia, enemigo caído, rezar). Herencia de Fe. Coste
 de dones (el primero gratis, luego 30 Fe). Panel lateral de Fe. **Pillar
 3** pasa a ser testeable.
 
-### Sprint 5 — Onboarding + Victory Condition
-Intro coreografiada de 90 segundos (§A1). Métrica de influencia (§A4).
-UI de veredicto de fin de era. Controles de velocidad según visión
-(0/1/10/100). **Pillars 4 & 5** shipean.
+### Sprint 5a — Onboarding coreografiado
+Intro de 90 segundos (§A1): cinemática 0-10s, señalamiento del NPC más
+Ambicioso con halo dorado 10-30s, evento dramático forzado 30-60s
+(reutiliza el scheduler de S2), acto notable del señalado 60-90s, fin
+del tutorial. Flag `tutorial_active` en estado. Todos los eventos
+forzados consumen el PRNG compartido — replay determinista.
+
+### Sprint 5b — Victoria por era
+Métrica de influencia (§A4): `influence = Fuerza + Carisma + 10 ×
+seguidores + 5 × descendientes_vivos`. UI de veredicto al final de la
+era: *¿reina tu linaje?* (top-3 contiene a Elegido o descendiente
+directo). **Pillars 4 & 5** shipean.
 
 ### Sprint 6 — Visual Polish Pass
 Estética hand-drawn en el mapa (símbolos de montaña/bosque, textura de
@@ -68,7 +84,9 @@ regla anti-presión de **Pillar 4**).
 
 ### Sprint 11
 Mecánicas cross-grupo (intermatrimonio, deriva dinástica, maldiciones
-con costes por niveles).
+con costes por niveles). Las recomendaciones provisionales de §13 de
+la visión son el punto de partida, **no el diseño final**: se re-abren
+al empezar S9 con datos reales de playtest del loop single-god.
 
 ---
 

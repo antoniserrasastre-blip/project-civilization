@@ -147,11 +147,13 @@ lib/             Núcleo puro — cumple §A4. No toca DOM, localStorage, ni LLM
   chronicle.ts   Plantillas partisanas. En v0.4 pasa a LLM.
   persistence.ts localStorage round-trip. Cuando cambie el shape, bump
                  STORAGE_KEY a .v2 para invalidar saves antiguos.
-  pixel-parser.ts Clasificación RGB → bioma.
+  scheduler.ts   (Sprint 2) Eventos forzados del onboarding §A1 y del
+                 tick. Consume el mismo PRNG que `simulation.ts`.
 app/page.tsx     Dashboard del jugador. Sin lógica de dominio —
                  sólo orquesta lib/* y React state.
 components/ui/   shadcn primitives. No añadir lógica aquí.
-components/*     Componentes de features (map-generator, futuros).
+components/*     Componentes de features. Vacío tras archivar
+                 `map-generator` (fuera de scope §11).
 tests/unit/      Un fichero por módulo de lib/.
 tests/integration/  Flujos multi-módulo.
 tests/e2e/       Playwright. Un spec por flujo de usuario.
