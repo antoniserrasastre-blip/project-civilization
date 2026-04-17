@@ -109,6 +109,12 @@ export interface WorldState {
   day: number;
   era: Era;
   tutorial_active: boolean;
+  /**
+   * Id del NPC señalado por el onboarding coreografiado (§A1, Sprint 5a).
+   * Fijado en `initialState` al NPC con mayor ambición. Desempate por id
+   * más bajo — determinista. `null` si la partida arranca sin tutorial.
+   */
+  tutorial_highlight_id: string | null;
   player_god: PlayerGod;
   rival_gods: RivalGod[];
   groups: Group[];
@@ -267,12 +273,24 @@ export function initialState(
     prng = n;
   }
 
+  // Señalamiento del NPC más ambicioso (§A1). Desempate por id menor
+  // para total determinismo. Si el tutorial está apagado, dejamos null.
+  let highlight: NPC | null = null;
+  if (tutorial) {
+    for (const n of npcs) {
+      if (!highlight || n.traits.ambicion > highlight.traits.ambicion) {
+        highlight = n;
+      }
+    }
+  }
+
   return {
     seed,
     prng_cursor: prng.cursor,
     day: 0,
     era: 'tribal',
     tutorial_active: tutorial,
+    tutorial_highlight_id: highlight?.id ?? null,
     player_god: {
       group_id: DEFAULT_GROUP.id,
       faith_points: 0, // el primer Elegido es gratis (§A1)

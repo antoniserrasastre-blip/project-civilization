@@ -35,7 +35,7 @@ Tres verbos (descendencia, enemigo caído, rezar). Herencia de Fe. Coste
 de dones (el primero gratis, luego 30 Fe). Panel lateral de Fe. **Pillar
 3** pasa a ser testeable.
 
-### Sprint 5a — Onboarding coreografiado
+### Sprint 5a — Onboarding coreografiado ✅ done
 Intro de 90 segundos (§A1): cinemática 0-10s, señalamiento del NPC más
 Ambicioso con halo dorado 10-30s, evento dramático forzado 30-60s
 (reutiliza el scheduler de S2), acto notable del señalado 60-90s, fin

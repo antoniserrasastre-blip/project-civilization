@@ -23,6 +23,11 @@ interface MapViewProps {
   selectedId: string | null;
   chosenOnes: string[];
   mapSize: number;
+  /**
+   * Id del NPC señalado por el tutorial. Recibe halo dorado pulsante sobre
+   * su círculo — solo se renderiza si no es null (tutorial activo).
+   */
+  highlightId?: string | null;
   onSelect: (id: string) => void;
 }
 
@@ -35,6 +40,9 @@ function npcColor(npc: NPC, chosenOnes: string[]): string {
 
 export function MapView(props: MapViewProps) {
   const { coast, npcs, selectedId, chosenOnes, mapSize, onSelect } = props;
+  const highlightId = props.highlightId ?? null;
+  const highlightNpc =
+    highlightId ? npcs.find((n) => n.id === highlightId) ?? null : null;
   const polygonPoints = coast.points
     .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
     .join(' ');
@@ -78,6 +86,33 @@ export function MapView(props: MapViewProps) {
           stroke="#475569"
           strokeWidth="0.5"
         />
+        {/* Halo dorado del señalado por el tutorial */}
+        {highlightNpc && highlightNpc.alive && (
+          <g data-testid="tutorial-halo">
+            <circle
+              cx={highlightNpc.position.x}
+              cy={highlightNpc.position.y}
+              r={3}
+              fill="none"
+              stroke="#fbbf24"
+              strokeWidth={0.6}
+              opacity={0.85}
+            >
+              <animate
+                attributeName="r"
+                values="2.5;4;2.5"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+              <animate
+                attributeName="opacity"
+                values="0.4;1;0.4"
+                dur="2s"
+                repeatCount="indefinite"
+              />
+            </circle>
+          </g>
+        )}
         {/* NPCs */}
         {npcs.map((npc) => {
           const isSelected = selectedId === npc.id;

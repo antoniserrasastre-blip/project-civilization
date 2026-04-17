@@ -56,6 +56,7 @@ import {
 } from '@/lib/persistence';
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
+import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
 import {
   GIFTS,
   type GiftId,
@@ -202,6 +203,16 @@ export default function GodgameDashboard() {
     setToast('Mundo reiniciado.');
   }, []);
 
+  const handleSkipTutorial = useCallback(() => {
+    setState((current) => {
+      const next = endTutorial(current);
+      if (next === current) return current;
+      saveSnapshot(next);
+      return next;
+    });
+    setToast('Has saltado el tutorial.');
+  }, []);
+
   const handleSpeed = useCallback((delta: 1 | -1) => {
     setSpeed((s) => {
       const idx = SPEEDS.indexOf(s);
@@ -226,6 +237,10 @@ export default function GodgameDashboard() {
     [state.chronicle],
   );
   const coast = useMemo(() => generateCoast(state.seed, MAP_SIZE), [state.seed]);
+  const phase = useMemo<TutorialPhase>(() => tutorialPhase(state), [state]);
+  const tutorialHighlight = state.tutorial_active
+    ? state.tutorial_highlight_id
+    : null;
 
   // Auto-dismiss del toast.
   useEffect(() => {
@@ -283,11 +298,21 @@ export default function GodgameDashboard() {
             selectedId={selectedNpcId}
             chosenOnes={chosenOnes}
             mapSize={MAP_SIZE}
+            highlightId={tutorialHighlight}
             onSelect={(id) => {
               setSelectedNpcId(id);
               setCardOpen(true);
             }}
           />
+          {state.tutorial_active && phase !== 'intro' && (
+            <TutorialBanner
+              phase={phase}
+              highlightName={
+                state.npcs.find((n) => n.id === state.tutorial_highlight_id)?.name ?? null
+              }
+              onSkip={handleSkipTutorial}
+            />
+          )}
 
           <Roster
             npcs={state.npcs}
@@ -330,6 +355,20 @@ export default function GodgameDashboard() {
             isChosen={chosenOnes.includes(selectedNpc.id)}
             allNpcs={state.npcs}
             onClose={() => setCardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {state.tutorial_active && phase === 'intro' && (
+          <TutorialIntroOverlay
+            highlightName={
+              state.npcs.find((n) => n.id === state.tutorial_highlight_id)?.name ?? null
+            }
+            onStart={() => {
+              setState((current) => ({ ...current, day: Math.max(current.day, 2) }));
+            }}
+            onSkip={handleSkipTutorial}
           />
         )}
       </AnimatePresence>
@@ -719,6 +758,110 @@ function EmptyIntervention() {
       </div>
     </div>
   );
+}
+
+function TutorialIntroOverlay(props: {
+  highlightName: string | null;
+  onStart: () => void;
+  onSkip: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-8"
+      data-testid="tutorial-intro"
+    >
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="max-w-lg bg-white rounded-2xl shadow-2xl p-8 space-y-4"
+      >
+        <h2 className="text-xl font-bold tracking-tight">
+          Bienvenido, dios observador.
+        </h2>
+        <p className="text-sm text-slate-600 leading-relaxed">
+          Estás mirando a los <strong>Hijos de Tramuntana</strong>. Son
+          mortales. Nacerán, amarán, lucharán y morirán sin tu ayuda.
+          Tu presencia no es obligatoria — pero puede cambiarlo todo.
+        </p>
+        {props.highlightName && (
+          <p className="text-sm text-slate-600 leading-relaxed">
+            Hay uno entre ellos que arde más que los demás:{' '}
+            <strong data-testid="tutorial-highlight-name">
+              {props.highlightName}
+            </strong>
+            . Te lo señalaré con un halo dorado. Vigílalo.
+          </p>
+        )}
+        <div className="flex items-center justify-between gap-3 pt-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={props.onSkip}
+            data-testid="tutorial-skip"
+            className="text-xs text-slate-500"
+          >
+            Saltar tutorial
+          </Button>
+          <Button
+            onClick={props.onStart}
+            data-testid="tutorial-start"
+            className="bg-orange-600 hover:bg-orange-700 text-white"
+          >
+            Comenzar
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function TutorialBanner(props: {
+  phase: TutorialPhase;
+  highlightName: string | null;
+  onSkip: () => void;
+}) {
+  const label = phaseLabel(props.phase, props.highlightName);
+  if (!label) return null;
+  return (
+    <div
+      className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2"
+      data-testid="tutorial-banner"
+    >
+      <p className="text-xs text-amber-900" data-testid="tutorial-phase-text">
+        <span className="font-bold uppercase tracking-wider mr-2">
+          Tutorial · {props.phase}
+        </span>
+        {label}
+      </p>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={props.onSkip}
+        data-testid="tutorial-skip"
+        className="text-[11px] text-amber-700"
+      >
+        Saltar
+      </Button>
+    </div>
+  );
+}
+
+function phaseLabel(phase: TutorialPhase, highlightName: string | null): string | null {
+  switch (phase) {
+    case 'intro':
+      return null;
+    case 'halo':
+      return `Sigue a ${highlightName ?? 'el señalado'}, marcado con un halo dorado.`;
+    case 'forced_event':
+      return 'Algo va a ocurrir. Observa al señalado.';
+    case 'notable_act':
+      return 'El señalado dejó huella. Piensa si lo conviertes en tu Elegido.';
+    case 'done':
+      return null;
+  }
 }
 
 function FaithPanel(props: { faithPoints: number; giftsGranted: number }) {

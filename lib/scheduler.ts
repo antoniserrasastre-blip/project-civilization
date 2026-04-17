@@ -34,6 +34,10 @@ import {
   narrateDeath,
 } from './chronicle';
 import { applyGifts } from './gifts';
+import {
+  TUTORIAL_END_DAY,
+  TUTORIAL_FORCED_EVENT_DAY,
+} from './tutorial';
 
 // ---------------------------------------------------------------------------
 // Constantes tunables — valores de arranque. Se ajustarán en Sprint 7.
@@ -104,7 +108,8 @@ export type LifecycleEvent =
       type: 'faith_gained';
       amount: number;
       reason: 'rezar' | 'enemigo_caido' | 'descendencia';
-    };
+    }
+  | { type: 'tutorial_end' };
 
 export interface ScheduleResult {
   events: LifecycleEvent[];
@@ -158,6 +163,50 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
   const chosenSet = new Set(state.player_god.chosen_ones);
   const isHoly = (n: NPC): boolean =>
     chosenSet.has(n.id) || n.descends_from_chosen;
+
+  // Pase 0 — tutorial (§A1). Solo emite cuando tutorial_active es true
+  // y el día es exactamente el umbral correspondiente. Usa el mismo PRNG
+  // compartido — replay determinista respetado.
+  if (state.tutorial_active && state.tutorial_highlight_id) {
+    const highlight = state.npcs.find(
+      (n) => n.id === state.tutorial_highlight_id,
+    );
+    if (highlight && highlight.alive && state.day === TUTORIAL_FORCED_EVENT_DAY) {
+      // El señalado gana un acto dramático: si tiene a alguien cerca, le
+      // vence en conflicto. Si no, un bono simbólico de Fe.
+      const radSq = CONFLICT_PROX_RADIUS * 4 * (CONFLICT_PROX_RADIUS * 4);
+      const candidates = state.npcs.filter(
+        (o) =>
+          o.id !== highlight.id &&
+          o.alive &&
+          o.group_id === highlight.group_id &&
+          !chosenSet.has(o.id) &&
+          distSq(o.position, highlight.position) <= radSq,
+      );
+      if (candidates.length > 0) {
+        const pick = nextChoice(prng, candidates);
+        prng = pick.next;
+        events.push({
+          type: 'death_by_conflict',
+          killer_id: highlight.id,
+          victim_id: pick.value.id,
+          reason: 'un desafío del tutorial',
+        });
+        deadSet.add(pick.value.id);
+        if (isHoly(highlight)) {
+          events.push({
+            type: 'faith_gained',
+            amount: FAITH_PER_ENEMY_FALLEN,
+            reason: 'enemigo_caido',
+          });
+        }
+      }
+    }
+    // Fin del tutorial: tras llegar a TUTORIAL_END_DAY.
+    if (state.day >= TUTORIAL_END_DAY) {
+      events.push({ type: 'tutorial_end' });
+    }
+  }
 
   // Pase 1 — muerte por edad
   for (const npc of state.npcs) {
@@ -411,6 +460,8 @@ export function applyEvents(
           faith_points: out.player_god.faith_points + ev.amount,
         },
       };
+    } else if (ev.type === 'tutorial_end') {
+      if (out.tutorial_active) out = { ...out, tutorial_active: false };
     } else if (ev.type === 'birth') {
       out = {
         ...out,
