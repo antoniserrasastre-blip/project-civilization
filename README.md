@@ -43,12 +43,11 @@ lib/
   anoint.ts          canAnoint + anoint (filtro "solo tu grupo")
   chronicle.ts       Plantillas partisanas del cronista
   persistence.ts     saveSnapshot/loadSnapshot sobre localStorage
-  pixel-parser.ts    Clasificador de biomas desde imagen
 app/page.tsx         Dashboard del jugador (roster + reloj + crónica)
 tests/
-  unit/              89 tests — contratos módulo por módulo
-  integration/       11 tests — flujos multi-módulo y runs de 10k ticks
-  e2e/               3 tests — ungir + persistencia tras reload
+  unit/              tests de contratos módulo por módulo
+  integration/       flujos multi-módulo + runs de 10k ticks
+  e2e/               ungir + persistencia tras reload
 ```
 
 ## Contrato del núcleo (§A4 del Vision Document)

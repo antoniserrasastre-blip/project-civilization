@@ -30,7 +30,6 @@ import {
   Users,
   History as HistoryIcon,
   Sparkles,
-  Map as MapIcon,
   Play,
   Pause,
   FastForward,
@@ -54,8 +53,6 @@ import {
   loadSnapshot,
   clearSnapshot,
 } from '@/lib/persistence';
-import MapGenerator from '@/components/map-generator';
-
 // ---------------------------------------------------------------------------
 // Constantes de cadencia
 // ---------------------------------------------------------------------------
@@ -67,10 +64,10 @@ const DEFAULT_SEED = 42;
 const CLOCK_MS = 200;
 
 /**
- * Ticks que cada velocidad consume por pulso del reloj. Con CLOCK_MS=200,
- * la velocidad 1 avanza 5 días/segundo; 100x avanza 500 días/segundo.
+ * Velocidades canónicas según visión §11: [pausa, 1×, 10×, 100×]. Con
+ * CLOCK_MS=200 eso equivale a [0, 5, 50, 500] días/segundo.
  */
-const SPEEDS = [0, 1, 5, 20, 100] as const;
+const SPEEDS = [0, 1, 10, 100] as const;
 type Speed = (typeof SPEEDS)[number];
 
 /** Cada cuántos ticks persistimos al localStorage. Compromiso entre coste y pérdida máxima. */
@@ -87,7 +84,6 @@ export default function GodgameDashboard() {
   const [hydrated, setHydrated] = useState(false);
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [speed, setSpeed] = useState<Speed>(1);
-  const [activeTab, setActiveTab] = useState<'world' | 'map'>('world');
   const [toast, setToast] = useState<string | null>(null);
 
   // Ref sincronizada con state, poblada en efecto (no en render, para
@@ -220,28 +216,9 @@ export default function GodgameDashboard() {
             >
               Proyecto Civilización
             </motion.h1>
-            <div className="flex flex-wrap items-center gap-4 text-slate-500 font-medium italic">
-              <p>Crónica de los {playerGroupName}</p>
-              <Separator orientation="vertical" className="h-4 hidden md:block" />
-              <div className="flex gap-2 bg-slate-200/50 p-1 rounded-lg">
-                <Button
-                  variant={activeTab === 'world' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('world')}
-                  className="text-[10px] h-7 uppercase tracking-widest font-bold"
-                >
-                  Mundo
-                </Button>
-                <Button
-                  variant={activeTab === 'map' ? 'secondary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setActiveTab('map')}
-                  className="text-[10px] h-7 uppercase tracking-widest font-bold flex items-center gap-1"
-                >
-                  <MapIcon className="w-3 h-3" /> Cartografía
-                </Button>
-              </div>
-            </div>
+            <p className="text-slate-500 font-medium italic">
+              Crónica de los {playerGroupName}
+            </p>
           </div>
 
           <HudStrip
@@ -263,45 +240,24 @@ export default function GodgameDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 space-y-8">
-          <AnimatePresence mode="wait">
-            {activeTab === 'world' ? (
-              <motion.div
-                key="world-view"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-6"
-              >
-                <Roster
-                  npcs={state.npcs}
-                  selectedId={selectedNpcId}
-                  chosenOnes={chosenOnes}
-                  onSelect={setSelectedNpcId}
-                />
+        <div className="lg:col-span-8 space-y-6">
+          <Roster
+            npcs={state.npcs}
+            selectedId={selectedNpcId}
+            chosenOnes={chosenOnes}
+            onSelect={setSelectedNpcId}
+          />
 
-                <AnimatePresence mode="wait">
-                  {selectedNpc ? (
-                    <InterventionPanel
-                      key={selectedNpc.id}
-                      npc={selectedNpc}
-                      isChosen={chosenOnes.includes(selectedNpc.id)}
-                      onAnoint={handleAnoint}
-                    />
-                  ) : (
-                    <EmptyIntervention />
-                  )}
-                </AnimatePresence>
-              </motion.div>
+          <AnimatePresence mode="wait">
+            {selectedNpc ? (
+              <InterventionPanel
+                key={selectedNpc.id}
+                npc={selectedNpc}
+                isChosen={chosenOnes.includes(selectedNpc.id)}
+                onAnoint={handleAnoint}
+              />
             ) : (
-              <motion.div
-                key="map-view"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <MapGenerator />
-              </motion.div>
+              <EmptyIntervention />
             )}
           </AnimatePresence>
         </div>

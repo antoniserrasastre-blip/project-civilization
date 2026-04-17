@@ -1,86 +1,73 @@
-# Tests — guía rápida (Ubuntu)
+# Tests
 
-Esta carpeta contiene la suite completa del proyecto: unit, integration y E2E. Nunca se llama a la API real de Gemini durante `pnpm test`; todos los tests de integración usan `vi.mock('@google/genai')` con fixtures deterministas.
+Suite del proyecto: unit + integration con Vitest, E2E con Playwright.
+El MVP v0.1 corre cliente-local sin LLMs ni APIs externas, así que todos
+los tests son offline y deterministas.
 
 ## Requisitos
 
-- **Node 18+** (`node --version`)
+- **Node 18+**
 - **pnpm** (`npm i -g pnpm` si no lo tienes)
-- **ImageMagick** solo si vas a regenerar las imágenes de prueba (`sudo apt install imagemagick`). Ver `tests/fixtures/images/README.md`.
 
 ## Instalación
 
-Desde la raíz del proyecto:
-
 ```bash
 pnpm install
-pnpm exec playwright install chromium
+pnpm exec playwright install chromium   # solo si vas a correr E2E
 ```
-
-El segundo comando descarga el navegador de Playwright solo si vas a correr E2E.
 
 ## Comandos
 
-| Comando | Qué hace | Presupuesto |
-|---------|----------|-------------|
-| `pnpm test` | Corre unit + integration en una pasada | < 5s |
-| `pnpm test:unit` | Solo `tests/unit/**` | < 2s |
-| `pnpm test:integration` | Solo `tests/integration/**` (Gemini mockeado) | < 5s |
-| `pnpm test:e2e` | Playwright contra el dev server local | < 30s |
-| `pnpm test:coverage` | Igual que `test` pero con reporte de cobertura V8 | ~10s |
+| Comando                   | Qué hace                                            | Presupuesto |
+|---------------------------|-----------------------------------------------------|-------------|
+| `pnpm test`               | unit + integration en una pasada                    | < 1s        |
+| `pnpm test:unit`          | solo `tests/unit/**`                                | < 1s        |
+| `pnpm test:integration`   | solo `tests/integration/**`                         | < 1s        |
+| `pnpm test:e2e`           | Playwright contra Next en `:3100`                   | < 30s       |
+| `pnpm test:coverage`      | igual que `test` con reporte V8 sobre `lib/`        | ~5s         |
+| `pnpm test:watch`         | watch mode                                          | —           |
 
-## Variables de entorno
-
-- `GEMINI_API_KEY` — **ignorada** durante `pnpm test` (el setup la borra para evitar fugas). Solo el canario la usa.
-- `RUN_GEMINI_CANARY=1` — activa `tests/integration/gemini-canary.test.ts`, que **sí** llama a la API real. Úsalo en un cron, no en CI normal.
-- `E2E_MOCK_GEMINI=1` — la config de Playwright lo setea automáticamente al levantar el dev server; no lo toques a mano.
-
-## Ejecutar solo un test concreto
+## Ejecutar tests concretos
 
 ```bash
-pnpm test -- pixel-parser
-pnpm test -- -t "stats no se mueven"
+pnpm test -- simulation
+pnpm test -- -t "determinismo"
 ```
 
 ## Debugging
 
 ```bash
-# Vitest con UI interactiva
-pnpm exec vitest --ui
-
-# Playwright en modo headed (ve el navegador)
-pnpm exec playwright test --headed
-
-# Playwright traza detallada de un fallo
-pnpm exec playwright show-report
+pnpm exec vitest --ui                  # Vitest con UI interactiva
+pnpm exec playwright test --headed     # E2E en modo headed
+pnpm exec playwright show-report       # traza detallada tras un fallo
 ```
 
 ## Estructura
 
 ```
 tests/
-├── setup.ts                       # Setup global (reloj congelado, limpieza de env)
+├── setup.ts                            # clearAllMocks, limpieza de env
 ├── unit/
-│   ├── pixel-parser.test.ts       # Capa 1: clasificación de píxeles
-│   └── state-invariants.test.ts   # Capa 2: invariantes + applyBlessing
+│   ├── prng.test.ts                    # determinismo + distribución
+│   ├── world-state.test.ts             # shape, group_id, rangos, round-trip JSON
+│   ├── simulation.test.ts              # tick() puro, performance < 2ms
+│   ├── anoint.test.ts                  # canAnoint + anoint
+│   ├── chronicle.test.ts               # voz partisana
+│   └── persistence.test.ts             # round-trip localStorage
 ├── integration/
-│   ├── gemini-action.test.ts      # Capa 3: runOracleTurn mockeado
-│   └── gemini-canary.test.ts      # Canario opt-in (API real)
-├── e2e/
-│   └── blessing-flow.spec.ts      # Capa 5: flujo completo con Playwright
-└── fixtures/
-    ├── game-states/               # Estados canónicos + rotos
-    ├── gemini-responses/          # Respuestas mockeadas
-    ├── images/                    # PNGs generados con ImageMagick (no en git)
-    └── test-image-generator.ts    # Buffers RGBA sintéticos
+│   ├── anoint-chronicle.test.ts        # flujo UI: canAnoint → anoint → chronicle
+│   ├── tick-persistence.test.ts        # save → load → tick idéntico a tick directo
+│   └── long-run.test.ts                # 10k ticks deterministas
+└── e2e/
+    └── anoint-flow.spec.ts             # ungir + reload persiste + reset
 ```
 
-## Capas del testing
+## Invariantes duros (§A4)
 
-Ver `TEST_SPEC.md` en la raíz del proyecto para la especificación completa. Resumen:
+Ningún cambio merguea si rompe:
 
-- **Capa 1 — pixel-parser:** puro, determinista.
-- **Capa 2 — invariantes de estado:** reglas que el juego NUNCA debe romper.
-- **Capa 3 — integración Gemini:** server action mockeado, cubre 8 failure modes.
-- **Capa 4 — fidelidad narrativa:** heurísticas sobre la `chronicle` (español, menciona NPCs).
-- **Capa 5 — E2E:** un único golden path + el botón disabled sin faith.
+1. **Determinismo** — misma semilla + mismos inputs ⇒ mismo output byte a byte.
+2. **Pureza** — `tick`, `anoint`, `appendChronicle`… no mutan su input.
+3. **Round-trip JSON** — `JSON.parse(JSON.stringify(state))` es igual al original.
+
+Si un test de determinismo flakea, es bug, no flake. Arreglar antes de seguir.
