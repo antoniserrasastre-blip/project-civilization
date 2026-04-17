@@ -32,15 +32,22 @@ describe('tick — semántica básica', () => {
     const s = initialState(42);
     const next = tick(s);
     expect(next.prng_cursor).toBeGreaterThan(s.prng_cursor);
-    // Cada NPC vivo consume 2 valores (dx, dy).
-    const expectedDelta = next.npcs.filter((n) => n.alive).length * 2;
-    expect(next.prng_cursor - s.prng_cursor).toBe(expectedDelta);
+    // Piso: cada NPC vivo consume al menos 2 tiradas (dx, dy). El scheduler
+    // consume más, así que es cota inferior.
+    const floor = next.npcs.filter((n) => n.alive).length * 2;
+    expect(next.prng_cursor - s.prng_cursor).toBeGreaterThanOrEqual(floor);
   });
 
-  it('conserva el número total de NPCs (no nacen ni mueren en v0.1)', () => {
+  it('no nacen ni mueren NPCs en un único tick desde el estado inicial joven', () => {
+    // Con edades 15-40 y probabilidades bajas, un solo tick NO dispara
+    // nacimientos ni muertes con seed=42. Esto asegura que el scheduler
+    // no está produciendo eventos espurios en el caso base.
     const s = initialState(42);
     const next = tick(s);
     expect(next.npcs.length).toBe(s.npcs.length);
+    expect(next.npcs.filter((n) => n.alive).length).toBe(
+      s.npcs.filter((n) => n.alive).length,
+    );
   });
 });
 

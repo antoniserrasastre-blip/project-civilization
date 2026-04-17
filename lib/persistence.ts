@@ -12,7 +12,10 @@
 
 import type { WorldState } from './world-state';
 
-export const STORAGE_KEY = 'godgame.state.v1';
+// v2 desde Sprint 2: el shape del estado añade `partner_id` en NPC y
+// `next_npc_id` en el estado. Bumpeamos la key para invalidar saves v1
+// que carecen de esos campos (evita crashes al cargar).
+export const STORAGE_KEY = 'godgame.state.v2';
 
 function hasLocalStorage(): boolean {
   try {

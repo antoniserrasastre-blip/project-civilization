@@ -38,6 +38,7 @@ import {
   Heart,
   Skull,
   Crown,
+  X as XIcon,
 } from 'lucide-react';
 
 import { initialState, type WorldState, type NPC } from '@/lib/world-state';
@@ -53,12 +54,17 @@ import {
   loadSnapshot,
   clearSnapshot,
 } from '@/lib/persistence';
+import { generateCoast } from '@/lib/map';
+import { MapView } from '@/components/map-view';
 // ---------------------------------------------------------------------------
 // Constantes de cadencia
 // ---------------------------------------------------------------------------
 
 /** Semilla por defecto cuando se arranca mundo nuevo. */
 const DEFAULT_SEED = 42;
+
+/** Tamaño del mapa (unidades de mundo). Coincide con el default de initialState. */
+const MAP_SIZE = 100;
 
 /** Intervalo del reloj, en ms — el tick real se lanza aquí. */
 const CLOCK_MS = 200;
@@ -83,6 +89,8 @@ export default function GodgameDashboard() {
   const [state, setState] = useState<WorldState>(() => initialState(DEFAULT_SEED));
   const [hydrated, setHydrated] = useState(false);
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  /** Se abre solo cuando el jugador pulsa un círculo en el mapa. */
+  const [cardOpen, setCardOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -190,6 +198,7 @@ export default function GodgameDashboard() {
     () => [...state.chronicle].reverse(),
     [state.chronicle],
   );
+  const coast = useMemo(() => generateCoast(state.seed, MAP_SIZE), [state.seed]);
 
   // Auto-dismiss del toast.
   useEffect(() => {
@@ -241,6 +250,18 @@ export default function GodgameDashboard() {
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-6">
+          <MapView
+            coast={coast}
+            npcs={state.npcs}
+            selectedId={selectedNpcId}
+            chosenOnes={chosenOnes}
+            mapSize={MAP_SIZE}
+            onSelect={(id) => {
+              setSelectedNpcId(id);
+              setCardOpen(true);
+            }}
+          />
+
           <Roster
             npcs={state.npcs}
             selectedId={selectedNpcId}
@@ -266,6 +287,17 @@ export default function GodgameDashboard() {
           <ChroniclePanel entries={chronicleReversed} />
         </aside>
       </main>
+
+      <AnimatePresence>
+        {selectedNpc && cardOpen && (
+          <CharacterCardOverlay
+            key={selectedNpc.id}
+            npc={selectedNpc}
+            isChosen={chosenOnes.includes(selectedNpc.id)}
+            onClose={() => setCardOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {toast && (
@@ -581,6 +613,75 @@ function EmptyIntervention() {
         </p>
       </div>
     </div>
+  );
+}
+
+function CharacterCardOverlay(props: {
+  npc: NPC;
+  isChosen: boolean;
+  onClose: () => void;
+}) {
+  const { npc, isChosen } = props;
+  const years = Math.floor(npc.age_days / 365);
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm flex items-start justify-center p-8"
+      data-testid="character-card-overlay"
+      onClick={props.onClose}
+    >
+      <motion.div
+        initial={{ y: -12, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: -12, opacity: 0 }}
+        className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-6"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="character-card"
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2
+              className="font-bold text-lg tracking-tight flex items-center gap-2"
+              data-testid="character-card-name"
+            >
+              {isChosen && <Crown className="w-4 h-4 text-orange-500" />}
+              {npc.name}
+            </h2>
+            <p className="text-xs text-slate-500 italic">
+              {years} inviernos · {npc.alive ? 'vivo' : 'fallecido'}
+              {npc.partner_id ? ' · emparejado' : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={props.onClose}
+            data-testid="character-card-close"
+            className="text-slate-400 hover:text-slate-900"
+          >
+            <XIcon className="w-4 h-4" />
+          </button>
+        </div>
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Fuerza</dt>
+          <dd className="text-slate-900 font-mono">{npc.stats.fuerza}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Intel.</dt>
+          <dd className="text-slate-900 font-mono">{npc.stats.inteligencia}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Agilidad</dt>
+          <dd className="text-slate-900 font-mono">{npc.stats.agilidad}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Ambición</dt>
+          <dd className="text-slate-900 font-mono">{npc.traits.ambicion}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Lealtad</dt>
+          <dd className="text-slate-900 font-mono">{npc.traits.lealtad}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Paranoia</dt>
+          <dd className="text-slate-900 font-mono">{npc.traits.paranoia}</dd>
+          <dt className="text-slate-400 font-medium uppercase tracking-widest">Carisma</dt>
+          <dd className="text-slate-900 font-mono">{npc.traits.carisma}</dd>
+        </dl>
+      </motion.div>
+    </motion.div>
   );
 }
 

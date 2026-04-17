@@ -11,7 +11,7 @@ sprint desbloquea los siguientes.
 ### Sprint 1 — Foundation ✅ done
 Núcleo puro, PRNG, ungimiento, plantillas de crónica, persistencia, tests.
 
-### Sprint 2 — NPC Lifecycle + Basic Procedural Map + Scheduler
+### Sprint 2 — NPC Lifecycle + Basic Procedural Map + Scheduler ✅ done
 Muerte, nacimiento, emparejamiento, conflicto básico. Costa procedural
 semillada (sine-wave layered, determinista). NPCs renderizados como
 círculos de color sobre canvas. Click → character card overlay (solo

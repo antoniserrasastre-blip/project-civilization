@@ -52,6 +52,11 @@ export interface NPC {
   /** Ids de los padres; vacío si es de la generación inicial. */
   parents: string[];
   alive: boolean;
+  /**
+   * Id de la pareja vinculada. `null` si soltero/a. Invariante: si a.partner_id = b.id,
+   * entonces b.partner_id = a.id. Si uno de los dos muere, el otro vuelve a null.
+   */
+  partner_id: string | null;
 }
 
 export interface Group {
@@ -90,6 +95,12 @@ export interface WorldState {
   groups: Group[];
   npcs: NPC[];
   chronicle: ChronicleEntry[];
+  /**
+   * Id numérico que recibirá el próximo NPC generado (nacimiento). Monotónico.
+   * Los NPCs se identifican como `npc_XXXX` con padding a 4 dígitos. Cuando se
+   * supere `npc_9999` el padding se ensancha (mientras tanto trivial-correcto).
+   */
+  next_npc_id: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -185,6 +196,7 @@ function generateNpc(
       gifts: [],
       parents: [],
       alive: true,
+      partner_id: null,
     },
     next: s,
   };
@@ -226,7 +238,7 @@ export function initialState(
   for (let i = 0; i < npcCount; i++) {
     const { npc, next: n } = generateNpc(
       prng,
-      `npc_${i.toString().padStart(4, '0')}`,
+      npcIdString(i),
       DEFAULT_GROUP.id,
       mapSize,
     );
@@ -249,5 +261,93 @@ export function initialState(
     groups: [DEFAULT_GROUP],
     npcs,
     chronicle: [],
+    next_npc_id: npcs.length,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Generador de NPCs en tiempo de ejecución (nacimientos en el scheduler).
+// ---------------------------------------------------------------------------
+
+/**
+ * Genera un NPC recién nacido como hijo de dos padres. Pura — consume PRNG
+ * y devuelve el nuevo cursor. El cursor debe venir del scheduler.
+ *
+ * El recién nacido empieza con:
+ *   - age_days: 0
+ *   - stats: media de los padres ± pequeña variación determinista
+ *   - traits: uniformes en [0,100] (la cultura aún no influye en genética)
+ *   - position: la de uno de los padres (elegido del PRNG)
+ *   - alive: true, sin dones, sin pareja
+ */
+export function generateNewborn(
+  prng: PRNGState,
+  id: string,
+  parentA: NPC,
+  parentB: NPC,
+): { npc: NPC; next: PRNGState } {
+  let s = prng;
+
+  const firstName = nextChoice(s, FIRST_NAMES);
+  s = firstName.next;
+  // El apellido se hereda del primer padre (convención catalano-balear
+  // simplificada). Si el padre no tiene apellido detectable, usar pool.
+  const inheritedLast = parentA.name.split(' ').slice(-1)[0] ?? null;
+  let lastNameValue: string;
+  if (inheritedLast && (LAST_NAMES as readonly string[]).includes(inheritedLast)) {
+    lastNameValue = inheritedLast;
+  } else {
+    const lastName = nextChoice(s, LAST_NAMES);
+    s = lastName.next;
+    lastNameValue = lastName.value;
+  }
+
+  const nearParent = nextChoice(s, [parentA, parentB] as const);
+  s = nearParent.next;
+
+  const ambicion = nextInt(s, 0, 101);
+  s = ambicion.next;
+  const lealtad = nextInt(s, 0, 101);
+  s = lealtad.next;
+  const paranoia = nextInt(s, 0, 101);
+  s = paranoia.next;
+  const carisma = nextInt(s, 0, 101);
+  s = carisma.next;
+
+  const clamp = (n: number) => Math.max(1, Math.min(99, n));
+
+  return {
+    npc: {
+      id,
+      group_id: parentA.group_id,
+      name: `${firstName.value} ${lastNameValue}`,
+      age_days: 0,
+      position: { ...nearParent.value.position },
+      stats: {
+        fuerza: clamp(Math.round((parentA.stats.fuerza + parentB.stats.fuerza) / 2)),
+        inteligencia: clamp(
+          Math.round((parentA.stats.inteligencia + parentB.stats.inteligencia) / 2),
+        ),
+        agilidad: clamp(
+          Math.round((parentA.stats.agilidad + parentB.stats.agilidad) / 2),
+        ),
+      },
+      traits: {
+        ambicion: ambicion.value,
+        lealtad: lealtad.value,
+        paranoia: paranoia.value,
+        carisma: carisma.value,
+      },
+      gifts: [],
+      parents: [parentA.id, parentB.id],
+      alive: true,
+      partner_id: null,
+    },
+    next: s,
+  };
+}
+
+/** Formatea un id numérico como `npc_XXXX` con padding a 4 dígitos. */
+export function npcIdString(n: number): string {
+  return `npc_${n.toString().padStart(4, '0')}`;
 }
