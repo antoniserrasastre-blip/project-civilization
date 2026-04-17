@@ -19,6 +19,12 @@
 
 import type { NPC, WorldState } from './world-state';
 
+/**
+ * Coste en Fe del segundo don en adelante (§A1). El primer don concedido
+ * por el jugador en toda la partida es gratis; los siguientes cuestan esto.
+ */
+export const GIFT_COST = 30;
+
 export type GiftId = 'fuerza_sobrehumana' | 'aura_de_carisma';
 
 export interface GiftDef {
@@ -77,7 +83,7 @@ export const GIFTS: Record<GiftId, GiftDef> = {
 };
 
 export type GrantResult =
-  | { ok: true }
+  | { ok: true; cost: number }
   | {
       ok: false;
       reason:
@@ -85,8 +91,14 @@ export type GrantResult =
         | 'unknown_gift'
         | 'dead_npc'
         | 'not_chosen'
-        | 'already_has_gift';
+        | 'already_has_gift'
+        | 'not_enough_faith';
     };
+
+/** Coste del próximo don dado el contador de dones ya concedidos. */
+export function nextGiftCost(gifts_granted: number): number {
+  return gifts_granted === 0 ? 0 : GIFT_COST;
+}
 
 export function canGrantGift(
   state: WorldState,
@@ -103,13 +115,17 @@ export function canGrantGift(
   if (npc.gifts.includes(gift_id)) {
     return { ok: false, reason: 'already_has_gift' };
   }
-  return { ok: true };
+  const cost = nextGiftCost(state.player_god.gifts_granted);
+  if (state.player_god.faith_points < cost) {
+    return { ok: false, reason: 'not_enough_faith' };
+  }
+  return { ok: true, cost };
 }
 
 /**
- * Concede el don y devuelve un estado nuevo. El caller debe haber
- * validado con `canGrantGift` antes (esto hace que la función sea
- * determinista y sin ramas de error que rompan la pureza).
+ * Concede el don, deduce el coste en Fe y actualiza el contador. El
+ * caller debe haber validado con `canGrantGift` antes — esta función
+ * no reverifica para preservar la pureza determinista.
  */
 export function grantGift(
   state: WorldState,
@@ -117,9 +133,15 @@ export function grantGift(
   gift_id: GiftId,
 ): WorldState {
   const def = GIFTS[gift_id];
+  const cost = nextGiftCost(state.player_god.gifts_granted);
   return {
     ...state,
     npcs: state.npcs.map((n) => (n.id === npc_id ? def.apply(n) : n)),
+    player_god: {
+      ...state.player_god,
+      faith_points: state.player_god.faith_points - cost,
+      gifts_granted: state.player_god.gifts_granted + 1,
+    },
   };
 }
 

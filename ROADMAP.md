@@ -30,7 +30,7 @@ comportamiento gatillada por traits en el tick — el stat queda sin
 usar si los traits relevantes son bajos. Sin sistema de archetypes:
 sólo weighting por traits existentes. **Pillar 1** pasa a ser testeable.
 
-### Sprint 4 — Faith Economy
+### Sprint 4 — Faith Economy ✅ done
 Tres verbos (descendencia, enemigo caído, rezar). Herencia de Fe. Coste
 de dones (el primero gratis, luego 30 Fe). Panel lateral de Fe. **Pillar
 3** pasa a ser testeable.

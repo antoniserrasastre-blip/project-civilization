@@ -74,6 +74,17 @@ const FOLLOWER_PROB_PER_TICK = 0.01;
 /** Probabilidad de heredar cada don del padre/madre en el nacimiento. */
 const GIFT_INHERITANCE_PROB = 0.5;
 
+// -----------------------------------------------------------------------
+// Economía de Fe (Sprint 4, §A1 de la visión).
+// -----------------------------------------------------------------------
+
+/** Fe pasiva por día por cada NPC sagrado (Elegido o descendiente). */
+const FAITH_PER_TICK_PER_HOLY = 0.05;
+/** Fe extra al caer un enemigo de mano de un sagrado (§A1 "enemigo caído"). */
+const FAITH_PER_ENEMY_FALLEN = 10;
+/** Fe extra por descendencia nacida de al menos un padre sagrado. */
+const FAITH_PER_HOLY_BIRTH = 5;
+
 // ---------------------------------------------------------------------------
 // Tipos públicos
 // ---------------------------------------------------------------------------
@@ -88,7 +99,12 @@ export type LifecycleEvent =
     }
   | { type: 'pairing'; a_id: string; b_id: string }
   | { type: 'birth'; newborn: NPC }
-  | { type: 'follower_formed'; follower_id: string; leader_id: string };
+  | { type: 'follower_formed'; follower_id: string; leader_id: string }
+  | {
+      type: 'faith_gained';
+      amount: number;
+      reason: 'rezar' | 'enemigo_caido' | 'descendencia';
+    };
 
 export interface ScheduleResult {
   events: LifecycleEvent[];
@@ -138,6 +154,10 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
   const deadSet = new Set<string>();
   const pairedThisTick = new Set<string>();
   let nextId = state.next_npc_id;
+
+  const chosenSet = new Set(state.player_god.chosen_ones);
+  const isHoly = (n: NPC): boolean =>
+    chosenSet.has(n.id) || n.descends_from_chosen;
 
   // Pase 1 — muerte por edad
   for (const npc of state.npcs) {
@@ -191,6 +211,15 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
       reason: 'el honor',
     });
     deadSet.add(victim.id);
+
+    // Fe extra si el ganador era de los nuestros y la víctima no.
+    if (isHoly(killer) && !isHoly(victim)) {
+      events.push({
+        type: 'faith_gained',
+        amount: FAITH_PER_ENEMY_FALLEN,
+        reason: 'enemigo_caido',
+      });
+    }
   }
 
   // Pase 3 — emparejamientos
@@ -246,11 +275,13 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     if (roll.value >= BIRTH_PROB_PER_TICK) continue;
 
     const id = npcIdString(nextId++);
+    const parentsAreHoly = isHoly(npc) || isHoly(partner);
     const { npc: babyBase, next: nextPrng } = generateNewborn(
       prng,
       id,
       npc,
       partner,
+      parentsAreHoly,
     );
     prng = nextPrng;
 
@@ -269,6 +300,14 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     }
     const newborn = inherited.length > 0 ? applyGifts(babyBase, inherited) : babyBase;
     events.push({ type: 'birth', newborn });
+
+    if (parentsAreHoly) {
+      events.push({
+        type: 'faith_gained',
+        amount: FAITH_PER_HOLY_BIRTH,
+        reason: 'descendencia',
+      });
+    }
   }
 
   // Pase 5 — atracción por aura de carisma (§A2 — Pillar 1)
@@ -298,6 +337,18 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     prng = pick.next;
     const leader = pick.value;
     events.push({ type: 'follower_formed', follower_id: npc.id, leader_id: leader.id });
+  }
+
+  // Pase 6 — Fe pasiva por rezar (§A1). Cada sagrado vivo que no haya
+  // muerto este tick aporta una pequeña cantidad. Determinista; no usa PRNG.
+  let passive = 0;
+  for (const npc of state.npcs) {
+    if (!isAlive(npc)) continue;
+    if (!isHoly(npc)) continue;
+    passive += FAITH_PER_TICK_PER_HOLY;
+  }
+  if (passive > 0) {
+    events.push({ type: 'faith_gained', amount: passive, reason: 'rezar' });
   }
 
   return { events, prng_cursor: prng.cursor };
@@ -351,6 +402,14 @@ export function applyEvents(
         npcs: out.npcs.map((n) =>
           n.id === ev.follower_id ? { ...n, follower_of: ev.leader_id } : n,
         ),
+      };
+    } else if (ev.type === 'faith_gained') {
+      out = {
+        ...out,
+        player_god: {
+          ...out.player_god,
+          faith_points: out.player_god.faith_points + ev.amount,
+        },
       };
     } else if (ev.type === 'birth') {
       out = {

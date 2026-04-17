@@ -56,7 +56,13 @@ import {
 } from '@/lib/persistence';
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
-import { GIFTS, type GiftId, canGrantGift, grantGift } from '@/lib/gifts';
+import {
+  GIFTS,
+  type GiftId,
+  canGrantGift,
+  grantGift,
+  nextGiftCost,
+} from '@/lib/gifts';
 import { narrateGift } from '@/lib/chronicle';
 // ---------------------------------------------------------------------------
 // Constantes de cadencia
@@ -296,6 +302,8 @@ export default function GodgameDashboard() {
                 key={selectedNpc.id}
                 npc={selectedNpc}
                 isChosen={chosenOnes.includes(selectedNpc.id)}
+                faithPoints={state.player_god.faith_points}
+                giftsGranted={state.player_god.gifts_granted}
                 onAnoint={handleAnoint}
                 onGrantGift={handleGrantGift}
               />
@@ -306,6 +314,10 @@ export default function GodgameDashboard() {
         </div>
 
         <aside className="lg:col-span-4 space-y-6">
+          <FaithPanel
+            faithPoints={state.player_god.faith_points}
+            giftsGranted={state.player_god.gifts_granted}
+          />
           <ChroniclePanel entries={chronicleReversed} />
         </aside>
       </main>
@@ -544,12 +556,16 @@ function Roster(props: {
 function InterventionPanel(props: {
   npc: NPC;
   isChosen: boolean;
+  faithPoints: number;
+  giftsGranted: number;
   onAnoint: () => void;
   onGrantGift: (gift_id: GiftId) => void;
 }) {
-  const { npc, isChosen } = props;
+  const { npc, isChosen, faithPoints, giftsGranted } = props;
   const years = Math.floor(npc.age_days / 365);
   const giftEntries = Object.values(GIFTS);
+  const cost = nextGiftCost(giftsGranted);
+  const canAfford = faithPoints >= cost;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -638,6 +654,9 @@ function InterventionPanel(props: {
               <div className="flex flex-wrap gap-2 pt-1">
                 {giftEntries.map((def) => {
                   const already = npc.gifts.includes(def.id);
+                  const disabled = already || !npc.alive || !canAfford;
+                  const costLabel =
+                    cost === 0 ? 'gratis' : `${cost} Fe`;
                   return (
                     <Button
                       key={def.id}
@@ -645,17 +664,28 @@ function InterventionPanel(props: {
                       variant="outline"
                       size="sm"
                       onClick={() => props.onGrantGift(def.id)}
-                      disabled={already || !npc.alive}
+                      disabled={disabled}
                       data-testid={`grant-gift-${def.id}`}
                       className="text-xs"
                       title={def.description}
                     >
                       <Sparkles className="w-3 h-3 mr-1" />
-                      {already ? `${def.name} (ya)` : `Conceder ${def.name}`}
+                      {already
+                        ? `${def.name} (ya)`
+                        : `Conceder ${def.name} · ${costLabel}`}
                     </Button>
                   );
                 })}
               </div>
+              {!canAfford && cost > 0 && (
+                <p
+                  className="text-[11px] text-red-500"
+                  data-testid="gifts-not-enough-faith"
+                >
+                  Te faltan {Math.max(0, cost - Math.floor(faithPoints))} Fe
+                  para el próximo don.
+                </p>
+              )}
             </div>
           )}
         </CardContent>
@@ -688,6 +718,55 @@ function EmptyIntervention() {
         </p>
       </div>
     </div>
+  );
+}
+
+function FaithPanel(props: { faithPoints: number; giftsGranted: number }) {
+  const nextCost = nextGiftCost(props.giftsGranted);
+  const hasEnough = props.faithPoints >= nextCost;
+  return (
+    <Card className="border-slate-200 bg-white" data-testid="faith-panel">
+      <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-center justify-between">
+        <div>
+          <CardTitle className="tracking-tight text-base flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-orange-500" /> Fe
+          </CardTitle>
+          <CardDescription className="text-[11px]">
+            Rezan los tuyos. El mundo se acuerda de ti.
+          </CardDescription>
+        </div>
+        <Badge
+          variant="outline"
+          className="font-mono text-[10px]"
+          data-testid="faith-panel-points"
+        >
+          {props.faithPoints.toFixed(1)} Fe
+        </Badge>
+      </CardHeader>
+      <CardContent className="p-4 space-y-2 text-xs text-slate-600">
+        <p data-testid="faith-panel-next-cost">
+          Próximo don:{' '}
+          {nextCost === 0 ? (
+            <span className="font-semibold text-emerald-600">GRATIS</span>
+          ) : (
+            <span
+              className={`font-semibold ${hasEnough ? 'text-slate-900' : 'text-red-500'}`}
+            >
+              {nextCost} Fe
+            </span>
+          )}
+          {' · '}
+          <span className="text-slate-400">
+            {props.giftsGranted} concedido{props.giftsGranted === 1 ? '' : 's'}
+          </span>
+        </p>
+        <ul className="text-[11px] text-slate-500 list-disc pl-4 space-y-0.5">
+          <li>rezar: cada vivo tuyo produce Fe pasiva</li>
+          <li>enemigo caído: bono al vencer a un rival</li>
+          <li>descendencia: bono por cada recién nacido sagrado</li>
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -892,7 +971,8 @@ function giftRejectionMessage(
     | 'unknown_gift'
     | 'dead_npc'
     | 'not_chosen'
-    | 'already_has_gift',
+    | 'already_has_gift'
+    | 'not_enough_faith',
 ): string {
   switch (reason) {
     case 'unknown_npc':
@@ -905,5 +985,7 @@ function giftRejectionMessage(
       return 'Solo los Elegidos pueden recibir dones.';
     case 'already_has_gift':
       return 'Ese don ya ha sido concedido.';
+    case 'not_enough_faith':
+      return 'No tienes suficiente Fe para este don.';
   }
 }

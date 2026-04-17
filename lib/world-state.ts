@@ -63,6 +63,13 @@ export interface NPC {
    * no de los del seguidor. Al morir el líder, el seguidor vuelve a null.
    */
   follower_of: string | null;
+  /**
+   * `true` si alguno de sus padres era Elegido del jugador o a su vez
+   * descendiente de un Elegido. Propagación hereditaria — nunca se apaga.
+   * Relevante para la economía de Fe (Sprint 4): los descendientes generan
+   * Fe igual que los Elegidos directos.
+   */
+  descends_from_chosen: boolean;
 }
 
 export interface Group {
@@ -75,6 +82,12 @@ export interface PlayerGod {
   faith_points: number;
   /** Ids de NPCs marcados como Elegido. */
   chosen_ones: string[];
+  /**
+   * Contador monotónico de dones concedidos por el jugador. Determina el
+   * coste del siguiente don (§A1: el primero es gratis; a partir del
+   * segundo, GIFT_COST Fe).
+   */
+  gifts_granted: number;
 }
 
 export interface RivalGod {
@@ -204,6 +217,7 @@ function generateNpc(
       alive: true,
       partner_id: null,
       follower_of: null,
+      descends_from_chosen: false,
     },
     next: s,
   };
@@ -263,6 +277,7 @@ export function initialState(
       group_id: DEFAULT_GROUP.id,
       faith_points: 0, // el primer Elegido es gratis (§A1)
       chosen_ones: [],
+      gifts_granted: 0,
     },
     rival_gods: [], // MVP no tiene rivales; v0.3 los poblará aquí
     groups: [DEFAULT_GROUP],
@@ -292,6 +307,7 @@ export function generateNewborn(
   id: string,
   parentA: NPC,
   parentB: NPC,
+  parentsAreHoly: boolean = false,
 ): { npc: NPC; next: PRNGState } {
   let s = prng;
 
@@ -350,6 +366,12 @@ export function generateNewborn(
       alive: true,
       partner_id: null,
       follower_of: null,
+      // Herencia de Fe: si algún padre es Elegido o desciende de uno,
+      // el bebé hereda la condición de linaje sagrado.
+      descends_from_chosen:
+        parentsAreHoly ||
+        parentA.descends_from_chosen ||
+        parentB.descends_from_chosen,
     },
     next: s,
   };

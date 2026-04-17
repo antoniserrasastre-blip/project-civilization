@@ -20,7 +20,7 @@ async function goHomeFresh(page: Page) {
 }
 
 test.describe('Sprint 3 — dones', () => {
-  test('ungir y conceder ambos dones aparece en el panel', async ({ page }) => {
+  test('ungir y conceder el primer don gratis; el segundo queda bloqueado por Fe', async ({ page }) => {
     await goHomeFresh(page);
     await page.getByTestId('clock-slower').click();
 
@@ -32,15 +32,14 @@ test.describe('Sprint 3 — dones', () => {
     await expect(page.getByTestId('gifts-panel')).toBeVisible();
     await expect(page.getByTestId('gift-granted-fuerza_sobrehumana')).toHaveCount(0);
 
-    // Conceder fuerza_sobrehumana.
+    // Conceder fuerza_sobrehumana (primer don — gratis).
     await page.getByTestId('grant-gift-fuerza_sobrehumana').click();
     await expect(page.getByTestId('gift-granted-fuerza_sobrehumana')).toBeVisible();
     await expect(page.getByTestId('grant-gift-fuerza_sobrehumana')).toBeDisabled();
 
-    // Conceder aura_de_carisma.
-    await page.getByTestId('grant-gift-aura_de_carisma').click();
-    await expect(page.getByTestId('gift-granted-aura_de_carisma')).toBeVisible();
+    // Segundo don: ahora cuesta 30 Fe (Sprint 4). Sin Fe, bloqueado.
     await expect(page.getByTestId('grant-gift-aura_de_carisma')).toBeDisabled();
+    await expect(page.getByTestId('gifts-not-enough-faith')).toBeVisible();
 
     // La crónica contiene entradas de don.
     await expect(page.getByTestId('chronicle-list')).toContainText('don');
