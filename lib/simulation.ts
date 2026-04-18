@@ -1,5 +1,5 @@
 /**
- * Primera función de tick — v0.1 minimalista.
+ * Función de tick — GODGAME v0.2 (Sprint 2).
  *
  * Contrato (§A4 del Vision Document):
  *   - Pura: recibe estado, devuelve estado nuevo. Sin side effects.
@@ -7,25 +7,26 @@
  *     byte a byte. Todo lo random pasa por `state.prng_cursor`.
  *   - JSON-serializable: el estado de salida es round-trip perfecto.
  *
- * Qué hace este tick en v0.1:
+ * Qué hace este tick (Sprint 2):
  *   1. Avanza el día en 1.
- *   2. Envejece a cada NPC vivo en 1 día.
- *   3. Mueve a cada NPC vivo una fracción pequeña en dirección aleatoria
- *      (prueba que el PRNG está integrado y es determinista).
+ *   2. Envejece a cada NPC vivo en 1 día y lo desplaza un paso aleatorio
+ *      corto (prueba que el PRNG sigue enchufado).
+ *   3. Llama al scheduler para producir eventos de ciclo vital (muerte,
+ *      conflicto, pairing, nacimiento).
+ *   4. Aplica esos eventos al estado (npcs + crónica).
  *
- * Qué NO hace todavía (scope de v0.2+):
- *   - Muertes por edad / accidente.
- *   - Reproducción.
- *   - Combate.
- *   - Generación de Fe.
- *   - Descubrimientos tecnológicos.
+ * Qué NO hace todavía (scope de v0.3+):
+ *   - Decisiones del dios rival.
+ *   - Dones con efectos mecánicos (Sprint 3).
+ *   - Economía de Fe (Sprint 4).
  *
- * Este tick mínimo es suficiente para probar el contrato arquitectónico
- * de §A4 y construir encima el resto de sistemas sin refactor.
+ * El tick es reproducible offline 1000 veces consecutivas: sin fetch, sin
+ * logging, sin localStorage, sin Math.random.
  */
 
 import { nextRange, type PRNGState } from './prng';
 import type { NPC, WorldState } from './world-state';
+import { applyEvents, scheduleEvents } from './scheduler';
 
 /** Magnitud máxima del desplazamiento de un NPC por tick. Arbitrario para v0.1. */
 const MAX_STEP = 0.5;
@@ -33,7 +34,7 @@ const MAX_STEP = 0.5;
 export function tick(state: WorldState): WorldState {
   let prng: PRNGState = { seed: state.seed, cursor: state.prng_cursor };
 
-  const newNpcs: NPC[] = state.npcs.map((npc) => {
+  const aged: NPC[] = state.npcs.map((npc) => {
     if (!npc.alive) return npc;
 
     const dx = nextRange(prng, -MAX_STEP, MAX_STEP);
@@ -51,12 +52,16 @@ export function tick(state: WorldState): WorldState {
     };
   });
 
-  return {
+  const intermediate: WorldState = {
     ...state,
     day: state.day + 1,
     prng_cursor: prng.cursor,
-    npcs: newNpcs,
+    npcs: aged,
   };
+
+  const { events, prng_cursor } = scheduleEvents(intermediate);
+  const applied = applyEvents(intermediate, events);
+  return { ...applied, prng_cursor };
 }
 
 /**

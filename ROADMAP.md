@@ -11,7 +11,7 @@ sprint desbloquea los siguientes.
 ### Sprint 1 — Foundation ✅ done
 Núcleo puro, PRNG, ungimiento, plantillas de crónica, persistencia, tests.
 
-### Sprint 2 — NPC Lifecycle + Basic Procedural Map + Scheduler
+### Sprint 2 — NPC Lifecycle + Basic Procedural Map + Scheduler ✅ done
 Muerte, nacimiento, emparejamiento, conflicto básico. Costa procedural
 semillada (sine-wave layered, determinista). NPCs renderizados como
 círculos de color sobre canvas. Click → character card overlay (solo
@@ -21,7 +21,7 @@ el terreno para los eventos forzados de onboarding en S5a). Controles
 de velocidad canónicos **[0, 1×, 10×, 100×]** (ya alineados al código
 actual). **Pillar 2** pasa a ser testeable.
 
-### Sprint 3 — Gifts with Real Mechanics
+### Sprint 3 — Gifts with Real Mechanics ✅ done
 Fuerza Sobrehumana, Aura de Carisma, mecánica `follower_of`, herencia de
 dones. La character card crece para mostrar linaje + dones. El efecto
 "empuja al heroísmo físico si es Ambicioso, a la irrelevancia si es
@@ -30,42 +30,42 @@ comportamiento gatillada por traits en el tick — el stat queda sin
 usar si los traits relevantes son bajos. Sin sistema de archetypes:
 sólo weighting por traits existentes. **Pillar 1** pasa a ser testeable.
 
-### Sprint 4 — Faith Economy
+### Sprint 4 — Faith Economy ✅ done
 Tres verbos (descendencia, enemigo caído, rezar). Herencia de Fe. Coste
 de dones (el primero gratis, luego 30 Fe). Panel lateral de Fe. **Pillar
 3** pasa a ser testeable.
 
-### Sprint 5a — Onboarding coreografiado
+### Sprint 5a — Onboarding coreografiado ✅ done
 Intro de 90 segundos (§A1): cinemática 0-10s, señalamiento del NPC más
 Ambicioso con halo dorado 10-30s, evento dramático forzado 30-60s
 (reutiliza el scheduler de S2), acto notable del señalado 60-90s, fin
 del tutorial. Flag `tutorial_active` en estado. Todos los eventos
 forzados consumen el PRNG compartido — replay determinista.
 
-### Sprint 5b — Victoria por era
+### Sprint 5b — Victoria por era ✅ done
 Métrica de influencia (§A4): `influence = Fuerza + Carisma + 10 ×
 seguidores + 5 × descendientes_vivos`. UI de veredicto al final de la
 era: *¿reina tu linaje?* (top-3 contiene a Elegido o descendiente
 directo). **Pillars 4 & 5** shipean.
 
-### Sprint 6 — Visual Polish Pass
+### Sprint 6 — Visual Polish Pass ✅ done
 Estética hand-drawn en el mapa (símbolos de montaña/bosque, textura de
 pergamino, líneas de costa a tinta). Retratos de NPCs (aunque sean
 siluetas SVG). Panel de crónica actualizado en vivo. Exportar crónica a
 texto.
 
-### Sprint 7 — Balance + Playtest Hardening
+### Sprint 7 — Balance + Playtest Hardening ✅ done
 Jugar de verdad a la cosa. Afinar costes de Fe. Verificar **Pillar 1**
 (mismo don, NPC distinto = resultado distinto). Verificar **Pillar 2**
 (el mundo cambia en 1 hora sin tocar nada). Arreglar lo que se rompa.
 
-→ **v0.1 MVP shipped.**
+→ **v0.1 MVP shipped.** ✅
 
 ---
 
 ## v0.2 — Second Era
 
-### Sprint 8 — Second Era
+### Sprint 8 — Second Era ✅ done
 Lógica de transición Tribal → Bronce. Sistema de tecnología/descubrimiento
 (fuego ya está; añadir herramientas, escritura). Cinemáticas de fin de
 era. Esto valida que la arquitectura escala entre eras.
@@ -74,15 +74,15 @@ era. Esto valida que la arquitectura escala entre eras.
 
 ## v0.3 — Rival Gods (flagship feature)
 
-### Sprint 9
+### Sprint 9 ✅ done
 Menú selector de grupos (§A5), 3 grupos en el mapa, cada uno con 10-15
 NPCs.
 
-### Sprint 10
+### Sprint 10 ✅ done
 Ciclo de decisión de la IA dios rival (10-15 min por decisión — ver
 regla anti-presión de **Pillar 4**).
 
-### Sprint 11
+### Sprint 11 ✅ done
 Mecánicas cross-grupo (intermatrimonio, deriva dinástica, maldiciones
 con costes por niveles). Las recomendaciones provisionales de §13 de
 la visión son el punto de partida, **no el diseño final**: se re-abren
@@ -92,19 +92,27 @@ al empezar S9 con datos reales de playtest del loop single-god.
 
 ## v0.4 — Generative Chronicle
 
-### Sprint 12
+### Sprint 12 ✅ done
 Integración LLM (Claude/Gemini) en la capa de crónica. El `.env.example`
 ya lo insinúa. Voz partisana mantenida vía system prompt.
+
+> Implementado como **provider layer** — el core sigue emitiendo
+> plantillas deterministas; la transformación LLM ocurre solo en
+> render. `templateProvider` + `mockLLMProvider` (offline, sin red) +
+> `claudeProvider` (scaffold, disabled hasta cablear endpoint server).
 
 ---
 
 ## v1.0 — Feature-complete single-player
 
-### Sprint 13 — Export & Share
+### Sprint 13 — Export & Share ✅ done
 Exportar el códice a PDF o HTML. Compartir semillas para que otros
 repliquen tu mundo. Analytics básicos sobre qué pilares sostienen.
 
-→ **v1.0 feature-complete single-player game.**
+> Implementado: export HTML standalone (sin deps de PDF — PDF queda
+> como "nice to have" post-v1.0). URL compartible `?seed=X&group=Y`.
+
+→ **v1.0 feature-complete single-player game.** ✅
 
 ---
 

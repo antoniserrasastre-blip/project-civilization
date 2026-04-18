@@ -13,15 +13,8 @@
  * test falla y los unit/integration tests no lo verían.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  // Partida limpia: borramos localStorage antes de cargar la página.
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Flujo del primer Elegido', () => {
   test('selecciona, unge y persiste tras reload', async ({ page }) => {

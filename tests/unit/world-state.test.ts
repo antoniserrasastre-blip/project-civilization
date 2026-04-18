@@ -77,6 +77,18 @@ describe('initialState — invariante de group_id', () => {
     const s = initialState(42);
     expect(s.npcs.every((n) => n.parents.length === 0)).toBe(true);
   });
+
+  it('todos los NPCs iniciales arrancan solteros (partner_id=null)', () => {
+    const s = initialState(42);
+    expect(s.npcs.every((n) => n.partner_id === null)).toBe(true);
+  });
+
+  it('next_npc_id empieza igual al recuento inicial (primer hijo será ese id)', () => {
+    const s = initialState(42);
+    expect(s.next_npc_id).toBe(s.npcs.length);
+    const sCustom = initialState(42, { npcCount: 20 });
+    expect(sCustom.next_npc_id).toBe(20);
+  });
 });
 
 describe('initialState — determinismo', () => {

@@ -12,7 +12,10 @@
 
 import type { WorldState } from './world-state';
 
-export const STORAGE_KEY = 'godgame.state.v1';
+// v3 desde Sprint 9: el estado soporta multi-grupo. Saves v2 o anteriores
+// no tienen `playerGroupId` ni rival_gods poblados; la invalidación es
+// brutal pero evita inconsistencias.
+export const STORAGE_KEY = 'godgame.state.v3';
 
 function hasLocalStorage(): boolean {
   try {
