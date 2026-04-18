@@ -57,7 +57,12 @@ import {
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
-import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
+import {
+  topByInfluence,
+  lineageInTop3,
+  computeVerdict,
+  type VerdictState,
+} from '@/lib/verdict';
 import {
   exportChronicle,
   exportFilename,
@@ -393,6 +398,10 @@ export default function GodgameDashboard() {
     : null;
   const verdictRows = useMemo(() => topByInfluence(state, 3), [state]);
   const lineageWins = useMemo(() => lineageInTop3(state), [state]);
+  const verdictState = useMemo<VerdictState>(
+    () => computeVerdict(state),
+    [state],
+  );
   const techList = useMemo(
     () => state.technologies.map((id) => ({ id, name: techLabel(id) })),
     [state.technologies],
@@ -575,6 +584,7 @@ export default function GodgameDashboard() {
           <VerdictModal
             rows={verdictRows}
             lineageWins={lineageWins}
+            verdictState={verdictState}
             chosenOnes={chosenOnes}
             onClose={() => setVerdictOpen(false)}
           />
@@ -1019,13 +1029,43 @@ function NpcSilhouette(props: { npc: NPC; isChosen: boolean }) {
   );
 }
 
+function verdictCopy(state: VerdictState): {
+  headline: string;
+  flavor: string | null;
+  color: string;
+} {
+  switch (state) {
+    case 'reign':
+      return {
+        headline: '¿Reina tu linaje? SÍ.',
+        flavor: null,
+        color: 'text-orange-600',
+      };
+    case 'pyrrhic':
+      return {
+        headline: '¿Reina tu linaje? SÍ… pero solo.',
+        flavor:
+          'El Elegido reina en top-3, pero no queda descendencia viva. Cuando muera, el linaje se extingue. Victoria pírrica.',
+        color: 'text-amber-700',
+      };
+    case 'defeat':
+      return {
+        headline: '¿Reina tu linaje? AÚN NO.',
+        flavor: null,
+        color: 'text-slate-500',
+      };
+  }
+}
+
 function VerdictModal(props: {
   rows: ReturnType<typeof topByInfluence>;
   lineageWins: boolean;
+  verdictState: VerdictState;
   chosenOnes: string[];
   onClose: () => void;
 }) {
-  const { rows, lineageWins, chosenOnes } = props;
+  const { rows, verdictState, chosenOnes } = props;
+  const copy = verdictCopy(verdictState);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1047,11 +1087,15 @@ function VerdictModal(props: {
             <Crown className="w-5 h-5 text-orange-500" /> Veredicto de la era
           </h2>
           <p
-            className={`text-sm mt-1 font-semibold ${lineageWins ? 'text-orange-600' : 'text-slate-500'}`}
+            className={`text-sm mt-1 font-semibold ${copy.color}`}
             data-testid="verdict-headline"
+            data-verdict-state={verdictState}
           >
-            {lineageWins ? '¿Reina tu linaje? SÍ.' : '¿Reina tu linaje? AÚN NO.'}
+            {copy.headline}
           </p>
+          {copy.flavor && (
+            <p className="text-xs mt-1 text-slate-500 italic">{copy.flavor}</p>
+          )}
         </div>
         <ol className="space-y-1.5" data-testid="verdict-top">
           {rows.map((row, idx) => {
