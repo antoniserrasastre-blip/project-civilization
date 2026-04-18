@@ -12,10 +12,11 @@
 
 import type { WorldState } from './world-state';
 
-// v3 desde Sprint 9: el estado soporta multi-grupo. Saves v2 o anteriores
-// no tienen `playerGroupId` ni rival_gods poblados; la invalidación es
-// brutal pero evita inconsistencias.
-export const STORAGE_KEY = 'godgame.state.v3';
+// v4 desde v1.0.1: NPCs ahora tienen `sex: 'M' | 'F'` y los contratos de
+// pairing requieren heterosexualidad. Saves v3 no tienen `sex` en los
+// NPCs — cargarlos rompería pairings. Bumpeamos la clave para que el
+// save antiguo quede inválido y arranque partida nueva.
+export const STORAGE_KEY = 'godgame.state.v4';
 
 function hasLocalStorage(): boolean {
   try {

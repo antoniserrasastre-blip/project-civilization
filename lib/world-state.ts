@@ -11,7 +11,7 @@
  * Sin ese option el estado queda en compat v0.1 (1 grupo, 50 NPCs).
  */
 
-import { nextChoice, nextInt, nextRange, seedState, type PRNGState } from './prng';
+import { next, nextChoice, nextInt, nextRange, seedState, type PRNGState } from './prng';
 
 export type Era =
   | 'tribal'
@@ -39,11 +39,19 @@ export interface Traits {
   carisma: number;
 }
 
+export type Sex = 'M' | 'F';
+
 export interface NPC {
   id: string;
   group_id: string;
   name: string;
   age_days: number;
+  /**
+   * Sexo binario M|F (v1.0.1 decisión #2 opción A). Requerido para
+   * pairing heterosexual reproductivo. Modelos no-binarios o roles
+   * no-reproductivos quedan para v1.1+ si aparece demanda.
+   */
+  sex: Sex;
   position: Position;
   stats: Stats;
   traits: Traits;
@@ -139,6 +147,12 @@ export interface WorldState {
    * El pool de cada era está definido en `lib/tech.ts`.
    */
   technologies: string[];
+  /**
+   * Decisión del dilema nuclear (v1.0.1 #5). `null` hasta que el
+   * player elige; luego `'given'` (concede la bomba — sombra) o
+   * `'withheld'` (mantiene el secreto). Decisión irrevocable.
+   */
+  nuclear_decision: 'given' | 'withheld' | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -227,12 +241,17 @@ function generateNpc(
   const startingAge = nextInt(s, 15 * 365, 40 * 365);
   s = startingAge.next;
 
+  const sexRoll = next(s);
+  s = sexRoll.next;
+  const sex: Sex = sexRoll.value < 0.5 ? 'M' : 'F';
+
   return {
     npc: {
       id,
       group_id,
       name: `${firstName.value} ${lastName.value}`,
       age_days: startingAge.value,
+      sex,
       position: { x: px.value, y: py.value },
       stats: {
         fuerza: fuerza.value,
@@ -392,6 +411,7 @@ export function initialState(
     chronicle: [],
     next_npc_id: npcs.length,
     technologies: ['fuego'],
+    nuclear_decision: null,
   };
 }
 
@@ -445,6 +465,10 @@ export function generateNewborn(
   const carisma = nextInt(s, 0, 101);
   s = carisma.next;
 
+  const sexRoll = next(s);
+  s = sexRoll.next;
+  const sex: Sex = sexRoll.value < 0.5 ? 'M' : 'F';
+
   const clamp = (n: number) => Math.max(1, Math.min(99, n));
 
   return {
@@ -453,6 +477,7 @@ export function generateNewborn(
       group_id: parentA.group_id,
       name: `${firstName.value} ${lastNameValue}`,
       age_days: 0,
+      sex,
       position: { ...nearParent.value.position },
       stats: {
         fuerza: clamp(Math.round((parentA.stats.fuerza + parentB.stats.fuerza) / 2)),

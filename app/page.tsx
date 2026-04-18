@@ -57,7 +57,17 @@ import {
 import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
-import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
+import {
+  topByInfluence,
+  lineageInTop3,
+  computeVerdict,
+  type VerdictState,
+} from '@/lib/verdict';
+import {
+  hasNuclearDilemma,
+  decideNuclear,
+  type NuclearChoice,
+} from '@/lib/nuclear';
 import {
   exportChronicle,
   exportFilename,
@@ -393,6 +403,25 @@ export default function GodgameDashboard() {
     : null;
   const verdictRows = useMemo(() => topByInfluence(state, 3), [state]);
   const lineageWins = useMemo(() => lineageInTop3(state), [state]);
+  const verdictState = useMemo<VerdictState>(
+    () => computeVerdict(state),
+    [state],
+  );
+  const nuclearOpen = useMemo(() => hasNuclearDilemma(state), [state]);
+
+  const handleNuclearDecision = useCallback((choice: NuclearChoice) => {
+    setState((current) => {
+      const after = decideNuclear(current, choice);
+      if (after === current) return current;
+      saveSnapshot(after);
+      setToast(
+        choice === 'given'
+          ? 'Concediste la bomba. La sombra cae.'
+          : 'Guardaste el secreto. Por ahora.',
+      );
+      return after;
+    });
+  }, []);
   const techList = useMemo(
     () => state.technologies.map((id) => ({ id, name: techLabel(id) })),
     [state.technologies],
@@ -571,10 +600,17 @@ export default function GodgameDashboard() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {nuclearOpen && (
+          <NuclearDilemmaModal onDecide={handleNuclearDecision} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {verdictOpen && (
           <VerdictModal
             rows={verdictRows}
             lineageWins={lineageWins}
+            verdictState={verdictState}
             chosenOnes={chosenOnes}
             onClose={() => setVerdictOpen(false)}
           />
@@ -1019,13 +1055,95 @@ function NpcSilhouette(props: { npc: NPC; isChosen: boolean }) {
   );
 }
 
+function NuclearDilemmaModal(props: {
+  onDecide: (choice: NuclearChoice) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-8"
+      data-testid="nuclear-dilemma"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="max-w-lg w-full bg-[#1c1917] text-amber-50 border border-red-900/50 rounded-2xl shadow-2xl p-8 space-y-5"
+      >
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-red-400 font-bold mb-1">
+            Era atómica · decisión final
+          </p>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Los nuestros han encontrado el fuego que parte la piedra.
+          </h2>
+        </div>
+        <p className="text-sm text-amber-200/80 leading-relaxed">
+          ¿Concedes la tecnología de destrucción a tu pueblo? Si lo
+          haces, los nuestros reinarán en un mundo que ya no vuelve. Si
+          lo guardas, vivirás con la duda de si alguien más la
+          encontrará antes.
+        </p>
+        <div className="flex gap-3 pt-2">
+          <Button
+            onClick={() => props.onDecide('withheld')}
+            data-testid="nuclear-withhold"
+            variant="outline"
+            className="flex-1 border-amber-500/40 text-amber-100 hover:bg-amber-950/40"
+          >
+            Guardar el secreto
+          </Button>
+          <Button
+            onClick={() => props.onDecide('given')}
+            data-testid="nuclear-give"
+            className="flex-1 bg-red-900 hover:bg-red-950 text-red-50"
+          >
+            Conceder la bomba
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function verdictCopy(state: VerdictState): {
+  headline: string;
+  flavor: string | null;
+  color: string;
+} {
+  switch (state) {
+    case 'reign':
+      return {
+        headline: '¿Reina tu linaje? SÍ.',
+        flavor: null,
+        color: 'text-orange-600',
+      };
+    case 'pyrrhic':
+      return {
+        headline: '¿Reina tu linaje? SÍ… pero solo.',
+        flavor:
+          'El Elegido reina en top-3, pero no queda descendencia viva. Cuando muera, el linaje se extingue. Victoria pírrica.',
+        color: 'text-amber-700',
+      };
+    case 'defeat':
+      return {
+        headline: '¿Reina tu linaje? AÚN NO.',
+        flavor: null,
+        color: 'text-slate-500',
+      };
+  }
+}
+
 function VerdictModal(props: {
   rows: ReturnType<typeof topByInfluence>;
   lineageWins: boolean;
+  verdictState: VerdictState;
   chosenOnes: string[];
   onClose: () => void;
 }) {
-  const { rows, lineageWins, chosenOnes } = props;
+  const { rows, verdictState, chosenOnes } = props;
+  const copy = verdictCopy(verdictState);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -1047,11 +1165,15 @@ function VerdictModal(props: {
             <Crown className="w-5 h-5 text-orange-500" /> Veredicto de la era
           </h2>
           <p
-            className={`text-sm mt-1 font-semibold ${lineageWins ? 'text-orange-600' : 'text-slate-500'}`}
+            className={`text-sm mt-1 font-semibold ${copy.color}`}
             data-testid="verdict-headline"
+            data-verdict-state={verdictState}
           >
-            {lineageWins ? '¿Reina tu linaje? SÍ.' : '¿Reina tu linaje? AÚN NO.'}
+            {copy.headline}
           </p>
+          {copy.flavor && (
+            <p className="text-xs mt-1 text-slate-500 italic">{copy.flavor}</p>
+          )}
         </div>
         <ol className="space-y-1.5" data-testid="verdict-top">
           {rows.map((row, idx) => {

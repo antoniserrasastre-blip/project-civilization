@@ -64,6 +64,7 @@ describe('descendencia — Fe al nacer un hijo de sagrados', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: 'npc_0001',
           };
@@ -71,6 +72,7 @@ describe('descendencia — Fe al nacer un hijo de sagrados', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: 'npc_0000',
           };
@@ -107,6 +109,7 @@ describe('enemigo_caido — bono Fe por conflicto ganado por sagrado', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             traits: { ...n.traits, ambicion: 99 },
             stats: { ...n.stats, fuerza: 99 },
@@ -116,6 +119,7 @@ describe('enemigo_caido — bono Fe por conflicto ganado por sagrado', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 51, y: 50 },
             traits: { ...n.traits, ambicion: 10 },
             stats: { ...n.stats, fuerza: 5 },
@@ -126,6 +130,7 @@ describe('enemigo_caido — bono Fe por conflicto ganado por sagrado', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 500, y: 500 },
             partner_id: 'npc_0001',
           };
@@ -160,6 +165,7 @@ describe('Herencia de Fe — descendientes propagan descends_from_chosen', () =>
       group_id: parentA.group_id,
       name: 'Hijo',
       age_days: 0,
+      sex: 'F',
       position: { x: 0, y: 0 },
       stats: { fuerza: 50, inteligencia: 50, agilidad: 50 },
       traits: { ambicion: 50, lealtad: 50, paranoia: 50, carisma: 50 },

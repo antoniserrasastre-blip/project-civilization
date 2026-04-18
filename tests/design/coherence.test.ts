@@ -135,6 +135,7 @@ describe('2. Población & pairing', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: n.id === a ? b : a,
           };
@@ -481,6 +482,7 @@ describe('5. Dones y traits', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: n.id === a ? b : a,
           };
@@ -607,6 +609,7 @@ describe('6. IA dios rival', () => {
       group_id: rivalGroup,
       name: 'Implante Testigo',
       age_days: 25 * 365,
+      sex: 'F',
       position: { x: 50, y: 50 },
       stats: { fuerza: 60, inteligencia: 60, agilidad: 60 },
       traits: { ambicion: 90, lealtad: 50, paranoia: 50, carisma: 70 },
@@ -718,6 +721,7 @@ describe('7. Veredicto & influencia', () => {
       group_id: s.player_god.group_id,
       name: 'Heredera Colosal',
       age_days: 25 * 365,
+      sex: 'F',
       position: { x: 50, y: 50 },
       stats: { fuerza: 300, inteligencia: 80, agilidad: 80 },
       traits: { ambicion: 80, lealtad: 80, paranoia: 20, carisma: 300 },
@@ -789,6 +793,7 @@ describe('8. Crónica coherencia', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: null,
           };
@@ -797,6 +802,7 @@ describe('8. Crónica coherencia', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50.1, y: 50 },
             partner_id: null,
           };
@@ -1005,6 +1011,7 @@ describe('10. Edge cases enredados', () => {
           return {
             ...n,
             age_days: 25 * 365,
+      sex: 'F',
             position: { x: 50, y: 50 },
             partner_id: n.id === a ? b : a,
           };

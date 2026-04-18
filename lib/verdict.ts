@@ -56,6 +56,9 @@ export function topByInfluence(state: WorldState, n = 3): InfluenceRow[] {
 /**
  * Veredicto: ¿reina el linaje del jugador? True si cualquier miembro del
  * top-3 por influencia es Elegido o descendiente de Elegido.
+ *
+ * Mantenido por backwards-compat. Para el estado narrativo refinado
+ * (reign / pyrrhic / defeat) ver `computeVerdict`.
  */
 export function lineageInTop3(state: WorldState): boolean {
   const top = topByInfluence(state, 3);
@@ -65,4 +68,48 @@ export function lineageInTop3(state: WorldState): boolean {
     if (row.npc.descends_from_chosen) return true;
   }
   return false;
+}
+
+/**
+ * Estado narrativo del veredicto — v1.0.1 decisión #3 (opción C):
+ *   - `reign`: hay al menos un Elegido O descendiente vivo en top-3,
+ *     y existe al menos un descendiente vivo en el mundo. El linaje
+ *     continúa.
+ *   - `pyrrhic`: hay Elegido en top-3 pero NINGÚN descendiente vivo.
+ *     "Reinar en el vacío" — victoria sin futuro. El linaje se
+ *     extingue cuando el Elegido muera.
+ *   - `defeat`: ni Elegido ni descendiente en top-3.
+ *
+ * Regla de desempate: un descendiente vivo en el mundo (aunque sea
+ * fuera de top-3) salva al jugador del pyrrhic — el linaje sigue vivo
+ * aunque no reine. Solo quedas en pyrrhic si el Elegido está SOLO
+ * (no hay otros bloodline survivors).
+ */
+export type VerdictState = 'reign' | 'pyrrhic' | 'defeat';
+
+export function computeVerdict(state: WorldState): VerdictState {
+  const top = topByInfluence(state, 3);
+  const chosenSet = new Set(state.player_god.chosen_ones);
+
+  let chosenInTop = false;
+  let descendantInTop = false;
+  for (const row of top) {
+    if (chosenSet.has(row.npc.id)) chosenInTop = true;
+    if (row.npc.descends_from_chosen) descendantInTop = true;
+  }
+
+  // Defeat: ningún miembro del linaje en top-3.
+  if (!chosenInTop && !descendantInTop) return 'defeat';
+
+  // Reign: hay descendiente en top-3 (con o sin Elegido).
+  if (descendantInTop) return 'reign';
+
+  // Aquí: Elegido en top-3 pero NO hay descendiente en top-3.
+  // Comprobamos si existe algún descendiente vivo en el mundo.
+  const anyDescendantAlive = state.npcs.some(
+    (n) => n.alive && n.descends_from_chosen,
+  );
+  if (anyDescendantAlive) return 'reign'; // el linaje vive aunque fuera de top-3
+
+  return 'pyrrhic'; // Elegido solo, sin bloodline
 }
