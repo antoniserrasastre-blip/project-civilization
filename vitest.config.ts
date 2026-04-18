@@ -19,6 +19,7 @@ export default defineConfig({
       'tests/unit/**/*.test.ts',
       'tests/integration/**/*.test.ts',
       'tests/design/**/*.test.ts',
+      'tests/playtest/**/*.test.ts',
     ],
     // Los E2E son de Playwright; excluidos de la pasada de Vitest.
     exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
