@@ -93,3 +93,31 @@ shipped. Sprints 10-13 por delante.
   auto-reintentado resuelto).
 
 v0.3 consolidado. Listo para empezar v0.4 (Sprint 12 — LLM chronicle).
+
+### Sprint 12 — provider layer de la crónica (✅)
+
+Clave de diseño: **el estado no cambia**. Los `ChronicleEntry` siguen
+siendo deterministas emitidos por las plantillas de `chronicle.ts`. El
+provider solo transforma EN RENDER. Swap del provider no rompe
+determinismo ni replays.
+
+- `lib/chronicle-provider.ts`: interfaz + 3 providers.
+  - `templateProvider`: identidad.
+  - `mockLLMProvider`: prepende fórmulas partisanas preescritas
+    (determinista en función del día).
+  - `claudeProvider`: **scaffold disabled**. Requiere:
+    1. Crear `.env.local` con `ANTHROPIC_API_KEY=sk-...`.
+    2. Añadir route handler `app/api/chronicle/enhance/route.ts`
+       que haga el fetch server-side y devuelva JSON.
+    3. En `claudeProvider.enhance` hacer fetch a ese endpoint.
+    4. Poner `claudeProvider.enabled = true`.
+- UI: `ChroniclePanel` añade `<select>` con los 3 providers y
+  re-renderiza asincrónicamente (cache-barrier básico via
+  `useEffect`+`cancelled` flag).
+
+**BLOCKER ACTIVO**: para activar Claude real, el usuario debe cablear
+el endpoint y configurar la env var. He dejado el provider scaffolded
+y el selector enumera las 3 opciones. La opción `claude` cae al texto
+plantilla hasta que el endpoint responda. Ver checklist arriba.
+
+**Resultado**: 225 unit+integration + 24 E2E verdes. Sprint 12 shipped.

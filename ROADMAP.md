@@ -92,9 +92,14 @@ al empezar S9 con datos reales de playtest del loop single-god.
 
 ## v0.4 — Generative Chronicle
 
-### Sprint 12
+### Sprint 12 ✅ done
 Integración LLM (Claude/Gemini) en la capa de crónica. El `.env.example`
 ya lo insinúa. Voz partisana mantenida vía system prompt.
+
+> Implementado como **provider layer** — el core sigue emitiendo
+> plantillas deterministas; la transformación LLM ocurre solo en
+> render. `templateProvider` + `mockLLMProvider` (offline, sin red) +
+> `claudeProvider` (scaffold, disabled hasta cablear endpoint server).
 
 ---
 

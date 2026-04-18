@@ -61,6 +61,11 @@ import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
 import { exportChronicle, exportFilename } from '@/lib/export';
 import { TECH_POOLS, pendingTechs } from '@/lib/tech';
 import {
+  CHRONICLE_PROVIDERS,
+  providerById,
+  type ChronicleProvider,
+} from '@/lib/chronicle-provider';
+import {
   GIFTS,
   type GiftId,
   canGrantGift,
@@ -113,6 +118,13 @@ export default function GodgameDashboard() {
   const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
+  const [chronicleProviderId, setChronicleProviderId] = useState<
+    ChronicleProvider['id']
+  >('template');
+  const chronicleProvider = useMemo(
+    () => providerById(chronicleProviderId),
+    [chronicleProviderId],
+  );
 
   // ---- Boot: intentar cargar snapshot ---------------------------------
   // Necesariamente hacemos setState en efecto de montaje: la carga
@@ -454,6 +466,8 @@ export default function GodgameDashboard() {
           <ChroniclePanel
             entries={chronicleReversed}
             onExport={handleExportChronicle}
+            provider={chronicleProvider}
+            onProviderChange={setChronicleProviderId}
           />
         </aside>
       </main>
@@ -1532,7 +1546,31 @@ function CharacterCardOverlay(props: {
 function ChroniclePanel(props: {
   entries: { day: number; text: string }[];
   onExport: () => void;
+  provider: ChronicleProvider;
+  onProviderChange: (id: ChronicleProvider['id']) => void;
 }) {
+  const [rendered, setRendered] = useState<string[]>(
+    props.entries.map((e) => e.text),
+  );
+
+  // Render asincrónico: proveedores de LLM real pueden devolver Promise;
+  // hasta entonces mostramos el texto plantilla como fallback.
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      const out: string[] = [];
+      for (const e of props.entries) {
+        out.push(await props.provider.enhance(e, {}));
+      }
+      if (!cancelled) setRendered(out);
+    }
+    setRendered(props.entries.map((e) => e.text));
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [props.entries, props.provider]);
+
   return (
     <Card className="border-slate-200 h-[calc(100vh-260px)] flex flex-col bg-white">
       <CardHeader className="p-4 border-b border-slate-50 flex flex-row items-start justify-between">
@@ -1545,16 +1583,33 @@ function ChroniclePanel(props: {
             La voz del cronista — parcial, no neutral.
           </CardDescription>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={props.onExport}
-          data-testid="export-chronicle"
-          className="text-[10px]"
-          title="Descargar como texto"
-        >
-          Exportar
-        </Button>
+        <div className="flex items-center gap-1">
+          <select
+            className="text-[10px] bg-white border border-slate-200 rounded px-1.5 py-0.5"
+            value={props.provider.id}
+            onChange={(ev) =>
+              props.onProviderChange(ev.target.value as ChronicleProvider['id'])
+            }
+            data-testid="chronicle-provider-select"
+            title="Voz del cronista"
+          >
+            {CHRONICLE_PROVIDERS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={props.onExport}
+            data-testid="export-chronicle"
+            className="text-[10px]"
+            title="Descargar como texto"
+          >
+            Exportar
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-0 flex-grow">
         <ScrollArea className="h-full p-4">
@@ -1572,7 +1627,9 @@ function ChroniclePanel(props: {
                   className="text-xs border-l-2 border-slate-100 pl-3 py-0.5"
                   data-testid="chronicle-entry"
                 >
-                  <p className="text-slate-700 leading-relaxed">{e.text}</p>
+                  <p className="text-slate-700 leading-relaxed">
+                    {rendered[i] ?? e.text}
+                  </p>
                 </li>
               ))}
             </ul>
