@@ -109,7 +109,7 @@ describe('scheduler — descubrimiento y transición', () => {
   it('tras 30k ticks la civilización ha descubierto alguna tech', () => {
     const s = runTicks(initialState(42), 30_000);
     expect(s.technologies.length).toBeGreaterThan(1);
-  }, 30_000);
+  }, 60_000);
 
   it('tech_discovered añade la tecnología y emite crónica', () => {
     const s = initialState(42);

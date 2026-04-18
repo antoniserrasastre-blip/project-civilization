@@ -40,6 +40,7 @@ import {
 } from './tutorial';
 import { nextEra, pendingTechs, shouldAdvanceEra, TECH_POOLS } from './tech';
 import { decideRivalActions } from './rival-ai';
+import { clampFaith } from './faith';
 
 // ---------------------------------------------------------------------------
 // Constantes tunables — valores de arranque. Se ajustarán en Sprint 7.
@@ -597,7 +598,7 @@ export function applyEvents(
         ...out,
         player_god: {
           ...out.player_god,
-          faith_points: out.player_god.faith_points + ev.amount,
+          faith_points: clampFaith(out.player_god.faith_points + ev.amount),
         },
       };
     } else if (ev.type === 'tutorial_end') {
@@ -635,7 +636,7 @@ export function applyEvents(
         ...out,
         rival_gods: out.rival_gods.map((r) =>
           r.group_id === ev.rival_group_id
-            ? { ...r, faith_points: r.faith_points + ev.amount }
+            ? { ...r, faith_points: clampFaith(r.faith_points + ev.amount) }
             : r,
         ),
       };
