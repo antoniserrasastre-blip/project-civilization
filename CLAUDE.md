@@ -236,6 +236,95 @@ metodología es:
    validado la anterior, se hace en una rama propia (`claude/v2-...`)
    con su propio ROADMAP y sin mergear a la rama principal activa.
 
+## Suite de coherencia de diseño (`tests/design/`)
+
+Independiente de los unit/integration/e2e que cubren **features
+nuevas**, la carpeta `tests/design/` contiene una suite **transversal**
+que revisa coherencia mecánica, de economía, de world-state y
+narrativa. Su objetivo no es aceptar features — es encontrar
+*chirridos de diseño*: gotchas que los tests por sprint no detectan
+porque cada uno vive en su silo.
+
+**Cuándo se actualiza / ejecuta**:
+
+- Obligatorio pasarla verde al cerrar cada versión mayor. Entra en
+  el gate del Polish & Debug pass.
+- Ejecución: `pnpm test:design` (script dedicado en `package.json`).
+- Tests nuevos se añaden cuando aparece una mecánica cross-módulo
+  que los unit tests aislados no cubrirían. Si una expectativa
+  requiere dato numérico (p.ej. "fe pasiva en 30s no supera GIFT_COST")
+  se calcula a partir de las constantes, no se hardcodea.
+
+**10 dominios** (un `describe` por dominio):
+
+1. **Economía de Fe** (§Pillar 3) — Fe no acumula si Elegido muere;
+   simetría Fe rival/player; costes de dones/maldiciones sanos en
+   tiempos reales concretos (calculados desde constantes).
+2. **Población & pairing** (§Pillar 2) — no explota ni colapsa;
+   cross-group raro pero posible; huérfanos conservan linaje.
+3. **Ciclo de vida** — distribución de edad al morir; ratio muertes
+   por conflicto vs edad; la crónica registra muertes importantes.
+4. **Determinismo extremo** — 1000 ticks byte-idénticos; PRNG cursor
+   monotónico; ausencia de `Math.random()` verificada vía
+   reproducibilidad.
+5. **Dones & traits** (§Pillar 1) — mismo don sobre traits opuestos
+   produce outcomes cuantitativamente distintos; herencia persiste.
+6. **IA dios rival** (§Pillar 4) — cadencia anti-presión; perfiles
+   con `actProb` observado dentro del rango esperado; extinción del
+   rival con grupo vacío no emite eventos.
+7. **Veredicto & influencia** (§Pillar 5) — fórmula exacta; top-3
+   con/sin descendiente; edge case "limbo" (Elegido solo, sin
+   descendientes) flagueado explícitamente.
+8. **Crónica coherencia** — no menciona NPCs muertos post-muerte;
+   pairings cross-group narrados; export HTML escapa acentos.
+9. **UI mechanics** — halo tutorial solo sobre señalado; click en NPC
+   muerto no crashea; URL compartible reconstruye mundo idéntico.
+10. **Edge cases enredados** — mundo con 1 NPC, extinción casi total,
+    orden ungir/maldecir/rival-decide, propagación de dones tras
+    muerte fatal del portador.
+
+**Regla de oro cuando un test de coherencia falla**:
+
+No se revierte el test. El test es el contrato. Dos opciones:
+
+1. **Bug de código** → se arregla el código.
+2. **Expectativa de diseño equivocada** → se actualiza el test Y se
+   documenta el *why* en comentario encima del `it(...)`. La
+   corrección queda auditable.
+
+Jamás se marca un test como `.skip` para librarse. Si una expectativa
+requiere decisión humana, se convierte en `it.todo("...")` con
+explicación y se flaguea en el VERSION-LOG en curso.
+
+**Escritura incremental — un `describe` a la vez**:
+
+Cuando añadas o reescribas la suite de coherencia (y en general
+cualquier test file grande), escribe **un `describe` block por turno**,
+no el archivo entero de golpe. Razones:
+
+1. **Evita timeouts** del agente cuando el fichero supera ~400 líneas.
+2. **Iterable**: cada bloque se ejecuta nada más escribirse
+   (`pnpm test:design -- -t "<descripción>"`) y se clasifica como
+   pass / bug / expectativa equivocada antes de pasar al siguiente.
+3. **Commits más chicos**: si algo peta, sabes qué bloque lo causó.
+4. **Mantiene frescura de contexto**: cada bloque se escribe con la
+   lógica concreta del dominio en cabeza, no mezclada con los otros
+   nueve.
+
+Procedimiento:
+- `Write` el test file con los `describe` cabecera + el primer
+  bloque completo.
+- `pnpm test:design -- -t "<dominio>"` para correr solo ese `describe`.
+- Clasificar fallos inmediatamente (bug / expectativa / todo).
+- `Edit` el fichero para añadir el siguiente `describe`.
+- Repetir hasta los 10 dominios.
+- Gate final + commit único del archivo completo.
+
+**Inspiración** (referencias para calibrar balance):
+- Stardew Valley: economía estable, loops no explotables.
+- CK3: dinastías emergentes trait-driven, no random puro.
+- Dwarf Fortress: mundos deterministas con eventos narrativos.
+
 ## Cuándo pausar y preguntar
 
 - Ambigüedad entre lo que pide el roadmap y lo que pide la visión.
