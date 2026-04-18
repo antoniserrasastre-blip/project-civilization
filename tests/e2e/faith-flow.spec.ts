@@ -57,13 +57,29 @@ test.describe('Sprint 4 — economía de Fe', () => {
 
       // Si durante la aceleración se disparó una cinemática de era, la
       // cerramos antes de seguir tocando controles (blocking overlay).
-      const cinematic = page.getByTestId('era-cinematic');
-      if (await cinematic.isVisible().catch(() => false)) {
-        await page.getByTestId('era-cinematic-close').click();
+      // Puede dispararse más de una (por descubrir varias techs); loop
+      // cerrando hasta que ninguna esté visible antes de pausar.
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const cinematic = page.getByTestId('era-cinematic');
+        if (!(await cinematic.isVisible().catch(() => false))) break;
+        await page
+          .getByTestId('era-cinematic-close')
+          .click()
+          .catch(() => {});
       }
 
-      // Pausar de nuevo para estabilidad.
-      for (let i = 0; i < 3; i++) await page.getByTestId('clock-slower').click();
+      // Pausar de nuevo para estabilidad. Si otra cinemática aparece entre
+      // clicks, volvemos a cerrarla y reintentamos.
+      for (let i = 0; i < 3; i++) {
+        const cin = page.getByTestId('era-cinematic');
+        if (await cin.isVisible().catch(() => false)) {
+          await page
+            .getByTestId('era-cinematic-close')
+            .click()
+            .catch(() => {});
+        }
+        await page.getByTestId('clock-slower').click();
+      }
       await expect(page.getByTestId('clock-speed')).toContainText('Pausado');
 
       // Re-seleccionar el Elegido (la velocidad hace que el roster se
