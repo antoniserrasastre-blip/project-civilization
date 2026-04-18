@@ -8,23 +8,17 @@
  *   4. El ciclo de velocidad 0 → 1× → 10× → 100× recorre los 4 valores.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 2 — mapa y overlay de carácter', () => {
   test('el mapa renderiza costa y NPCs', async ({ page }) => {
     await goHomeFresh(page);
     await expect(page.getByTestId('map-view')).toBeVisible();
     await expect(page.getByTestId('coast-polygon')).toBeVisible();
-    // 50 NPCs iniciales
+    // v0.3 multi-grupo: 3 grupos × 12 = 36 NPCs iniciales.
     const circles = page.locator('[data-testid^="map-npc-"]');
-    await expect(circles).toHaveCount(50);
+    await expect(circles).toHaveCount(36);
   });
 
   test('click en NPC del mapa abre la character card overlay', async ({ page }) => {

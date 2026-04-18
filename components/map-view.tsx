@@ -16,6 +16,7 @@
 import React from 'react';
 import type { Coast } from '@/lib/map';
 import type { NPC } from '@/lib/world-state';
+import { GROUPS } from '@/lib/world-state';
 import { next, seedState } from '@/lib/prng';
 
 interface MapViewProps {
@@ -91,8 +92,9 @@ function pointInPolygon(
 function npcColor(npc: NPC, chosenOnes: string[]): string {
   if (!npc.alive) return '#94a3b8'; // slate-400 (muertos)
   if (chosenOnes.includes(npc.id)) return '#f97316'; // orange-500 (Elegido)
-  if (npc.partner_id) return '#10b981'; // emerald-500 (emparejado)
-  return '#0f172a'; // slate-900 (mortal normal)
+  const group = GROUPS.find((g) => g.id === npc.group_id);
+  if (group) return group.color;
+  return '#0f172a'; // slate-900 (mortal sin grupo conocido)
 }
 
 export function MapView(props: MapViewProps) {

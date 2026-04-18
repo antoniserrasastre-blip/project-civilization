@@ -41,7 +41,7 @@ import {
   X as XIcon,
 } from 'lucide-react';
 
-import { initialState, type WorldState, type NPC } from '@/lib/world-state';
+import { initialState, GROUPS, type WorldState, type NPC } from '@/lib/world-state';
 import { tick } from '@/lib/simulation';
 import { canAnoint, anoint } from '@/lib/anoint';
 import {
@@ -98,7 +98,9 @@ const SAVE_EVERY_N_TICKS = 50;
 export default function GodgameDashboard() {
   // Estado seed-determinista. En SSR esto es lo que se pinta; en cliente
   // el efecto de abajo lo reemplaza por el snapshot si existe.
-  const [state, setState] = useState<WorldState>(() => initialState(DEFAULT_SEED));
+  const [state, setState] = useState<WorldState>(() =>
+    initialState(DEFAULT_SEED, { playerGroupId: 'tramuntana' }),
+  );
   const [hydrated, setHydrated] = useState(false);
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   /** Se abre solo cuando el jugador pulsa un círculo en el mapa. */
@@ -106,6 +108,8 @@ export default function GodgameDashboard() {
   const [verdictOpen, setVerdictOpen] = useState(false);
   /** Era anterior: guardada para detectar transición y mostrar cinemática. */
   const [eraCinematic, setEraCinematic] = useState<null | { from: string; to: string }>(null);
+  /** Selector de grupos: abierto tras boot si no hay snapshot guardado. */
+  const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -118,8 +122,22 @@ export default function GodgameDashboard() {
     if (loaded) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(loaded);
+    } else {
+      // Mundo nuevo: el jugador elige grupo antes de que arranque nada.
+      setGroupSelectorOpen(true);
     }
     setHydrated(true);
+  }, []);
+
+  const handlePickGroup = useCallback((groupId: string) => {
+    setState(() => {
+      const fresh = initialState(DEFAULT_SEED, { playerGroupId: groupId });
+      saveSnapshot(fresh);
+      return fresh;
+    });
+    setSelectedNpcId(null);
+    setSpeed(1);
+    setGroupSelectorOpen(false);
   }, []);
 
   // ---- Reloj de simulación --------------------------------------------
@@ -202,10 +220,12 @@ export default function GodgameDashboard() {
 
   const handleReset = useCallback(() => {
     clearSnapshot();
-    const fresh = initialState(DEFAULT_SEED);
-    setState(fresh);
+    // Volvemos al mundo por defecto visualmente (compat v0.1) y
+    // mostramos el selector para que el jugador elija otra vez.
+    setState(initialState(DEFAULT_SEED, { playerGroupId: 'tramuntana' }));
     setSelectedNpcId(null);
     setSpeed(1);
+    setGroupSelectorOpen(true);
     setToast('Mundo reiniciado.');
   }, []);
 
@@ -418,6 +438,12 @@ export default function GodgameDashboard() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {groupSelectorOpen && (
+          <GroupSelectorOverlay onPick={handlePickGroup} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {eraCinematic && (
           <EraCinematicModal
             from={eraCinematic.from}
@@ -452,7 +478,7 @@ export default function GodgameDashboard() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {toast && (
           <motion.div
             key={toast}
@@ -994,7 +1020,7 @@ function TutorialIntroOverlay(props: {
             variant="ghost"
             size="sm"
             onClick={props.onSkip}
-            data-testid="tutorial-skip"
+            data-testid="tutorial-skip-intro"
             className="text-xs text-slate-500"
           >
             Saltar tutorial
@@ -1034,7 +1060,7 @@ function TutorialBanner(props: {
         variant="ghost"
         size="sm"
         onClick={props.onSkip}
-        data-testid="tutorial-skip"
+        data-testid="tutorial-skip-banner"
         className="text-[11px] text-amber-700"
       >
         Saltar
@@ -1056,6 +1082,59 @@ function phaseLabel(phase: TutorialPhase, highlightName: string | null): string 
     case 'done':
       return null;
   }
+}
+
+function GroupSelectorOverlay(props: {
+  onPick: (groupId: string) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-950/85 flex items-center justify-center p-8"
+      data-testid="group-selector"
+    >
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="max-w-2xl w-full bg-[#f5ecd2] border border-amber-900/30 rounded-2xl shadow-2xl p-8 space-y-6"
+      >
+        <div className="space-y-1">
+          <p className="text-[10px] uppercase tracking-widest text-amber-800 font-bold">
+            Elige tu pueblo
+          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-amber-900">
+            ¿A quién mirarás como dios?
+          </h2>
+          <p className="text-sm text-amber-700">
+            Hay tres pueblos en el archipiélago. Los otros dos tendrán sus
+            propios dioses — rivales tuyos.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {GROUPS.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => props.onPick(g.id)}
+              data-testid={`pick-group-${g.id}`}
+              className="text-left rounded-xl border border-amber-900/30 bg-white/60 hover:bg-white px-4 py-4 space-y-1 transition"
+            >
+              <div
+                className="w-6 h-6 rounded-full"
+                style={{ backgroundColor: g.color }}
+              />
+              <p className="font-bold tracking-tight text-amber-900">{g.name}</p>
+              <p className="text-[11px] text-amber-700">
+                Territorio ({g.center.x}, {g.center.y})
+              </p>
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
 }
 
 function TechPanel(props: {

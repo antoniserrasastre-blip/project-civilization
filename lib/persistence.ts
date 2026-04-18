@@ -12,10 +12,10 @@
 
 import type { WorldState } from './world-state';
 
-// v2 desde Sprint 2: el shape del estado añade `partner_id` en NPC y
-// `next_npc_id` en el estado. Bumpeamos la key para invalidar saves v1
-// que carecen de esos campos (evita crashes al cargar).
-export const STORAGE_KEY = 'godgame.state.v2';
+// v3 desde Sprint 9: el estado soporta multi-grupo. Saves v2 o anteriores
+// no tienen `playerGroupId` ni rival_gods poblados; la invalidación es
+// brutal pero evita inconsistencias.
+export const STORAGE_KEY = 'godgame.state.v3';
 
 function hasLocalStorage(): boolean {
   try {

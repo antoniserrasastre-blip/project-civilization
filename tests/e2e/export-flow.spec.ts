@@ -7,19 +7,12 @@
  * 4. El botón "Exportar" descarga un .txt con la crónica.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 6 — polish visual + export', () => {
   test('el mapa muestra símbolos hand-drawn', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
 
     await expect(page.getByTestId('map-symbols')).toBeVisible();
     // Al menos un símbolo de montaña o bosque visible.
@@ -31,7 +24,6 @@ test.describe('Sprint 6 — polish visual + export', () => {
 
   test('la character card overlay muestra silueta del NPC', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
     await page.getByTestId('clock-slower').click();
 
     await page.getByTestId('map-npc-npc_0000').dispatchEvent('click');
@@ -41,7 +33,6 @@ test.describe('Sprint 6 — polish visual + export', () => {
 
   test('el botón Exportar descarga la crónica como .txt', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
     await page.getByTestId('clock-slower').click();
 
     // Generamos al menos una entrada: ungir produce crónica.

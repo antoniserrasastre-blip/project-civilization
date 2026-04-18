@@ -7,19 +7,12 @@
  *    ticks de simulación; ese flujo está cubierto en unit tests).
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 8 — tech panel', () => {
   test('el panel muestra fuego ya conocido y 2 pendientes en tribal', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
 
     await expect(page.getByTestId('tech-panel')).toBeVisible();
     await expect(page.getByTestId('tech-known-fuego')).toBeVisible();

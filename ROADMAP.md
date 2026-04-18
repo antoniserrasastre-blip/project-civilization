@@ -74,7 +74,7 @@ era. Esto valida que la arquitectura escala entre eras.
 
 ## v0.3 — Rival Gods (flagship feature)
 
-### Sprint 9
+### Sprint 9 ✅ done
 Menú selector de grupos (§A5), 3 grupos en el mapa, cada uno con 10-15
 NPCs.
 

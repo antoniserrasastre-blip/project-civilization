@@ -8,18 +8,12 @@
  *   4. Click "Saltar" cierra el tutorial; banner y halo desaparecen.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 5a — onboarding coreografiado', () => {
   test('intro → comenzar → banner + halo → saltar', async ({ page }) => {
-    await goHomeFresh(page);
+    await goHomeFresh(page, { keepTutorial: true });
 
     // Intro overlay con botón Comenzar y saltar.
     await expect(page.getByTestId('tutorial-intro')).toBeVisible();
@@ -37,17 +31,17 @@ test.describe('Sprint 5a — onboarding coreografiado', () => {
     // Saltar tutorial → banner y halo desaparecen.
     // Pausamos primero para no tener race con el avance de ticks.
     await page.getByTestId('clock-slower').click();
-    await page.getByTestId('tutorial-skip').click();
+    await page.getByTestId('tutorial-skip-banner').click();
 
     await expect(page.getByTestId('tutorial-banner')).not.toBeVisible();
     await expect(page.getByTestId('tutorial-halo')).not.toBeVisible();
   });
 
   test('si se salta en la intro, no aparece banner posterior', async ({ page }) => {
-    await goHomeFresh(page);
+    await goHomeFresh(page, { keepTutorial: true });
     await expect(page.getByTestId('tutorial-intro')).toBeVisible();
 
-    await page.getByTestId('tutorial-skip').click();
+    await page.getByTestId('tutorial-skip-intro').click();
 
     await expect(page.getByTestId('tutorial-intro')).not.toBeVisible();
     await expect(page.getByTestId('tutorial-banner')).not.toBeVisible();

@@ -12,14 +12,8 @@
  * 7. Tras conceder, Fe baja 30 y gifts_granted=2.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 4 — economía de Fe', () => {
   test('acumular Fe y conceder segundo don', async ({ page }) => {
@@ -60,6 +54,13 @@ test.describe('Sprint 4 — economía de Fe', () => {
           { timeout: 20_000, intervals: [300] },
         )
         .toBeGreaterThanOrEqual(30);
+
+      // Si durante la aceleración se disparó una cinemática de era, la
+      // cerramos antes de seguir tocando controles (blocking overlay).
+      const cinematic = page.getByTestId('era-cinematic');
+      if (await cinematic.isVisible().catch(() => false)) {
+        await page.getByTestId('era-cinematic-close').click();
+      }
 
       // Pausar de nuevo para estabilidad.
       for (let i = 0; i < 3; i++) await page.getByTestId('clock-slower').click();

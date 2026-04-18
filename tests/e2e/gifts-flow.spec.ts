@@ -10,14 +10,8 @@
  * 7. El botón de cada don queda deshabilitado ("ya").
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 3 — dones', () => {
   test('ungir y conceder el primer don gratis; el segundo queda bloqueado por Fe', async ({ page }) => {

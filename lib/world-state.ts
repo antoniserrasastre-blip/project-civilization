@@ -155,6 +155,20 @@ const LAST_NAMES = [
 
 const DEFAULT_GROUP: Group = { id: 'tramuntana', name: 'Hijos de Tramuntana' };
 
+/**
+ * Catálogo de grupos disponibles en v0.3 (§A5 — "Menú selector de grupos").
+ * Cada uno lleva nombres de vientos baleares y un cluster territorial en
+ * el mapa. Mismo conteo de NPCs por grupo → partida balanceada al arrancar;
+ * la personalidad la aportan los traits generados por el PRNG.
+ */
+export const GROUPS: ReadonlyArray<Group & { center: Position; color: string }> = [
+  { id: 'tramuntana', name: 'Hijos de Tramuntana', center: { x: 28, y: 28 }, color: '#1e3a8a' },
+  { id: 'llevant', name: 'Hijos de Llevant', center: { x: 72, y: 28 }, color: '#7c2d12' },
+  { id: 'migjorn', name: 'Hijos de Migjorn', center: { x: 50, y: 72 }, color: '#065f46' },
+] as const;
+
+export const DEFAULT_GROUP_ID = GROUPS[0].id;
+
 // ---------------------------------------------------------------------------
 // Helpers internos
 // ---------------------------------------------------------------------------
@@ -241,12 +255,18 @@ function generateNpc(
 // ---------------------------------------------------------------------------
 
 export interface InitialStateOptions {
-  /** Número de NPCs a sembrar. MVP usa 50. */
+  /** Número de NPCs a sembrar. MVP v0.1 usaba 50; v0.3 reparte entre grupos. */
   npcCount?: number;
   /** Tamaño del mapa cuadrado (unidades arbitrarias). MVP usa 100. */
   mapSize?: number;
   /** Empezar con el tutorial activo. Default true. */
   tutorial?: boolean;
+  /**
+   * Id del grupo del jugador (v0.3). Si está presente y existe en `GROUPS`,
+   * se poblan dioses rivales para los demás grupos y los NPCs se reparten
+   * en clusters territoriales. Si es undefined, partida compat. v0.1 (1 grupo).
+   */
+  playerGroupId?: string;
 }
 
 /**
@@ -262,29 +282,74 @@ export function initialState(
   seed: number,
   options: InitialStateOptions = {},
 ): WorldState {
-  const npcCount = options.npcCount ?? 50;
   const mapSize = options.mapSize ?? 100;
   const tutorial = options.tutorial ?? true;
+  const playerGroupId = options.playerGroupId;
+
+  // Modo multi-grupo si el caller pide playerGroupId y existe en el catálogo.
+  const multiGroup =
+    playerGroupId !== undefined &&
+    GROUPS.some((g) => g.id === playerGroupId);
+
+  const activeGroups: ReadonlyArray<Group & { center: Position }> = multiGroup
+    ? GROUPS
+    : [{ ...DEFAULT_GROUP, center: { x: mapSize / 2, y: mapSize / 2 } }];
+
+  const totalNpcCount =
+    options.npcCount ?? (multiGroup ? activeGroups.length * 12 : 50);
 
   let prng = seedState(seed);
 
   const npcs: NPC[] = [];
-  for (let i = 0; i < npcCount; i++) {
-    const { npc, next: n } = generateNpc(
-      prng,
-      npcIdString(i),
-      DEFAULT_GROUP.id,
-      mapSize,
-    );
-    npcs.push(npc);
-    prng = n;
+  let npcIdx = 0;
+  const perGroup = Math.floor(totalNpcCount / activeGroups.length);
+  const remainder = totalNpcCount - perGroup * activeGroups.length;
+  for (let g = 0; g < activeGroups.length; g++) {
+    const group = activeGroups[g];
+    const count = perGroup + (g === 0 ? remainder : 0);
+    for (let i = 0; i < count; i++) {
+      const { npc, next: n } = generateNpc(
+        prng,
+        npcIdString(npcIdx++),
+        group.id,
+        mapSize,
+      );
+      prng = n;
+      if (multiGroup) {
+        // Clustering territorial: posicionar cerca del centro del grupo
+        // reutilizando la entropía del generador (el jitter viene del
+        // position.x/y ya generado, mapeado a ±jitterSize/2).
+        const jitterSize = 18;
+        const cx = group.center.x;
+        const cy = group.center.y;
+        const x = Math.max(
+          0,
+          Math.min(
+            mapSize,
+            cx - jitterSize / 2 + (npc.position.x / mapSize) * jitterSize,
+          ),
+        );
+        const y = Math.max(
+          0,
+          Math.min(
+            mapSize,
+            cy - jitterSize / 2 + (npc.position.y / mapSize) * jitterSize,
+          ),
+        );
+        npcs.push({ ...npc, position: { x, y } });
+      } else {
+        npcs.push(npc);
+      }
+    }
   }
 
-  // Señalamiento del NPC más ambicioso (§A1). Desempate por id menor
-  // para total determinismo. Si el tutorial está apagado, dejamos null.
+  // Señalamiento del NPC más ambicioso del grupo del jugador (§A1).
+  // En multi-grupo, el halo apunta solo a un candidato de los nuestros.
   let highlight: NPC | null = null;
   if (tutorial) {
+    const playerId = playerGroupId ?? DEFAULT_GROUP.id;
     for (const n of npcs) {
+      if (n.group_id !== playerId) continue;
       if (!highlight || n.traits.ambicion > highlight.traits.ambicion) {
         highlight = n;
       }
@@ -299,13 +364,22 @@ export function initialState(
     tutorial_active: tutorial,
     tutorial_highlight_id: highlight?.id ?? null,
     player_god: {
-      group_id: DEFAULT_GROUP.id,
+      group_id: playerGroupId ?? DEFAULT_GROUP.id,
       faith_points: 0, // el primer Elegido es gratis (§A1)
       chosen_ones: [],
       gifts_granted: 0,
     },
-    rival_gods: [], // MVP no tiene rivales; v0.3 los poblará aquí
-    groups: [DEFAULT_GROUP],
+    rival_gods: multiGroup
+      ? activeGroups
+          .filter((g) => g.id !== playerGroupId)
+          .map((g) => ({
+            group_id: g.id,
+            profile: 'passive' as const,
+            faith_points: 0,
+            chosen_ones: [],
+          }))
+      : [],
+    groups: activeGroups.map(({ id, name }) => ({ id, name })),
     npcs,
     chronicle: [],
     next_npc_id: npcs.length,

@@ -177,6 +177,42 @@ tests/e2e/       Playwright. Un spec por flujo de usuario.
   necesitas un dev server para verificar algo, arráncalo tú en
   background y mátalo al terminar.
 
+## Sesiones autónomas (overnight / multi-sprint)
+
+Cuando se pide ejecutar varios sprints seguidos sin supervisión,
+la metodología es:
+
+1. **Un commit por sprint completado**. Nada se empuja si el gate
+   (`pnpm test`, `test:e2e`, `tsc --noEmit`, `eslint .`, `pnpm build`)
+   no está en verde. Si un sprint no pasa el gate, se rebobina al
+   último commit limpio y se deja nota en `NOTES-OVERNIGHT.md`.
+2. **Flag y sigue** ante bloqueos no triviales: falta de API key,
+   dependencia nativa rota, decisión de diseño ambigua, rutas que
+   tocan secrets. Se documenta en `NOTES-OVERNIGHT.md` y se continúa
+   con el siguiente sprint si el anterior no bloquea estructuralmente.
+3. **`NOTES-OVERNIGHT.md`** (raíz del repo) se mantiene actualizado
+   con una bitácora breve por sprint: entregable, decisiones tomadas,
+   blockers activos, acciones requeridas por el Director Creativo.
+4. **Polish & Debug pass entre versiones**. Tras cerrar todos los
+   sprints de una versión mayor (v0.1, v0.2, v0.3, v0.4, v1.0,
+   v2.0…), se hace una pasada dedicada ANTES de empezar la siguiente:
+   - Suite al completo verde (unit + integration + e2e + lint + tsc + build).
+   - Revisión de TODOs, `any`, `eslint-disable`, warnings.
+   - Detectar regresiones visuales/UX (overlays que bloquean clicks,
+     toasts duplicados, test-ids colisionando, etc.).
+   - Afinar constantes de balance que el playtest revelase flojas.
+   - Commit propio `polish: vX.Y debug + balance pass` y push.
+   La siguiente versión se construye sobre esa base, nunca sobre una
+   versión a medias.
+5. **No tocar la API de Anthropic con claves pegadas en chat**. Si el
+   usuario pega una key, se le pide revocarla y se sigue con provider
+   mock hasta que configure su key por vía segura (env var, secret
+   store). Ver notas en `NOTES-OVERNIGHT.md`.
+6. **Ramas provisionales para trabajo especulativo**: si se avanza
+   sobre una versión futura (ej. v2.0) sin que el usuario haya
+   validado la anterior, se hace en una rama propia (`claude/v2-...`)
+   con su propio ROADMAP y sin mergear a la rama principal activa.
+
 ## Cuándo pausar y preguntar
 
 - Ambigüedad entre lo que pide el roadmap y lo que pide la visión.

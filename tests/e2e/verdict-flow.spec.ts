@@ -8,19 +8,12 @@
  * 5. Cerrar y reabrir comprueba consistencia.
  */
 
-import { test, expect, Page } from '@playwright/test';
-
-async function goHomeFresh(page: Page) {
-  await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-  await page.waitForLoadState('networkidle');
-}
+import { test, expect } from '@playwright/test';
+import { goHomeFresh } from './helpers';
 
 test.describe('Sprint 5b — veredicto', () => {
   test('abre el modal y muestra top-3 por influencia', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
     await page.getByTestId('clock-slower').click(); // pausa
 
     await page.getByTestId('open-verdict').click();
@@ -39,7 +32,6 @@ test.describe('Sprint 5b — veredicto', () => {
 
   test('tras ungir y buffar, el veredicto cambia a SÍ', async ({ page }) => {
     await goHomeFresh(page);
-    await page.getByTestId('tutorial-skip').click();
     await page.getByTestId('clock-slower').click();
 
     // Por defecto, sin Elegido, el veredicto es AÚN NO.
