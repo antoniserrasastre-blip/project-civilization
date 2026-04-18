@@ -168,7 +168,6 @@ export function MapView(props: MapViewProps) {
                 pointerEvents="none"
               />
               <polygon
-                // Mallorca conserva el testid legacy para E2E.
                 data-testid={isMallorca ? 'coast-polygon' : undefined}
                 points={pts}
                 fill="#fefbe9"
@@ -179,6 +178,104 @@ export function MapView(props: MapViewProps) {
             </g>
           );
         })}
+
+        {/* Etiquetas toponímicas en latín vulgar — estilo cartografía
+            barroca sobre papel vitela. Font-size en función del tamaño
+            de la isla para que no se coman el espacio pintable. */}
+        {archipelago.islands.map((isla) => {
+          const fs =
+            isla.kind === 'mallorca'
+              ? 3.2
+              : isla.kind === 'menorca' || isla.kind === 'ibiza'
+                ? 2
+                : 1.3;
+          return (
+            <text
+              key={`label-${isla.kind}`}
+              data-testid={`island-label-${isla.kind}`}
+              x={isla.center.x}
+              y={isla.center.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={fs}
+              fontFamily="'Times New Roman', 'Palatino', serif"
+              fill="#3d2f1b"
+              opacity={0.72}
+              letterSpacing="0.15em"
+              pointerEvents="none"
+              style={{ fontStyle: 'italic', fontWeight: 500 }}
+            >
+              {isla.name}
+            </text>
+          );
+        })}
+
+        {/* Puntos cardinales en los 4 bordes (N/S/E/W) — grandes, de
+            pergamino antiguo. Se renderizan tras islas/labels para que
+            queden sobre el mar. */}
+        <g
+          data-testid="cardinal-points"
+          fontFamily="'Times New Roman', serif"
+          fill="#3d2f1b"
+          opacity={0.55}
+          pointerEvents="none"
+        >
+          <text
+            x={mapSize / 2}
+            y={3.5}
+            textAnchor="middle"
+            fontSize={2.5}
+            fontWeight="bold"
+          >
+            SEPTENTRIO
+          </text>
+          <text
+            x={mapSize / 2}
+            y={mapSize - 1.5}
+            textAnchor="middle"
+            fontSize={2.5}
+            fontWeight="bold"
+          >
+            MERIDIES
+          </text>
+          <text
+            x={2.5}
+            y={mapSize / 2}
+            textAnchor="middle"
+            fontSize={2.5}
+            fontWeight="bold"
+            transform={`rotate(-90, 2.5, ${mapSize / 2})`}
+          >
+            OCCIDENS
+          </text>
+          <text
+            x={mapSize - 2.5}
+            y={mapSize / 2}
+            textAnchor="middle"
+            fontSize={2.5}
+            fontWeight="bold"
+            transform={`rotate(90, ${mapSize - 2.5}, ${mapSize / 2})`}
+          >
+            ORIENS
+          </text>
+        </g>
+
+        {/* Etiqueta MARE BALEARICVM en el centro del mar, sutil */}
+        <text
+          data-testid="sea-label"
+          x={mapSize * 0.72}
+          y={mapSize * 0.55}
+          textAnchor="middle"
+          fontSize={2.6}
+          fontFamily="'Times New Roman', serif"
+          fill="#5a4a32"
+          opacity={0.4}
+          letterSpacing="0.4em"
+          pointerEvents="none"
+          style={{ fontStyle: 'italic' }}
+        >
+          MARE BALEARICVM
+        </text>
 
         {/* Símbolos hand-drawn — montañas y bosques */}
         <g
