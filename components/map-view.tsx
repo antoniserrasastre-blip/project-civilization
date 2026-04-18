@@ -134,13 +134,62 @@ export function MapView(props: MapViewProps) {
               opacity="0.55"
             />
           </pattern>
+          {/* Olas ornamentales — líneas cortas sinusoidales tipo "mar
+              barroco", rotadas para no alinear con el hatch. */}
+          <pattern
+            id="sea-waves"
+            patternUnits="userSpaceOnUse"
+            width="14"
+            height="8"
+            patternTransform="rotate(0)"
+          >
+            <path
+              d="M 0 4 q 1.5 -2 3 0 t 3 0 t 3 0 t 3 0 t 3 0"
+              stroke="#8a7858"
+              strokeWidth="0.28"
+              fill="none"
+              opacity="0.4"
+            />
+          </pattern>
           <radialGradient id="parchment-vignette" cx="50%" cy="50%" r="70%">
             <stop offset="60%" stopColor="rgba(0,0,0,0)" />
             <stop offset="100%" stopColor="rgba(120,80,40,0.28)" />
           </radialGradient>
+          {/* Filtro tinta orgánica — desplaza ligeramente la costa
+              como si el trazo hubiese sido a pluma. */}
+          <filter id="ink-wobble" x="-5%" y="-5%" width="110%" height="110%">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.9"
+              numOctaves="1"
+              seed="7"
+              result="noise"
+            />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="0.45" />
+          </filter>
+          {/* Marco ornamental — patrón de rombos repetido en los
+              bordes del mapa antiguo. */}
+          <pattern
+            id="border-lozenge"
+            patternUnits="userSpaceOnUse"
+            width="6"
+            height="6"
+          >
+            <rect
+              x="1"
+              y="1"
+              width="4"
+              height="4"
+              fill="none"
+              stroke="#3d2f1b"
+              strokeWidth="0.35"
+              transform="rotate(45, 3, 3)"
+              opacity="0.7"
+            />
+          </pattern>
         </defs>
 
-        {/* Mar — hachurado hand-drawn */}
+        {/* Mar — capas: hachurado + olas barrocas */}
         <rect
           x="0"
           y="0"
@@ -148,36 +197,74 @@ export function MapView(props: MapViewProps) {
           height={mapSize}
           fill="url(#sea-hatch)"
         />
+        <rect
+          x="0"
+          y="0"
+          width={mapSize}
+          height={mapSize}
+          fill="url(#sea-waves)"
+          pointerEvents="none"
+        />
 
-        {/* Islas */}
-        {archipelago.islands.map((isla) => {
-          const pts = isla.points
-            .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
-            .join(' ');
-          const isMallorca = isla.kind === 'mallorca';
-          return (
-            <g key={isla.kind} data-testid={`island-${isla.kind}`}>
-              {/* Sombra de costa suave */}
-              <polygon
-                points={pts}
-                fill="none"
-                stroke="#8a6b43"
-                strokeWidth="1.8"
-                opacity={0.22}
-                strokeLinejoin="round"
-                pointerEvents="none"
+        {/* Líneas de rumbo (rhumb lines) emanando de la rosa de los
+            vientos — firma visual de portolanos medievales. 16
+            radiales en colores sepia muy suaves. */}
+        <g
+          data-testid="rhumb-lines"
+          stroke="#8a6b43"
+          strokeWidth="0.12"
+          opacity="0.35"
+          pointerEvents="none"
+        >
+          {Array.from({ length: 16 }).map((_, i) => {
+            const a = (i / 16) * Math.PI * 2;
+            const cx = archipelago.compassRose.x;
+            const cy = archipelago.compassRose.y;
+            // Hasta el borde del mapa pasando por el compás.
+            const len = mapSize * 1.4;
+            return (
+              <line
+                key={i}
+                x1={cx}
+                y1={cy}
+                x2={cx + Math.cos(a) * len}
+                y2={cy + Math.sin(a) * len}
               />
-              <polygon
-                data-testid={isMallorca ? 'coast-polygon' : undefined}
-                points={pts}
-                fill="#fefbe9"
-                stroke="#312e24"
-                strokeWidth="0.7"
-                strokeLinejoin="round"
-              />
-            </g>
-          );
-        })}
+            );
+          })}
+        </g>
+
+        {/* Islas — costa con ligera ondulación de tinta */}
+        <g filter="url(#ink-wobble)">
+          {archipelago.islands.map((isla) => {
+            const pts = isla.points
+              .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+              .join(' ');
+            const isMallorca = isla.kind === 'mallorca';
+            return (
+              <g key={isla.kind} data-testid={`island-${isla.kind}`}>
+                {/* Sombra de costa suave */}
+                <polygon
+                  points={pts}
+                  fill="none"
+                  stroke="#8a6b43"
+                  strokeWidth="1.8"
+                  opacity={0.22}
+                  strokeLinejoin="round"
+                  pointerEvents="none"
+                />
+                <polygon
+                  data-testid={isMallorca ? 'coast-polygon' : undefined}
+                  points={pts}
+                  fill="#fefbe9"
+                  stroke="#312e24"
+                  strokeWidth="0.7"
+                  strokeLinejoin="round"
+                />
+              </g>
+            );
+          })}
+        </g>
 
         {/* Etiquetas toponímicas en latín vulgar — estilo cartografía
             barroca sobre papel vitela. Font-size en función del tamaño
@@ -381,6 +468,64 @@ export function MapView(props: MapViewProps) {
           fill="url(#parchment-vignette)"
           pointerEvents="none"
         />
+
+        {/* Marco ornamental — dos líneas paralelas de tinta sepia
+            con patrón de rombos entre ellas. Estilo portolano. */}
+        <g data-testid="map-frame" pointerEvents="none">
+          <rect
+            x="1.4"
+            y="1.4"
+            width={mapSize - 2.8}
+            height={mapSize - 2.8}
+            fill="none"
+            stroke="#3d2f1b"
+            strokeWidth="0.35"
+            opacity="0.75"
+          />
+          <rect
+            x="3.4"
+            y="3.4"
+            width={mapSize - 6.8}
+            height={mapSize - 6.8}
+            fill="none"
+            stroke="#3d2f1b"
+            strokeWidth="0.25"
+            opacity="0.55"
+          />
+          {/* Banda de rombos entre las dos líneas */}
+          <rect
+            x="1.4"
+            y="1.4"
+            width={mapSize - 2.8}
+            height="2"
+            fill="url(#border-lozenge)"
+            opacity="0.5"
+          />
+          <rect
+            x="1.4"
+            y={mapSize - 3.4}
+            width={mapSize - 2.8}
+            height="2"
+            fill="url(#border-lozenge)"
+            opacity="0.5"
+          />
+          <rect
+            x="1.4"
+            y="1.4"
+            width="2"
+            height={mapSize - 2.8}
+            fill="url(#border-lozenge)"
+            opacity="0.5"
+          />
+          <rect
+            x={mapSize - 3.4}
+            y="1.4"
+            width="2"
+            height={mapSize - 2.8}
+            fill="url(#border-lozenge)"
+            opacity="0.5"
+          />
+        </g>
       </svg>
     </div>
   );
