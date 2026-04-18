@@ -64,6 +64,11 @@ import {
   type VerdictState,
 } from '@/lib/verdict';
 import {
+  hasNuclearDilemma,
+  decideNuclear,
+  type NuclearChoice,
+} from '@/lib/nuclear';
+import {
   exportChronicle,
   exportFilename,
   exportCodexHtml,
@@ -402,6 +407,21 @@ export default function GodgameDashboard() {
     () => computeVerdict(state),
     [state],
   );
+  const nuclearOpen = useMemo(() => hasNuclearDilemma(state), [state]);
+
+  const handleNuclearDecision = useCallback((choice: NuclearChoice) => {
+    setState((current) => {
+      const after = decideNuclear(current, choice);
+      if (after === current) return current;
+      saveSnapshot(after);
+      setToast(
+        choice === 'given'
+          ? 'Concediste la bomba. La sombra cae.'
+          : 'Guardaste el secreto. Por ahora.',
+      );
+      return after;
+    });
+  }, []);
   const techList = useMemo(
     () => state.technologies.map((id) => ({ id, name: techLabel(id) })),
     [state.technologies],
@@ -576,6 +596,12 @@ export default function GodgameDashboard() {
             to={eraCinematic.to}
             onClose={() => setEraCinematic(null)}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {nuclearOpen && (
+          <NuclearDilemmaModal onDecide={handleNuclearDecision} />
         )}
       </AnimatePresence>
 
@@ -1026,6 +1052,58 @@ function NpcSilhouette(props: { npc: NPC; isChosen: boolean }) {
         />
       )}
     </svg>
+  );
+}
+
+function NuclearDilemmaModal(props: {
+  onDecide: (choice: NuclearChoice) => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-8"
+      data-testid="nuclear-dilemma"
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="max-w-lg w-full bg-[#1c1917] text-amber-50 border border-red-900/50 rounded-2xl shadow-2xl p-8 space-y-5"
+      >
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-red-400 font-bold mb-1">
+            Era atómica · decisión final
+          </p>
+          <h2 className="text-2xl font-bold tracking-tight">
+            Los nuestros han encontrado el fuego que parte la piedra.
+          </h2>
+        </div>
+        <p className="text-sm text-amber-200/80 leading-relaxed">
+          ¿Concedes la tecnología de destrucción a tu pueblo? Si lo
+          haces, los nuestros reinarán en un mundo que ya no vuelve. Si
+          lo guardas, vivirás con la duda de si alguien más la
+          encontrará antes.
+        </p>
+        <div className="flex gap-3 pt-2">
+          <Button
+            onClick={() => props.onDecide('withheld')}
+            data-testid="nuclear-withhold"
+            variant="outline"
+            className="flex-1 border-amber-500/40 text-amber-100 hover:bg-amber-950/40"
+          >
+            Guardar el secreto
+          </Button>
+          <Button
+            onClick={() => props.onDecide('given')}
+            data-testid="nuclear-give"
+            className="flex-1 bg-red-900 hover:bg-red-950 text-red-50"
+          >
+            Conceder la bomba
+          </Button>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

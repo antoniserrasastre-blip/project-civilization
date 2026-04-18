@@ -147,6 +147,12 @@ export interface WorldState {
    * El pool de cada era está definido en `lib/tech.ts`.
    */
   technologies: string[];
+  /**
+   * Decisión del dilema nuclear (v1.0.1 #5). `null` hasta que el
+   * player elige; luego `'given'` (concede la bomba — sombra) o
+   * `'withheld'` (mantiene el secreto). Decisión irrevocable.
+   */
+  nuclear_decision: 'given' | 'withheld' | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -405,6 +411,7 @@ export function initialState(
     chronicle: [],
     next_npc_id: npcs.length,
     technologies: ['fuego'],
+    nuclear_decision: null,
   };
 }
 
