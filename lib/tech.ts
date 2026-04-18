@@ -37,10 +37,26 @@ export const TECH_POOLS: Record<Era, TechDef[]> = {
     { id: 'agricultura_intensiva', name: 'Agricultura intensiva', era: 'bronce' },
     { id: 'navegacion_costera', name: 'Navegación costera', era: 'bronce' },
   ],
-  clasica: [],
-  medieval: [],
-  industrial: [],
-  atomica: [],
+  clasica: [
+    { id: 'escritura_cursiva', name: 'Escritura cursiva', era: 'clasica' },
+    { id: 'rueda', name: 'Rueda y carro', era: 'clasica' },
+    { id: 'ejercito_regular', name: 'Ejército regular', era: 'clasica' },
+  ],
+  medieval: [
+    { id: 'feudalismo', name: 'Feudalismo', era: 'medieval' },
+    { id: 'caballeria', name: 'Caballería pesada', era: 'medieval' },
+    { id: 'castillo', name: 'Fortificación', era: 'medieval' },
+  ],
+  industrial: [
+    { id: 'maquina_vapor', name: 'Máquina de vapor', era: 'industrial' },
+    { id: 'imprenta', name: 'Imprenta mecánica', era: 'industrial' },
+    { id: 'nacionalismo', name: 'Nacionalismo', era: 'industrial' },
+  ],
+  atomica: [
+    // Placeholder narrativo — el dilema atómico es pedazo de diseño abierto.
+    // Ver VERSION-LOG-v1.3.md para el contexto del flag.
+    { id: 'fision_nuclear', name: 'Fisión nuclear', era: 'atomica' },
+  ],
 };
 
 export const ERA_ORDER: Era[] = [

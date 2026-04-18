@@ -154,3 +154,35 @@ Listo para Sprint 13 (v1.0 export & share).
 
 **Resultado**: 230 unit+integration + 26 E2E verdes. v1.0 feature-
 complete single-player game shipped.
+
+### Polish & Debug v1.0 (✅)
+
+- VERSION-LOG-v0.1…v0.4 + v1.0 creados retroactivos.
+- CLAUDE.md: sección "Sesiones autónomas" reescrita con:
+  - TDD estricto explícito (sin excepción por velocidad).
+  - VERSION-LOG-vX.Y.md OBLIGATORIO al cerrar versión mayor.
+  - Polish & Debug pass NO arranca sprint siguiente si balance roto.
+  - Perspectiva de jugador + análisis de balance específico a
+    economía en cada VERSION-LOG.
+- Sin cambios de código ni balance — polish de documentación.
+
+---
+
+## Rama `claude/v2-roadmap` — Post-v1.0
+
+### Sprints 14-17 (v1.3 contenido) (✅)
+
+Rama provisional sin mergear a `claude/update-claude-md-mPM1k` hasta
+que el Director valide. Ver `ROADMAP-v2.md`.
+
+- **Sprint 14** (clásica pool): escritura cursiva, rueda, ejército
+  regular. Test cadena completa.
+- **Sprint 15** (`lib/army.ts`): ejércitos abstractos como entero
+  `floor(Σ fuerza_adultos / 10)`. `resolveGroupBattle` con
+  strategistBoost. NO cableado aún al scheduler (flag).
+- **Sprint 16** (medieval pool): feudalismo, caballería, castillo.
+- **Sprint 17** (industrial pool): vapor, imprenta, nacionalismo.
+  Atómica queda con placeholder `fision_nuclear` para permitir la
+  transición; el dilema es decisión de diseño pendiente.
+
+**Resultado**: 252 unit+integration + 26 E2E verdes. v1.3 en rama.
