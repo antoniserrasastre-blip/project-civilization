@@ -559,6 +559,8 @@ export function applyEvents(
       out = applyDeath(out, ev.victim_id);
       out = appendChronicle(out, narrateConflict(out, killer, victim, ev.reason));
     } else if (ev.type === 'pairing') {
+      const a = out.npcs.find((n) => n.id === ev.a_id);
+      const b = out.npcs.find((n) => n.id === ev.b_id);
       out = {
         ...out,
         npcs: out.npcs.map((n) => {
@@ -567,6 +569,15 @@ export function applyEvents(
           return n;
         }),
       };
+      // Crónica solo para pairings cross-grupo — notorios, dramáticos.
+      if (a && b && a.group_id !== b.group_id) {
+        const gA = out.groups.find((g) => g.id === a.group_id)?.name ?? a.group_id;
+        const gB = out.groups.find((g) => g.id === b.group_id)?.name ?? b.group_id;
+        out = appendChronicle(out, {
+          day: out.day,
+          text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. ${a.name} (${gA}) y ${b.name} (${gB}) se casaron cruzando la frontera. Las viejas dividen la sangre nueva con dedos inquietos.`,
+        });
+      }
     } else if (ev.type === 'follower_formed') {
       out = {
         ...out,

@@ -60,6 +60,11 @@ export function decideRivalActions(state: WorldState): RivalDecisionResult {
   for (const rival of state.rival_gods) {
     // Ciclo de decisión cerrado: aún no toca.
     if (state.day - rival.last_decision_day < RIVAL_DECISION_INTERVAL) continue;
+    // Extinción del grupo: sin mortales vivos, el rival deja de decidir.
+    const anyAlive = state.npcs.some(
+      (n) => n.alive && n.group_id === rival.group_id,
+    );
+    if (!anyAlive) continue;
 
     const profile = PROFILES[rival.profile];
     const roll = next(prng);

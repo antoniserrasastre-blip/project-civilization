@@ -1,14 +1,14 @@
 /**
- * Esqueleto del estado del mundo — GODGAME v0.1 (MVP).
+ * Esqueleto del estado del mundo — GODGAME v0.1 → v0.3.
  *
  * Este fichero define los tipos + el constructor de `initialState`.
  * Regla de oro (§A4 de la Visión): el estado es JSON puro, plano, sin
  * clases ni métodos ni referencias circulares. `JSON.stringify(state)` y
  * `JSON.parse()` deben ser round-trip perfectos.
  *
- * El MVP tiene UN solo grupo activo (`tramuntana`). `rival_gods` existe
- * como array vacío desde día uno para que en v0.3 los dioses rivales se
- * añadan sin refactor.
+ * v0.3 añade multi-grupo: pasando `playerGroupId` en opciones se activan
+ * los 3 pueblos baleares y se pueblan los `rival_gods` con perfiles IA.
+ * Sin ese option el estado queda en compat v0.1 (1 grupo, 50 NPCs).
  */
 
 import { nextChoice, nextInt, nextRange, seedState, type PRNGState } from './prng';

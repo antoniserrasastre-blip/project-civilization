@@ -78,3 +78,18 @@ shipped. Sprints 10-13 por delante.
 
 **Resultado**: 216 unit+integration + 23 E2E verdes. v0.3 sprints
 9-11 completos. Toca Polish & Debug v0.3 antes de v0.4 (Sprint 12).
+
+### Polish & Debug v0.3 (✅)
+
+- **Crónicas de pairings cross-grupo**: ahora los matrimonios entre
+  grupos emiten una entrada dramática (partisana) — las mismas dentro
+  de un grupo siguen silenciosas para no saturar.
+- **Extinción**: `decideRivalActions` ignora rivales cuyo grupo no
+  tiene ya ningún mortal vivo — evita que un dios sin pueblo siga
+  "decidiendo" sobre el vacío.
+- **Docstring de world-state.ts** actualizado a v0.3.
+- **Flakes E2E estabilizados**: waitFor explícito en `verdict-flow`
+  y `group-selector.spec.ts` reset. 22/22 E2E limpios (1 flaky
+  auto-reintentado resuelto).
+
+v0.3 consolidado. Listo para empezar v0.4 (Sprint 12 — LLM chronicle).

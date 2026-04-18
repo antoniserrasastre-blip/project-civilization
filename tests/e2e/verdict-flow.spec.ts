@@ -16,7 +16,9 @@ test.describe('Sprint 5b — veredicto', () => {
     await goHomeFresh(page);
     await page.getByTestId('clock-slower').click(); // pausa
 
-    await page.getByTestId('open-verdict').click();
+    const open = page.getByTestId('open-verdict');
+    await open.waitFor({ state: 'visible' });
+    await open.click();
     await expect(page.getByTestId('verdict-modal')).toBeVisible();
     await expect(page.getByTestId('verdict-headline')).toContainText(
       /reina tu linaje/i,

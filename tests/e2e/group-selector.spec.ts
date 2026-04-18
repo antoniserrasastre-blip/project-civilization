@@ -31,11 +31,16 @@ test.describe('Sprint 9 — selector de grupos', () => {
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('pick-group-migjorn').click();
+    const pick = page.getByTestId('pick-group-migjorn');
+    await pick.waitFor({ state: 'visible' });
+    await pick.click();
     await expect(page.getByTestId('group-selector')).not.toBeVisible();
 
-    // Saltar tutorial y resetear.
-    await page.getByTestId('tutorial-skip-intro').click();
+    // Saltar tutorial y resetear — intro puede tardar en montarse.
+    const skip = page.getByTestId('tutorial-skip-intro');
+    await skip.waitFor({ state: 'visible' });
+    await skip.click();
+    await expect(page.getByTestId('tutorial-intro')).not.toBeVisible();
     await page.getByTestId('clock-reset').click();
     await expect(page.getByTestId('group-selector')).toBeVisible();
   });
