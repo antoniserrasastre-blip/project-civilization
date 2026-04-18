@@ -67,6 +67,7 @@ import {
   grantGift,
   nextGiftCost,
 } from '@/lib/gifts';
+import { CURSES, type CurseId, canCurse, curseNpc } from '@/lib/curses';
 import { narrateGift } from '@/lib/chronicle';
 // ---------------------------------------------------------------------------
 // Constantes de cadencia
@@ -193,6 +194,30 @@ export default function GodgameDashboard() {
       return withChronicle;
     });
   }, [selectedNpcId]);
+
+  const handleCurse = useCallback(
+    (curse_id: CurseId) => {
+      if (!selectedNpcId) return;
+      setState((current) => {
+        const check = canCurse(current, selectedNpcId, curse_id);
+        if (!check.ok) {
+          setToast(curseRejectionMessage(check.reason));
+          return current;
+        }
+        const npc = current.npcs.find((n) => n.id === selectedNpcId);
+        if (!npc) return current;
+        const after = curseNpc(current, selectedNpcId, curse_id);
+        const withChronicle = appendChronicle(after, {
+          day: after.day,
+          text: `Año ${Math.floor(after.day / 365)}, día ${(after.day % 365) + 1}. Cayó la sombra sobre ${npc.name}, de los hijos de ${after.groups.find((g) => g.id === npc.group_id)?.name ?? npc.group_id}. Los nuestros no lloran.`,
+        });
+        saveSnapshot(withChronicle);
+        setToast(`Has lanzado ${CURSES[curse_id].name}.`);
+        return withChronicle;
+      });
+    },
+    [selectedNpcId],
+  );
 
   const handleGrantGift = useCallback(
     (gift_id: GiftId) => {
@@ -439,8 +464,11 @@ export default function GodgameDashboard() {
             key={selectedNpc.id}
             npc={selectedNpc}
             isChosen={chosenOnes.includes(selectedNpc.id)}
+            isPlayerGroup={selectedNpc.group_id === state.player_god.group_id}
+            faithPoints={state.player_god.faith_points}
             allNpcs={state.npcs}
             onClose={() => setCardOpen(false)}
+            onCurse={handleCurse}
           />
         )}
       </AnimatePresence>
@@ -1332,10 +1360,13 @@ function FaithPanel(props: { faithPoints: number; giftsGranted: number }) {
 function CharacterCardOverlay(props: {
   npc: NPC;
   isChosen: boolean;
+  isPlayerGroup: boolean;
+  faithPoints: number;
   allNpcs: NPC[];
   onClose: () => void;
+  onCurse: (curse_id: CurseId) => void;
 }) {
-  const { npc, isChosen, allNpcs } = props;
+  const { npc, isChosen, isPlayerGroup, faithPoints, allNpcs } = props;
   const years = Math.floor(npc.age_days / 365);
   const parents = npc.parents
     .map((pid) => allNpcs.find((n) => n.id === pid))
@@ -1461,6 +1492,37 @@ function CharacterCardOverlay(props: {
               )}
             </p>
           </section>
+
+          {!isPlayerGroup && npc.alive && (
+            <section
+              className="pt-2 border-t border-slate-100"
+              data-testid="curses-panel"
+            >
+              <h3 className="text-[10px] uppercase tracking-widest text-red-600 font-bold mb-2">
+                Maldecir (rival)
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.values(CURSES).map((c) => {
+                  const cantAfford = faithPoints < c.cost;
+                  return (
+                    <Button
+                      key={c.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={cantAfford}
+                      onClick={() => props.onCurse(c.id)}
+                      data-testid={`curse-${c.id}`}
+                      className="text-[11px] border-red-300 text-red-700 hover:bg-red-50"
+                      title={c.description}
+                    >
+                      {c.name} · {c.cost} Fe
+                    </Button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
         </div>
       </motion.div>
     </motion.div>
@@ -1537,6 +1599,28 @@ function anointRejectionMessage(
       return 'No puedes ungir fuera de tu pueblo.';
     case 'already_chosen':
       return 'Ya es uno de tus Elegidos.';
+  }
+}
+
+function curseRejectionMessage(
+  reason:
+    | 'unknown_npc'
+    | 'unknown_curse'
+    | 'dead_npc'
+    | 'own_group'
+    | 'not_enough_faith',
+): string {
+  switch (reason) {
+    case 'unknown_npc':
+      return 'Ese mortal no existe en esta realidad.';
+    case 'unknown_curse':
+      return 'Esa maldición no existe.';
+    case 'dead_npc':
+      return 'Los muertos ya no pueden ser maldecidos.';
+    case 'own_group':
+      return 'No puedes maldecir a los tuyos.';
+    case 'not_enough_faith':
+      return 'No tienes suficiente Fe para esta maldición.';
   }
 }
 

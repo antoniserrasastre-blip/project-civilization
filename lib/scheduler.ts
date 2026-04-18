@@ -65,6 +65,11 @@ const PAIRING_PROB_PER_TICK = 0.004;
 const BIRTH_PROB_PER_TICK = 0.0015;
 const CONFLICT_BASE_PROB_PER_TICK = 0.0015;
 
+/** Factor de probabilidad relativo para emparejamiento cross-grupo (Sprint 11).
+ *  Menor que 1 — el intermatrimonio existe pero es infrecuente; la deriva
+ *  dinástica emerge de forma natural a lo largo de generaciones. */
+const CROSS_GROUP_PAIRING_FACTOR = 0.25;
+
 /** Umbral de ambición para iniciar conflicto. */
 const AMBICION_CONFLICT_THRESHOLD = 60;
 
@@ -302,19 +307,32 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     if (roll.value >= PAIRING_PROB_PER_TICK) continue;
 
     const radSq = PAIR_PROX_RADIUS * PAIR_PROX_RADIUS;
-    const candidates = state.npcs.filter((o) => {
-      if (o.id === npc.id) return false;
-      if (!isAlive(o)) return false;
-      if (o.partner_id) return false;
-      if (pairedThisTick.has(o.id)) return false;
-      if (o.group_id !== npc.group_id) return false;
+    // Sprint 11: permite cross-group pairing con peso reducido. Se
+    // expande el pool duplicando el peso de los same-group para que el
+    // intermatrimonio sea posible pero raro (~20% de los emparejamientos
+    // cuando hay candidatos de ambos tipos en rango).
+    const sameGroup: typeof state.npcs = [];
+    const crossGroup: typeof state.npcs = [];
+    for (const o of state.npcs) {
+      if (o.id === npc.id) continue;
+      if (!isAlive(o)) continue;
+      if (o.partner_id) continue;
+      if (pairedThisTick.has(o.id)) continue;
       const oy = o.age_days / 365;
-      if (oy < ADULT_MIN_AGE_YEARS || oy > PAIR_MAX_AGE_YEARS) return false;
-      return distSq(o.position, npc.position) <= radSq;
-    });
-    if (candidates.length === 0) continue;
+      if (oy < ADULT_MIN_AGE_YEARS || oy > PAIR_MAX_AGE_YEARS) continue;
+      if (distSq(o.position, npc.position) > radSq) continue;
+      if (o.group_id === npc.group_id) sameGroup.push(o);
+      else crossGroup.push(o);
+    }
+    if (sameGroup.length === 0 && crossGroup.length === 0) continue;
 
-    const pick = nextChoice(prng, candidates);
+    // Pool ponderado: cada same-group pesa 1/CROSS_GROUP_PAIRING_FACTOR
+    // veces un cross-group. Con factor 0.25 → same pesa 4× cross.
+    const weightSame = Math.round(1 / CROSS_GROUP_PAIRING_FACTOR);
+    const pool: typeof state.npcs = [];
+    for (const o of sameGroup) for (let i = 0; i < weightSame; i++) pool.push(o);
+    for (const o of crossGroup) pool.push(o);
+    const pick = nextChoice(prng, pool);
     prng = pick.next;
     const partner = pick.value;
 

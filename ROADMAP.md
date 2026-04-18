@@ -82,7 +82,7 @@ NPCs.
 Ciclo de decisión de la IA dios rival (10-15 min por decisión — ver
 regla anti-presión de **Pillar 4**).
 
-### Sprint 11
+### Sprint 11 ✅ done
 Mecánicas cross-grupo (intermatrimonio, deriva dinástica, maldiciones
 con costes por niveles). Las recomendaciones provisionales de §13 de
 la visión son el punto de partida, **no el diseño final**: se re-abren

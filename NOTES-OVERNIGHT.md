@@ -60,3 +60,21 @@ shipped. Sprints 10-13 por delante.
   anillo discontinuo rojizo (`data-rival-chosen`).
 
 **Resultado**: 207 unit+integration + 21 E2E verdes. Sprint 10 shipped.
+
+### Sprint 11 — cross-group + maldiciones (✅)
+
+- Scheduler Pase 3 (pairing): ahora admite cross-group. Pool ponderado
+  con factor `CROSS_GROUP_PAIRING_FACTOR=0.25` (same-group pesa 4×
+  cross). El intermatrimonio emerge raro pero posible.
+- Deriva dinástica: el flag `descends_from_chosen` ya se propagaba
+  hereditariamente sin checks de grupo. Un descendiente del Elegido
+  del jugador que vive en grupo rival sigue generando Fe al jugador
+  (dinastía sagrada infiltrando fronteras — ver Pase 6).
+- `lib/curses.ts`: 3 niveles (simple 20 Fe, strong 50 Fe, fatal 150 Fe).
+  `curseNpc` es puro y no toca PRNG. Rechaza `own_group` y Fe
+  insuficiente. `curse_fatal` mata + rompe vínculos.
+- UI: `CharacterCardOverlay` ahora recibe `isPlayerGroup` y si es
+  rival + vivo muestra panel de maldiciones con 3 botones.
+
+**Resultado**: 216 unit+integration + 23 E2E verdes. v0.3 sprints
+9-11 completos. Toca Polish & Debug v0.3 antes de v0.4 (Sprint 12).
