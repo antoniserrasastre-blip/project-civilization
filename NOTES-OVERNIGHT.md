@@ -139,3 +139,18 @@ plantilla hasta que el endpoint responda. Ver checklist arriba.
 
 **Resultado**: 225 unit+integration + 24 E2E verdes. v0.4 consolidado.
 Listo para Sprint 13 (v1.0 export & share).
+
+### Sprint 13 — export HTML + share seed + URL boot (✅)
+
+- `lib/export.ts` gana `exportCodexHtml(state)` — devuelve HTML
+  standalone con CSS inline, tipografía serif, pergamino. Sin deps
+  externas (PDF cae fuera de scope de v1.0; podría añadirse post).
+  `shareUrl(state, base)` construye `?seed=X&group=Y`.
+- `app/page.tsx` lee `?seed=&group=` al boot si no hay snapshot. Así
+  las URLs compartidas recrean mundos idénticos sin configuración.
+- UI: ChroniclePanel añade botones `.txt`, `.html`, "Compartir" al
+  lado del selector de provider.
+- Escape HTML defensivo en `exportCodexHtml` (tests cubren XSS básico).
+
+**Resultado**: 230 unit+integration + 26 E2E verdes. v1.0 feature-
+complete single-player game shipped.

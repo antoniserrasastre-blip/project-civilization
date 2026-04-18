@@ -59,3 +59,46 @@ describe('exportFilename', () => {
     expect(exportFilename(s)).toBe('cronica-seed-42-dia-123.txt');
   });
 });
+
+describe('exportCodexHtml — Sprint 13', () => {
+  it('devuelve HTML válido con doctype, title y chronicle lista', async () => {
+    const { exportCodexHtml } = await import('@/lib/export');
+    const s = withEntries(initialState(42), ['Primera. ', 'Segunda.']);
+    const html = exportCodexHtml(s);
+    expect(html.startsWith('<!DOCTYPE html>')).toBe(true);
+    expect(html).toContain('<title>');
+    expect(html).toContain('Semilla 42');
+  });
+
+  it('escapa caracteres HTML peligrosos', async () => {
+    const { exportCodexHtml } = await import('@/lib/export');
+    const s = withEntries(initialState(42), ['<script>alert(1)</script>']);
+    const html = exportCodexHtml(s);
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+
+  it('muestra fallback cuando la crónica está vacía', async () => {
+    const { exportCodexHtml } = await import('@/lib/export');
+    const html = exportCodexHtml(initialState(42));
+    expect(html).toContain('El tiempo aún no ha dejado huella.');
+  });
+});
+
+describe('shareUrl — Sprint 13', () => {
+  it('añade seed y group a la query string', async () => {
+    const { shareUrl } = await import('@/lib/export');
+    const s = initialState(42, { playerGroupId: 'tramuntana' });
+    const url = shareUrl(s, 'https://example.com/play');
+    expect(url).toContain('seed=42');
+    expect(url).toContain('group=tramuntana');
+  });
+
+  it('es determinista: mismo estado + base ⇒ misma URL', async () => {
+    const { shareUrl } = await import('@/lib/export');
+    const s = initialState(99, { playerGroupId: 'llevant' });
+    const a = shareUrl(s, 'https://example.com/');
+    const b = shareUrl(s, 'https://example.com/');
+    expect(a).toBe(b);
+  });
+});

@@ -105,11 +105,14 @@ ya lo insinúa. Voz partisana mantenida vía system prompt.
 
 ## v1.0 — Feature-complete single-player
 
-### Sprint 13 — Export & Share
+### Sprint 13 — Export & Share ✅ done
 Exportar el códice a PDF o HTML. Compartir semillas para que otros
 repliquen tu mundo. Analytics básicos sobre qué pilares sostienen.
 
-→ **v1.0 feature-complete single-player game.**
+> Implementado: export HTML standalone (sin deps de PDF — PDF queda
+> como "nice to have" post-v1.0). URL compartible `?seed=X&group=Y`.
+
+→ **v1.0 feature-complete single-player game.** ✅
 
 ---
 

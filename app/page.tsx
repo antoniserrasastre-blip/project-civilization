@@ -58,7 +58,13 @@ import { generateCoast } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
 import { topByInfluence, lineageInTop3 } from '@/lib/verdict';
-import { exportChronicle, exportFilename } from '@/lib/export';
+import {
+  exportChronicle,
+  exportFilename,
+  exportCodexHtml,
+  exportHtmlFilename,
+  shareUrl,
+} from '@/lib/export';
 import { TECH_POOLS, pendingTechs } from '@/lib/tech';
 import {
   CHRONICLE_PROVIDERS,
@@ -151,8 +157,21 @@ export default function GodgameDashboard() {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setState(loaded);
     } else {
-      // Mundo nuevo: el jugador elige grupo antes de que arranque nada.
-      setGroupSelectorOpen(true);
+      // Prioridad: URL params > selector.
+      const params = new URLSearchParams(window.location.search);
+      const seedParam = Number(params.get('seed'));
+      const groupParam = params.get('group') ?? undefined;
+      const validGroup =
+        groupParam && GROUPS.some((g) => g.id === groupParam)
+          ? groupParam
+          : undefined;
+      if (Number.isFinite(seedParam) && seedParam !== 0) {
+        const fromUrl = initialState(seedParam, { playerGroupId: validGroup ?? 'tramuntana' });
+        setState(fromUrl);
+        saveSnapshot(fromUrl);
+      } else {
+        setGroupSelectorOpen(true);
+      }
     }
     // Restaurar provider persistido.
     try {
@@ -290,23 +309,46 @@ export default function GodgameDashboard() {
     setToast('Mundo reiniciado.');
   }, []);
 
-  const handleExportChronicle = useCallback(() => {
+  const handleExportChronicle = useCallback((format: 'txt' | 'html' = 'txt') => {
     setState((current) => {
-      const text = exportChronicle(current, {
-        groupName:
-          current.groups.find((g) => g.id === current.player_god.group_id)?.name,
-      });
       if (typeof window === 'undefined') return current;
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const body =
+        format === 'html'
+          ? exportCodexHtml(current)
+          : exportChronicle(current, {
+              groupName:
+                current.groups.find((g) => g.id === current.player_god.group_id)
+                  ?.name,
+            });
+      const mime = format === 'html' ? 'text/html;charset=utf-8' : 'text/plain;charset=utf-8';
+      const blob = new Blob([body], { type: mime });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = exportFilename(current);
+      a.download =
+        format === 'html'
+          ? exportHtmlFilename(current)
+          : exportFilename(current);
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
       setToast('Crónica exportada.');
+      return current;
+    });
+  }, []);
+
+  const handleShareSeed = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    setState((current) => {
+      const url = shareUrl(
+        current,
+        window.location.origin + window.location.pathname,
+      );
+      navigator.clipboard
+        .writeText(url)
+        .then(() => setToast('URL copiada al portapapeles.'))
+        .catch(() => window.prompt('Copia esta URL:', url));
       return current;
     });
   }, []);
@@ -490,6 +532,7 @@ export default function GodgameDashboard() {
           <ChroniclePanel
             entries={chronicleReversed}
             onExport={handleExportChronicle}
+            onShare={handleShareSeed}
             provider={chronicleProvider}
             onProviderChange={setChronicleProviderId}
           />
@@ -1569,7 +1612,8 @@ function CharacterCardOverlay(props: {
 
 function ChroniclePanel(props: {
   entries: { day: number; text: string }[];
-  onExport: () => void;
+  onExport: (format?: 'txt' | 'html') => void;
+  onShare: () => void;
   provider: ChronicleProvider;
   onProviderChange: (id: ChronicleProvider['id']) => void;
 }) {
@@ -1629,12 +1673,32 @@ function ChroniclePanel(props: {
           <Button
             variant="ghost"
             size="sm"
-            onClick={props.onExport}
+            onClick={() => props.onExport('txt')}
             data-testid="export-chronicle"
             className="text-[10px]"
             title="Descargar como texto"
           >
-            Exportar
+            .txt
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => props.onExport('html')}
+            data-testid="export-chronicle-html"
+            className="text-[10px]"
+            title="Descargar códice HTML"
+          >
+            .html
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={props.onShare}
+            data-testid="share-seed"
+            className="text-[10px]"
+            title="Compartir URL de esta partida"
+          >
+            Compartir
           </Button>
         </div>
       </CardHeader>
