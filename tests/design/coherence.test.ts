@@ -59,10 +59,18 @@ describe('1. Economía de Fe', () => {
     expect(s.player_god.faith_points).toBe(feAlMorir);
   });
 
-  it.todo(
-    'Fe no es infinita — hay cap o decay que evita overflow narrativo ' +
-    '(DECISIÓN DE DISEÑO: hoy no hay cap; flag en REPORT.md)',
-  );
+  // RESUELTO en v1.0.1 #1 (opción A — cap duro 500). El todo queda
+  // convertido a test real que verifica que el cap está activo.
+  it('Fe tiene cap duro (no infinita) — overflow narrativo impedido', async () => {
+    const { FAITH_CAP } = await import('@/lib/faith');
+    // Corrida larga con un Elegido vivo: la Fe debe saturar al cap y
+    // jamás superarlo tras miles de ticks.
+    let s = anoint(initialState(42, { playerGroupId: 'tramuntana' }), 'npc_0000');
+    // 5000 ticks debería bastar para que la Fe suba al cap varias veces.
+    s = runTicks(s, 5000);
+    expect(s.player_god.faith_points).toBeGreaterThan(0);
+    expect(s.player_god.faith_points).toBeLessThanOrEqual(FAITH_CAP);
+  }, 30_000);
 
   it('Fe de rival es simétrica: rival gana Fe por sus chosen, no por los del player', () => {
     let s = initialState(42, { playerGroupId: 'tramuntana' });
@@ -171,10 +179,19 @@ describe('2. Población & pairing', () => {
     expect(heir?.descends_from_chosen).toBe(true);
   }, 20_000);
 
-  it.todo(
-    'ratio de sexos ≈ 50/50 — DECISIÓN: hoy NPCs NO tienen atributo ' +
-    'sexo; el diseño asume paridad implícita. Ver REPORT.md flag ámbar.',
-  );
+  // RESUELTO en v1.0.1 #2 (opción A — sexo binario M/F). Convertido a
+  // test real: muestra grande (200 NPCs) y exigimos ≈50/50 con
+  // tolerancia del ±10% (tests unit usan misma tolerancia).
+  it('ratio de sexos ≈ 50/50 en muestra grande (tolerancia ±10%)', () => {
+    const s = initialState(42, { npcCount: 200 });
+    const males = s.npcs.filter((n) => n.sex === 'M').length;
+    const females = s.npcs.filter((n) => n.sex === 'F').length;
+    expect(males + females).toBe(200);
+    expect(males).toBeGreaterThan(80);
+    expect(males).toBeLessThan(120);
+    expect(females).toBeGreaterThan(80);
+    expect(females).toBeLessThan(120);
+  });
 
   it('nadie se aparea ni se reproduce antes de ADULT_MIN_AGE_YEARS (16)', () => {
     // Observable: tras 10k ticks no debe haber parejas donde algún
@@ -750,30 +767,30 @@ describe('7. Veredicto & influencia', () => {
     expect(lineageInTop3(s)).toBe(true);
   });
 
-  // ⚠️ EDGE CASE: "limbo" — Elegido solo sin descendientes pero en top-3.
-  // La implementación actual cuenta como VICTORIA (basta con estar en
-  // top-3; no se exige tener descendientes). El Director puede querer
-  // cambiar esto: un Elegido sin linaje es una "victoria pírrica" que
-  // podría no contar. Hoy cuenta. Documentamos el gotcha.
-  it('limbo: Elegido solo en top-3, sin descendientes = victoria (implementación actual)', async () => {
-    const { lineageInTop3 } = await import('@/lib/verdict');
+  // RESUELTO en v1.0.1 #3 (opción C — tercer estado "pyrrhic"). El
+  // limbo ya no es ambiguo: se clasifica explícitamente como
+  // `pyrrhic` (distinto de `reign` y `defeat`).
+  it('limbo: Elegido solo en top-3, sin descendientes ⇒ verdictState=pyrrhic', async () => {
+    const { lineageInTop3, computeVerdict } = await import('@/lib/verdict');
     let s = initialState(42, { playerGroupId: 'tramuntana' });
     s = anoint(s, 'npc_0000');
-    // Matamos a todos los demás, incluidos potenciales descendientes (no
-    // hay). Elegido queda solo en top-3.
+    // Boosteamos al Elegido para garantizar top-3.
     s = {
       ...s,
       npcs: s.npcs.map((n) =>
-        n.id === 'npc_0000' ? n : { ...n, alive: false },
+        n.id === 'npc_0000'
+          ? {
+              ...n,
+              stats: { ...n.stats, fuerza: 200 },
+              traits: { ...n.traits, carisma: 200 },
+            }
+          : { ...n, alive: false },
       ),
     };
-    expect(lineageInTop3(s)).toBe(true);
+    // Elegido reina en top-3 pero sin linaje vivo ⇒ pyrrhic.
+    expect(lineageInTop3(s)).toBe(true); // backwards compat: sigue true
+    expect(computeVerdict(s)).toBe('pyrrhic'); // nuevo 3er estado
   });
-
-  it.todo(
-    'DECISIÓN DE DISEÑO — ¿el limbo (Elegido solo sin linaje) debe ' +
-    'contar como victoria o como empate? Hoy victoria. Flag en REPORT.md.',
-  );
 });
 
 // ===========================================================================
@@ -931,10 +948,9 @@ describe('9. UI mechanics', () => {
     expect(url.searchParams.get('group')).toBe('tramuntana');
   }, 10_000);
 
-  it.todo(
-    'click en NPC recientemente muerto entre render y click no crashea ' +
-    '(test E2E — cubierto parcialmente por flujos existentes)',
-  );
+  // RESUELTO en v1.0.1 polish — cubierto por
+  // `tests/e2e/dead-npc-click.spec.ts`. El scope Node de este suite
+  // no tiene DOM/browser; el contrato se valida a nivel Playwright.
 });
 
 // ===========================================================================
