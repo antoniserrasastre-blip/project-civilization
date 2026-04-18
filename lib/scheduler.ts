@@ -39,6 +39,7 @@ import {
   TUTORIAL_FORCED_EVENT_DAY,
 } from './tutorial';
 import { nextEra, pendingTechs, shouldAdvanceEra, TECH_POOLS } from './tech';
+import { decideRivalActions } from './rival-ai';
 
 // ---------------------------------------------------------------------------
 // Constantes tunables — valores de arranque. Se ajustarán en Sprint 7.
@@ -118,7 +119,15 @@ export type LifecycleEvent =
     }
   | { type: 'tutorial_end' }
   | { type: 'tech_discovered'; tech_id: string }
-  | { type: 'era_transition'; from: string; to: string };
+  | { type: 'era_transition'; from: string; to: string }
+  | { type: 'rival_anoint'; rival_group_id: string; npc_id: string }
+  | {
+      type: 'rival_faith_gained';
+      rival_group_id: string;
+      amount: number;
+      reason: 'rezar';
+    }
+  | { type: 'rival_decision_tick'; rival_group_id: string };
 
 export interface ScheduleResult {
   events: LifecycleEvent[];
@@ -409,6 +418,34 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     events.push({ type: 'faith_gained', amount: passive, reason: 'rezar' });
   }
 
+  // Pase 6.5 — Fe pasiva de los dioses rivales. Cada rival acumula Fe
+  // por sus Elegidos + descendientes, simétrico al jugador.
+  for (const rival of state.rival_gods) {
+    const rivalChosen = new Set(rival.chosen_ones);
+    let rivalPassive = 0;
+    for (const npc of state.npcs) {
+      if (!isAlive(npc)) continue;
+      if (rivalChosen.has(npc.id)) {
+        rivalPassive += FAITH_PER_TICK_PER_HOLY;
+      } else if (
+        npc.descends_from_chosen &&
+        npc.group_id === rival.group_id
+      ) {
+        // Aproximación: descendientes del grupo rival también producen
+        // Fe para ese rival (modelo simplificado hasta S11 cross-group).
+        rivalPassive += FAITH_PER_TICK_PER_HOLY;
+      }
+    }
+    if (rivalPassive > 0) {
+      events.push({
+        type: 'rival_faith_gained',
+        rival_group_id: rival.group_id,
+        amount: rivalPassive,
+        reason: 'rezar',
+      });
+    }
+  }
+
   // Pase 7 — descubrimiento tecnológico. Probabilidad proporcional a
   // inteligencia media del pueblo vivo. Solo si hay pool pendiente.
   const pending = pendingTechs(state);
@@ -451,6 +488,20 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     if (to && TECH_POOLS[to].length > 0) {
       events.push({ type: 'era_transition', from: state.era, to });
     }
+  }
+
+  // Pase 9 — IA de dioses rivales (Sprint 10). Ciclo de decisión con
+  // rítmico anti-presión; puede emitir `rival_anoint`.
+  const rivalResult = decideRivalActions({ ...state, prng_cursor: prng.cursor });
+  if (rivalResult.events.length > 0) {
+    events.push(...rivalResult.events);
+  }
+  prng = { seed: state.seed, cursor: rivalResult.prng_cursor };
+  // Marcar que los rivales han evaluado el ciclo (actúen o no). Esto
+  // respeta el anti-presión del Pillar 4: no pueden reconsiderar antes
+  // del siguiente intervalo.
+  for (const gid of rivalResult.rivalsActed) {
+    events.push({ type: 'rival_decision_tick', rival_group_id: gid });
   }
 
   return { events, prng_cursor: prng.cursor };
@@ -525,6 +576,42 @@ export function applyEvents(
           text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. Los nuestros han descubierto ${label}.`,
         });
       }
+    } else if (ev.type === 'rival_anoint') {
+      const rival = out.rival_gods.find((r) => r.group_id === ev.rival_group_id);
+      const npc = out.npcs.find((n) => n.id === ev.npc_id);
+      if (!rival || !npc || !npc.alive) continue;
+      if (rival.chosen_ones.includes(ev.npc_id)) continue;
+      out = {
+        ...out,
+        rival_gods: out.rival_gods.map((r) =>
+          r.group_id === ev.rival_group_id
+            ? { ...r, chosen_ones: [...r.chosen_ones, ev.npc_id] }
+            : r,
+        ),
+      };
+      out = appendChronicle(out, {
+        day: out.day,
+        text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. Los hijos de ${out.groups.find((g) => g.id === ev.rival_group_id)?.name ?? ev.rival_group_id} vieron un halo descender sobre ${npc.name}. Su dios lo ha marcado.`,
+      });
+    } else if (ev.type === 'rival_faith_gained') {
+      if (ev.amount <= 0) continue;
+      out = {
+        ...out,
+        rival_gods: out.rival_gods.map((r) =>
+          r.group_id === ev.rival_group_id
+            ? { ...r, faith_points: r.faith_points + ev.amount }
+            : r,
+        ),
+      };
+    } else if (ev.type === 'rival_decision_tick') {
+      out = {
+        ...out,
+        rival_gods: out.rival_gods.map((r) =>
+          r.group_id === ev.rival_group_id
+            ? { ...r, last_decision_day: out.day }
+            : r,
+        ),
+      };
     } else if (ev.type === 'era_transition') {
       out = { ...out, era: ev.to as WorldState['era'] };
       out = appendChronicle(out, {

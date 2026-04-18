@@ -40,3 +40,23 @@ roto. Todo en la rama `claude/update-claude-md-mPM1k`.
 
 **Resultado**: 200 unit+integration + 20 E2E verdes. v0.3 Sprint 9
 shipped. Sprints 10-13 por delante.
+
+### Sprint 10 — IA dioses rivales (✅)
+
+- `lib/rival-ai.ts`: `decideRivalActions(state)` puro, determinista.
+  Cada rival decide solo cada `RIVAL_DECISION_INTERVAL=500` días
+  (respeta anti-presión Pillar 4). Perfiles: passive (25% act),
+  aggressive (80% + x5 peso por ambición), opportunistic (55% + x3).
+- Evento `rival_anoint { rival_group_id, npc_id }`: añade NPC al
+  `chosen_ones` del rival + emite crónica.
+- Evento `rival_decision_tick`: marca `last_decision_day` incluso si
+  decidió no actuar (sino re-evaluaría cada tick tras el intervalo).
+- Evento `rival_faith_gained`: Pase 6.5 del scheduler suma Fe pasiva
+  por elegidos+descendientes del grupo rival (simétrico al player).
+- `RivalGod` gana `last_decision_day`. Saves v3 ya invalidaban; no
+  bump adicional.
+- UI: `RivalPanel` lateral muestra nombre, perfil, mortales vivos,
+  elegidos del rival, Fe. Elegidos rivales aparecen en el mapa con
+  anillo discontinuo rojizo (`data-rival-chosen`).
+
+**Resultado**: 207 unit+integration + 21 E2E verdes. Sprint 10 shipped.

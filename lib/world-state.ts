@@ -92,10 +92,16 @@ export interface PlayerGod {
 
 export interface RivalGod {
   group_id: string;
-  /** Placeholder para v0.3 — perfil de comportamiento del dios-IA. */
+  /** Perfil de comportamiento del dios-IA (Sprint 10). */
   profile: 'passive' | 'aggressive' | 'opportunistic';
   faith_points: number;
   chosen_ones: string[];
+  /**
+   * Día del último ciclo de decisión. El scheduler solo evalúa un nuevo
+   * ciclo tras `RIVAL_DECISION_INTERVAL` días. Regla anti-presión del
+   * Pillar 4: el jugador nunca ve al rival decidiendo en ráfaga.
+   */
+  last_decision_day: number;
 }
 
 export interface ChronicleEntry {
@@ -372,11 +378,13 @@ export function initialState(
     rival_gods: multiGroup
       ? activeGroups
           .filter((g) => g.id !== playerGroupId)
-          .map((g) => ({
+          .map((g, i): RivalGod => ({
             group_id: g.id,
-            profile: 'passive' as const,
+            // Alternamos perfiles para que una partida tenga variedad.
+            profile: i === 0 ? 'aggressive' : 'opportunistic',
             faith_points: 0,
             chosen_ones: [],
+            last_decision_day: 0,
           }))
       : [],
     groups: activeGroups.map(({ id, name }) => ({ id, name })),

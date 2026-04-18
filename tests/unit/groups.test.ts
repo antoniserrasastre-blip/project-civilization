@@ -39,15 +39,18 @@ describe('multi-grupo — estado inicial', () => {
     }
   });
 
-  it('el jugador mantiene su grupo; rival_gods son los otros 2 con profile passive', () => {
+  it('el jugador mantiene su grupo; rival_gods son los otros 2 con perfiles variados', () => {
     const s = initialState(42, { playerGroupId: 'llevant' });
     expect(s.player_god.group_id).toBe('llevant');
     expect(s.rival_gods).toHaveLength(2);
+    const profiles = s.rival_gods.map((r) => r.profile).sort();
+    // Sprint 10: perfiles variados (aggressive + opportunistic).
+    expect(profiles).toEqual(['aggressive', 'opportunistic']);
     for (const r of s.rival_gods) {
       expect(['tramuntana', 'migjorn']).toContain(r.group_id);
-      expect(r.profile).toBe('passive');
       expect(r.chosen_ones).toEqual([]);
       expect(r.faith_points).toBe(0);
+      expect(r.last_decision_day).toBe(0);
     }
   });
 

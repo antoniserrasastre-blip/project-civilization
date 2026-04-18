@@ -360,6 +360,7 @@ export default function GodgameDashboard() {
             npcs={state.npcs}
             selectedId={selectedNpcId}
             chosenOnes={chosenOnes}
+            rivalChosenIds={state.rival_gods.flatMap((r) => r.chosen_ones)}
             mapSize={MAP_SIZE}
             seed={state.seed}
             highlightId={tutorialHighlight}
@@ -408,6 +409,13 @@ export default function GodgameDashboard() {
             giftsGranted={state.player_god.gifts_granted}
           />
           <TechPanel era={state.era} tech={techList} pendingCount={techPending} />
+          {state.rival_gods.length > 0 && (
+            <RivalPanel
+              rivals={state.rival_gods}
+              groups={state.groups}
+              npcs={state.npcs}
+            />
+          )}
           <Button
             type="button"
             variant="outline"
@@ -1134,6 +1142,52 @@ function GroupSelectorOverlay(props: {
         </div>
       </motion.div>
     </motion.div>
+  );
+}
+
+function RivalPanel(props: {
+  rivals: WorldState['rival_gods'];
+  groups: WorldState['groups'];
+  npcs: WorldState['npcs'];
+}) {
+  return (
+    <Card className="border-slate-200 bg-white" data-testid="rival-panel">
+      <CardHeader className="p-4 border-b border-slate-50">
+        <CardTitle className="tracking-tight text-base">
+          Dioses rivales
+        </CardTitle>
+        <CardDescription className="text-[11px]">
+          Mirando a otros pueblos desde el cielo, como tú.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-4 space-y-2">
+        {props.rivals.map((r) => {
+          const group = props.groups.find((g) => g.id === r.group_id);
+          const alive = props.npcs.filter(
+            (n) => n.alive && n.group_id === r.group_id,
+          ).length;
+          return (
+            <div
+              key={r.group_id}
+              data-testid={`rival-${r.group_id}`}
+              className="flex items-center justify-between text-xs border-l-2 border-slate-200 pl-2"
+            >
+              <div>
+                <p className="font-semibold text-slate-800">
+                  {group?.name ?? r.group_id}
+                </p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest">
+                  {r.profile} · {alive} mortales · {r.chosen_ones.length} elegidos
+                </p>
+              </div>
+              <span className="font-mono text-[10px] text-slate-600">
+                {r.faith_points.toFixed(1)} Fe
+              </span>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
   );
 }
 

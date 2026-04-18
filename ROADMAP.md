@@ -78,7 +78,7 @@ era. Esto valida que la arquitectura escala entre eras.
 Menú selector de grupos (§A5), 3 grupos en el mapa, cada uno con 10-15
 NPCs.
 
-### Sprint 10
+### Sprint 10 ✅ done
 Ciclo de decisión de la IA dios rival (10-15 min por decisión — ver
 regla anti-presión de **Pillar 4**).
 

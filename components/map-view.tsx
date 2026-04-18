@@ -24,6 +24,8 @@ interface MapViewProps {
   npcs: NPC[];
   selectedId: string | null;
   chosenOnes: string[];
+  /** Ids de los Elegidos de los dioses rivales (Sprint 10). */
+  rivalChosenIds?: string[];
   mapSize: number;
   /**
    * Semilla del mundo. Se usa para disponer símbolos hand-drawn
@@ -99,6 +101,7 @@ function npcColor(npc: NPC, chosenOnes: string[]): string {
 
 export function MapView(props: MapViewProps) {
   const { coast, npcs, selectedId, chosenOnes, mapSize, onSelect } = props;
+  const rivalChosenIds = props.rivalChosenIds ?? [];
   const highlightId = props.highlightId ?? null;
   const highlightNpc =
     highlightId ? npcs.find((n) => n.id === highlightId) ?? null : null;
@@ -211,18 +214,27 @@ export function MapView(props: MapViewProps) {
         {/* NPCs */}
         {npcs.map((npc) => {
           const isSelected = selectedId === npc.id;
+          const isRivalChosen = rivalChosenIds.includes(npc.id);
           return (
             <circle
               key={npc.id}
               data-testid={`map-npc-${npc.id}`}
               data-alive={npc.alive ? 'true' : 'false'}
               data-chosen={chosenOnes.includes(npc.id) ? 'true' : 'false'}
+              data-rival-chosen={isRivalChosen ? 'true' : 'false'}
               cx={npc.position.x}
               cy={npc.position.y}
-              r={isSelected ? 1.8 : 1.2}
+              r={isSelected ? 1.8 : isRivalChosen ? 1.5 : 1.2}
               fill={npcColor(npc, chosenOnes)}
-              stroke={isSelected ? '#f97316' : '#312e24'}
-              strokeWidth={isSelected ? 0.45 : 0.2}
+              stroke={
+                isSelected
+                  ? '#f97316'
+                  : isRivalChosen
+                    ? '#7c2d12'
+                    : '#312e24'
+              }
+              strokeWidth={isSelected ? 0.45 : isRivalChosen ? 0.5 : 0.2}
+              strokeDasharray={isRivalChosen ? '0.6 0.4' : undefined}
               opacity={npc.alive ? 1 : 0.35}
               onClick={(e) => {
                 e.stopPropagation();
