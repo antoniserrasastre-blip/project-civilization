@@ -33,7 +33,7 @@ import {
   narrateConflict,
   narrateDeath,
 } from './chronicle';
-import { applyGifts } from './gifts';
+import { applyGifts, GIFTS, GIFT_COST, type GiftId } from './gifts';
 import {
   TUTORIAL_END_DAY,
   TUTORIAL_FORCED_EVENT_DAY,
@@ -134,6 +134,12 @@ export type LifecycleEvent =
   | { type: 'tech_discovered'; tech_id: string }
   | { type: 'era_transition'; from: string; to: string }
   | { type: 'rival_anoint'; rival_group_id: string; npc_id: string }
+  | {
+      type: 'rival_grant_gift';
+      rival_group_id: string;
+      npc_id: string;
+      gift_id: string;
+    }
   | {
       type: 'rival_faith_gained';
       rival_group_id: string;
@@ -629,6 +635,34 @@ export function applyEvents(
       out = appendChronicle(out, {
         day: out.day,
         text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. Los hijos de ${out.groups.find((g) => g.id === ev.rival_group_id)?.name ?? ev.rival_group_id} vieron un halo descender sobre ${npc.name}. Su dios lo ha marcado.`,
+      });
+    } else if (ev.type === 'rival_grant_gift') {
+      // Validaciones defensivas: rival existe, es del grupo correcto, el
+      // NPC es chosen del rival, no tiene ya el don, y el rival tiene
+      // Fe suficiente. Silencioso — no-op si cualquiera falla.
+      const rival = out.rival_gods.find(
+        (r) => r.group_id === ev.rival_group_id,
+      );
+      if (!rival) continue;
+      if (!rival.chosen_ones.includes(ev.npc_id)) continue;
+      if (!(ev.gift_id in GIFTS)) continue;
+      if (rival.faith_points < GIFT_COST) continue;
+      const npc = out.npcs.find((n) => n.id === ev.npc_id);
+      if (!npc || !npc.alive) continue;
+      if (npc.gifts.includes(ev.gift_id)) continue;
+      const def = GIFTS[ev.gift_id as GiftId];
+      out = {
+        ...out,
+        npcs: out.npcs.map((n) => (n.id === ev.npc_id ? def.apply(n) : n)),
+        rival_gods: out.rival_gods.map((r) =>
+          r.group_id === ev.rival_group_id
+            ? { ...r, faith_points: r.faith_points - GIFT_COST }
+            : r,
+        ),
+      };
+      out = appendChronicle(out, {
+        day: out.day,
+        text: `Año ${Math.floor(out.day / 365)}, día ${(out.day % 365) + 1}. El dios de ${out.groups.find((g) => g.id === ev.rival_group_id)?.name ?? ev.rival_group_id} bendijo a ${npc.name} con ${def.name}. Cuidado.`,
       });
     } else if (ev.type === 'rival_faith_gained') {
       if (ev.amount <= 0) continue;

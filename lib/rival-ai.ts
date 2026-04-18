@@ -23,6 +23,7 @@
 import { next, nextChoice, type PRNGState } from './prng';
 import type { LifecycleEvent } from './scheduler';
 import type { WorldState, RivalGod } from './world-state';
+import { GIFTS, GIFT_COST, type GiftId } from './gifts';
 
 export const RIVAL_DECISION_INTERVAL = 500;
 
@@ -73,6 +74,60 @@ export function decideRivalActions(state: WorldState): RivalDecisionResult {
 
     if (roll.value >= profile.actProb) continue; // decidió no actuar este ciclo
 
+    // Sub-decisión: si el rival YA tiene chosen y tiene Fe para un don,
+    // mitad-mitad entre grant y anoint. Si no tiene chosen, forzado a
+    // anoint. Si tiene chosen pero no Fe, forzado a anoint (puede que
+    // sin candidato nuevo, pero ese caso queda como no-op).
+    //
+    // Decisión v1.0.1 #4 (opción B): rival concede dones (simetría
+    // parcial), no maldice. Coste GIFT_COST (30 Fe) idéntico al player
+    // a partir del segundo — rivales no tienen "primer gratis" porque
+    // ese free es onboarding-del-player, no fairness.
+    const hasChosenToDot = rival.chosen_ones.some((id) => {
+      const npc = state.npcs.find((n) => n.id === id);
+      if (!npc || !npc.alive) return false;
+      return Object.keys(GIFTS).some((gid) => !npc.gifts.includes(gid));
+    });
+    const canAffordGift = rival.faith_points >= GIFT_COST;
+
+    let action: 'anoint' | 'grant' = 'anoint';
+    if (hasChosenToDot && canAffordGift) {
+      const actionRoll = next(prng);
+      prng = actionRoll.next;
+      if (actionRoll.value < 0.5) action = 'grant';
+    }
+
+    if (action === 'grant') {
+      // Elegir un chosen que carezca de algún don.
+      const candidates = rival.chosen_ones
+        .map((id) => state.npcs.find((n) => n.id === id))
+        .filter((npc): npc is NonNullable<typeof npc> => !!npc && npc.alive)
+        .filter((npc) =>
+          Object.keys(GIFTS).some((gid) => !npc.gifts.includes(gid)),
+        );
+      if (candidates.length === 0) {
+        // No hay a quien dotar (aunque hasChosenToDot era true — race
+        // conceptual resuelta por skip silencioso).
+        continue;
+      }
+      const pickNpc = nextChoice(prng, candidates);
+      prng = pickNpc.next;
+      // Elegir un don que el candidato no tenga.
+      const missingGifts = (Object.keys(GIFTS) as GiftId[]).filter(
+        (gid) => !pickNpc.value.gifts.includes(gid),
+      );
+      const pickGift = nextChoice(prng, missingGifts);
+      prng = pickGift.next;
+      events.push({
+        type: 'rival_grant_gift',
+        rival_group_id: rival.group_id,
+        npc_id: pickNpc.value.id,
+        gift_id: pickGift.value,
+      });
+      continue;
+    }
+
+    // action === 'anoint'.
     // Candidatos: NPCs vivos de su grupo que no sean ya sus Elegidos.
     const alreadyChosen = new Set(rival.chosen_ones);
     const candidates = state.npcs.filter(
