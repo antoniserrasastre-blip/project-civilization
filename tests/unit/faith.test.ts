@@ -135,7 +135,7 @@ describe('enemigo_caido — bono Fe por conflicto ganado por sagrado', () => {
     };
 
     let sawKillBonus = false;
-    for (let i = 0; i < 2000 && !sawKillBonus; i++) {
+    for (let i = 0; i < 6000 && !sawKillBonus; i++) {
       const { events, prng_cursor } = scheduleEvents(s);
       s = applyEvents({ ...s, prng_cursor }, events);
       for (const ev of events) {

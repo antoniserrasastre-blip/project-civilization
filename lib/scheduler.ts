@@ -63,7 +63,14 @@ const CONFLICT_PROX_RADIUS = 6;
  *  población no explote a 10k ticks (pre-Sprint 7 saturaba ≥599). */
 const PAIRING_PROB_PER_TICK = 0.004;
 const BIRTH_PROB_PER_TICK = 0.0015;
-const CONFLICT_BASE_PROB_PER_TICK = 0.0015;
+/**
+ * Reducido de 0.0015 → 0.0005 durante la suite de coherencia de
+ * diseño (test "muertes por conflicto son minoría"). Con el valor
+ * anterior, conflictos dominaban las muertes ~2:1 sobre edad — era
+ * una batalla campal, no un pueblo tribal. A 0.0005 los conflictos
+ * son la minoría dramática que debían ser.
+ */
+const CONFLICT_BASE_PROB_PER_TICK = 0.0005;
 
 /** Factor de probabilidad relativo para emparejamiento cross-grupo (Sprint 11).
  *  Menor que 1 — el intermatrimonio existe pero es infrecuente; la deriva
