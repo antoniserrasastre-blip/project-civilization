@@ -149,6 +149,7 @@ describe('applyEvents — aplicación', () => {
       group_id: a.group_id,
       name: 'Nueva Persona',
       age_days: 0,
+      sex: 'M',
       position: { x: 1, y: 1 },
       stats: { fuerza: 50, inteligencia: 50, agilidad: 50 },
       traits: { ambicion: 50, lealtad: 50, paranoia: 50, carisma: 50 },

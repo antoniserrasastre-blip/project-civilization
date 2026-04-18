@@ -325,6 +325,9 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
     // expande el pool duplicando el peso de los same-group para que el
     // intermatrimonio sea posible pero raro (~20% de los emparejamientos
     // cuando hay candidatos de ambos tipos en rango).
+    //
+    // v1.0.1 decisión #2: pairing requiere M+F (hetero) para reproducir.
+    // El filtro sex !== npc.sex lo garantiza.
     const sameGroup: typeof state.npcs = [];
     const crossGroup: typeof state.npcs = [];
     for (const o of state.npcs) {
@@ -332,6 +335,7 @@ export function scheduleEvents(state: WorldState): ScheduleResult {
       if (!isAlive(o)) continue;
       if (o.partner_id) continue;
       if (pairedThisTick.has(o.id)) continue;
+      if (o.sex === npc.sex) continue; // heterosexual para reproducir
       const oy = o.age_days / 365;
       if (oy < ADULT_MIN_AGE_YEARS || oy > PAIR_MAX_AGE_YEARS) continue;
       if (distSq(o.position, npc.position) > radSq) continue;
