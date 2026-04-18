@@ -179,36 +179,59 @@ tests/e2e/       Playwright. Un spec por flujo de usuario.
 
 ## Sesiones autónomas (overnight / multi-sprint)
 
-Cuando se pide ejecutar varios sprints seguidos sin supervisión,
-la metodología es:
+Cuando se pide ejecutar varios sprints seguidos sin supervisión, la
+metodología es:
 
-1. **Un commit por sprint completado**. Nada se empuja si el gate
+1. **TDD estricto, SIEMPRE**. Sin excepción por "ir rápido". Test Red
+   antes de la línea de producción. Si una función pura no tiene
+   unit test cubriendo su contrato, está mal. Si un flujo de UI no
+   tiene E2E, está mal. Ver sección "Metodología: TDD estricto" arriba.
+2. **Un commit por sprint completado**. Nada se empuja si el gate
    (`pnpm test`, `test:e2e`, `tsc --noEmit`, `eslint .`, `pnpm build`)
    no está en verde. Si un sprint no pasa el gate, se rebobina al
    último commit limpio y se deja nota en `NOTES-OVERNIGHT.md`.
-2. **Flag y sigue** ante bloqueos no triviales: falta de API key,
+3. **Flag y sigue** ante bloqueos no triviales: falta de API key,
    dependencia nativa rota, decisión de diseño ambigua, rutas que
    tocan secrets. Se documenta en `NOTES-OVERNIGHT.md` y se continúa
    con el siguiente sprint si el anterior no bloquea estructuralmente.
-3. **`NOTES-OVERNIGHT.md`** (raíz del repo) se mantiene actualizado
-   con una bitácora breve por sprint: entregable, decisiones tomadas,
-   blockers activos, acciones requeridas por el Director Creativo.
-4. **Polish & Debug pass entre versiones**. Tras cerrar todos los
-   sprints de una versión mayor (v0.1, v0.2, v0.3, v0.4, v1.0,
-   v2.0…), se hace una pasada dedicada ANTES de empezar la siguiente:
+4. **`NOTES-OVERNIGHT.md`** (raíz del repo) bitácora interna técnica:
+   entregable, decisiones tomadas, blockers activos, acciones
+   requeridas por el Director Creativo.
+5. **Polish & Debug pass entre versiones** — antes de empezar la
+   siguiente versión, se pasa por cada versión mayor completada:
    - Suite al completo verde (unit + integration + e2e + lint + tsc + build).
    - Revisión de TODOs, `any`, `eslint-disable`, warnings.
    - Detectar regresiones visuales/UX (overlays que bloquean clicks,
      toasts duplicados, test-ids colisionando, etc.).
-   - Afinar constantes de balance que el playtest revelase flojas.
-   - Commit propio `polish: vX.Y debug + balance pass` y push.
-   La siguiente versión se construye sobre esa base, nunca sobre una
-   versión a medias.
-5. **No tocar la API de Anthropic con claves pegadas en chat**. Si el
+   - **Análisis de balance** desde perspectiva de jugador. En especial
+     la economía de Fe y el ritmo: ¿tiene sentido el coste de los
+     dones frente a la Fe acumulable en 1h de juego? ¿El jugador
+     muere de aburrimiento o de presión? ¿Los rivales son visibles
+     sin ser agobiantes?
+   - Si el balance es malo, el sprint siguiente NO arranca. Se
+     arregla primero. No se construye sobre barro.
+   - Commit `polish: vX.Y debug + balance pass` + push.
+6. **`VERSION-LOG-vX.Y.md` obligatorio** al cerrar cada versión mayor,
+   en la raíz del repo. Formato log-style para lectura humana:
+   - **Qué hace esta versión**: entregables visibles al jugador.
+   - **Por qué y cómo encaja con la visión**: referencia a Pilares
+     1-5 y al vision document. ¿Esta versión acerca al juego que
+     queremos construir?
+   - **Perspectiva del jugador**: 3-5 frases narrando cómo se siente
+     jugarlo en esta versión. Escribir DESDE el jugador, no desde el
+     ingeniero. Qué hace el primer minuto. Qué ve el quinto. Cuándo
+     se divierte. Cuándo se aburre.
+   - **Balance (especial foco en economía)**: costes, rates,
+     cantidades con números concretos. Si algo está obvio-roto,
+     flagearlo aquí.
+   - **🚩 Flags para supervisión humana**: bullets con decisiones
+     que requieren validación del Director Creativo antes de la
+     siguiente versión. Cada flag lleva acción concreta sugerida.
+7. **No tocar la API de Anthropic con claves pegadas en chat**. Si el
    usuario pega una key, se le pide revocarla y se sigue con provider
    mock hasta que configure su key por vía segura (env var, secret
    store). Ver notas en `NOTES-OVERNIGHT.md`.
-6. **Ramas provisionales para trabajo especulativo**: si se avanza
+8. **Ramas provisionales para trabajo especulativo**: si se avanza
    sobre una versión futura (ej. v2.0) sin que el usuario haya
    validado la anterior, se hace en una rama propia (`claude/v2-...`)
    con su propio ROADMAP y sin mergear a la rama principal activa.
