@@ -54,7 +54,7 @@ import {
   loadSnapshot,
   clearSnapshot,
 } from '@/lib/persistence';
-import { generateCoast } from '@/lib/map';
+import { generateArchipelago } from '@/lib/map';
 import { MapView } from '@/components/map-view';
 import { tutorialPhase, endTutorial, type TutorialPhase } from '@/lib/tutorial';
 import {
@@ -396,7 +396,10 @@ export default function GodgameDashboard() {
     () => [...state.chronicle].reverse(),
     [state.chronicle],
   );
-  const coast = useMemo(() => generateCoast(state.seed, MAP_SIZE), [state.seed]);
+  const archipelago = useMemo(
+    () => generateArchipelago(state.seed, MAP_SIZE),
+    [state.seed],
+  );
   const phase = useMemo<TutorialPhase>(() => tutorialPhase(state), [state]);
   const tutorialHighlight = state.tutorial_active
     ? state.tutorial_highlight_id
@@ -488,7 +491,7 @@ export default function GodgameDashboard() {
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-6">
           <MapView
-            coast={coast}
+            archipelago={archipelago}
             npcs={state.npcs}
             selectedId={selectedNpcId}
             chosenOnes={chosenOnes}
