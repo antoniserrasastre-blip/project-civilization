@@ -121,3 +121,21 @@ y el selector enumera las 3 opciones. La opción `claude` cae al texto
 plantilla hasta que el endpoint responda. Ver checklist arriba.
 
 **Resultado**: 225 unit+integration + 24 E2E verdes. Sprint 12 shipped.
+
+### Polish & Debug v0.4 (✅)
+
+- `app/api/chronicle/enhance/route.ts`: endpoint stub que devuelve 501
+  hasta que `ANTHROPIC_API_KEY` esté configurado. Así `claudeProvider`
+  tiene un destino real para fetch — cuando caiga 501 cae silencioso
+  al texto plantilla.
+- `claudeProvider.enhance` ahora hace `fetch('/api/chronicle/enhance')`
+  con body JSON. Sigue enabled=false hasta que el usuario configure
+  la key Y active explícitamente.
+- Persistencia de preferencia: `chronicleProviderId` se guarda en
+  `localStorage` bajo `godgame.chronicle-provider` — persiste el
+  selector entre recargas sin contaminar el state del mundo.
+- Fix React 19: `setRendered` inicial sacado del cuerpo del effect
+  (ESLint `react-hooks/set-state-in-effect`). Uso `entriesRef`.
+
+**Resultado**: 225 unit+integration + 24 E2E verdes. v0.4 consolidado.
+Listo para Sprint 13 (v1.0 export & share).

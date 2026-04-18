@@ -118,12 +118,27 @@ export default function GodgameDashboard() {
   const [groupSelectorOpen, setGroupSelectorOpen] = useState(false);
   const [speed, setSpeed] = useState<Speed>(1);
   const [toast, setToast] = useState<string | null>(null);
-  const [chronicleProviderId, setChronicleProviderId] = useState<
+  const [chronicleProviderId, setChronicleProviderIdRaw] = useState<
     ChronicleProvider['id']
   >('template');
   const chronicleProvider = useMemo(
     () => providerById(chronicleProviderId),
     [chronicleProviderId],
+  );
+  // Persistencia de la preferencia del provider — separado del state del
+  // mundo para no contaminar replays deterministas.
+  const setChronicleProviderId = useCallback(
+    (id: ChronicleProvider['id']) => {
+      setChronicleProviderIdRaw(id);
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem('godgame.chronicle-provider', id);
+        } catch {
+          /* storage denied — no-op */
+        }
+      }
+    },
+    [],
   );
 
   // ---- Boot: intentar cargar snapshot ---------------------------------
@@ -138,6 +153,15 @@ export default function GodgameDashboard() {
     } else {
       // Mundo nuevo: el jugador elige grupo antes de que arranque nada.
       setGroupSelectorOpen(true);
+    }
+    // Restaurar provider persistido.
+    try {
+      const stored = window.localStorage.getItem('godgame.chronicle-provider');
+      if (stored === 'template' || stored === 'mock-llm' || stored === 'claude') {
+        setChronicleProviderIdRaw(stored);
+      }
+    } catch {
+      /* no-op */
     }
     setHydrated(true);
   }, []);
@@ -1554,8 +1578,12 @@ function ChroniclePanel(props: {
   );
 
   // Render asincrónico: proveedores de LLM real pueden devolver Promise;
-  // hasta entonces mostramos el texto plantilla como fallback.
+  // hasta entonces mostramos el texto plantilla como fallback. La
+  // actualización optimista se aplica vía una ref al siguiente tick
+  // para evitar cascadas de render en el efecto.
+  const entriesRef = useRef(props.entries);
   useEffect(() => {
+    entriesRef.current = props.entries;
     let cancelled = false;
     async function run() {
       const out: string[] = [];
@@ -1564,7 +1592,6 @@ function ChroniclePanel(props: {
       }
       if (!cancelled) setRendered(out);
     }
-    setRendered(props.entries.map((e) => e.text));
     run();
     return () => {
       cancelled = true;

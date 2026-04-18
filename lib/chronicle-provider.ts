@@ -109,12 +109,25 @@ export const mockLLMProvider: ChronicleProvider = {
  */
 export const claudeProvider: ChronicleProvider & { enabled: boolean } = {
   id: 'claude',
-  label: 'Claude (requiere ANTHROPIC_API_KEY — ver NOTES-OVERNIGHT.md)',
+  label: 'Claude (requiere ANTHROPIC_API_KEY)',
   enabled: false,
-  async enhance(entry) {
-    // Sin key: cae de vuelta al texto plantilla y registra en consola
-    // (solo client-side; el server no puede fetch sin key).
-    return entry.text;
+  async enhance(entry, ctx) {
+    if (typeof window === 'undefined') return entry.text;
+    try {
+      const res = await fetch('/api/chronicle/enhance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ day: entry.day, text: entry.text, ctx }),
+      });
+      if (!res.ok) {
+        // 501 esperado hasta cableado. Caemos a la plantilla en silencio.
+        return entry.text;
+      }
+      const data = (await res.json()) as { text?: string };
+      return data.text ?? entry.text;
+    } catch {
+      return entry.text;
+    }
   },
 };
 
