@@ -65,3 +65,32 @@ hacks de eficiencia).
    completo se mergeó a `main` el 2026-04-19; la rama
    `claude/primigenia-bootstrap-nGvO9` queda preservada en
    `archive/primigenia-bootstrap`.
+
+## Bloqueo Sprint 1.4 — assets CC0 externos
+
+**Contexto**: el sprint 1.4 pedía descarga de tileset Kenney CC0 para
+los 6 tipos de tile (water/shore/grass/forest/mountain/sand).
+
+**Bloqueo**: el sandbox del entorno de agente responde HTTP 403
+`host_not_allowed` al probar `kenney.nl`. Asumido también bloqueado
+para `opengameart.org`. Sin red outbound, no hay forma de traer el
+tileset canónico.
+
+**Decisión operativa tomada**: generé placeholders SVG procedurales
+(32×32, solid color por tile type) y los registré en `assets/ORIGINS.md`
+con origen `Proyecto Civilización (procedural) · Licencia CC0 · Equipo
+interno`. Son arte propio trivial — sin dependencia externa, CC0 por
+declaración. El Director Creativo puede sustituir cuando haya entorno
+con red: solo hay que reemplazar los `.svg` bajo `assets/tiles/` y
+actualizar hash + origen en ORIGINS.md.
+
+**Lint operativo**: `pnpm lint:assets` funcional — verifica que cada
+fichero bajo `assets/` tiene fila en ORIGINS.md con hash SHA-256
+correcto y licencia en la whitelist (solo CC0 por ahora). Tests
+sintéticos en `tests/unit/asset-registry.test.ts` cubren happy path
++ fallos (hash mismatch, fila huérfana, licencia no whitelisted).
+
+**Acción requerida al Director humano**: cuando el entorno permita
+fetch, descargar tileset Kenney o equivalente, reemplazar SVGs y
+actualizar ORIGINS.md. Hasta entonces los placeholders procedurales
+sirven para desarrollar el render (Sprint 1.5) sin bloqueo.
