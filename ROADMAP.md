@@ -23,10 +23,10 @@ Descomposición en sprints de las **Fases 1-6** de
 | 2 | NPCs + recursos + fog | 6 | Fase 1 |
 | 3 | Movimiento + pathfinding | 4 | Fase 2 |
 | 4 | Economía (necesidades + crafting + grafo) | 7 | Fase 3 |
-| 5 | Bendiciones y rasgos | 5 | Fase 4 |
+| 5 | Mensaje diario, gratitud y milagros | 4 | Fase 4 |
 | 6 | Monumento + bendición de aldea + transición | 4 | Fase 5 |
 
-Total: **31 sprints** antes de cerrar el loop primigenia. Orden
+Total: **30 sprints** antes de cerrar el loop primigenia. Orden
 canónico; reordenar requiere firma del Director humano.
 
 ---
@@ -466,104 +466,125 @@ Balance de costes validado o flagueado explícitamente.
 
 ---
 
-## Fase 5 — Bendiciones y rasgos
+## Fase 5 — Mensaje diario, gratitud y milagros
 
-**Objetivo**: el verbo del jugador existe. Puede bendecir NPCs, los
-rasgos persisten, se heredan 50% a hijos directos, y el mismo don
-sobre traits distintos produce trayectorias medibles distintas (Pilar
-1). Fe = creyentes reales vivos (contador derivado, no stat persistido).
+**Objetivo**: existe el verbo del jugador, en dos capas. La continua
+(mensaje diario al amanecer, 6 intenciones + silencio) y la escasa
+(5 milagros raros que cuestan gratitud acumulada del clan). Al
+cierre: el mismo mensaje sobre NPCs con niveles distintos produce
+trayectorias medibles distintas (Pilar 1), y los milagros son
+accesibles solo si el clan agradece.
 
-Consume decisiones #13 (bendiciones individuales), #22 (catálogo de 10
-bendiciones), #23 (coste = drenar socialización del clan), #18
-(derrota espiritual por último Elegido sin hijo).
+Consume decisiones **#30** (verbo = pulso diario fijo, supersede
+#22), **#30.a/b/c** (plantilla de 6 intenciones, modal que pausa,
+interpretación por NPC), **#31** (gratitud emergente, supersede
+#23), **#32** (5 milagros raros con herencia 50%), **#18** (derrota
+espiritual por último Elegido sin hijo).
 
-### Sprint 5.1 — Catálogo de 10 bendiciones individuales
+### Sprint 5.1 — Modal diario + 6 intenciones + pausa determinista
 
-**Entregable testeable**: `lib/blessings.ts` expone
-`BLESSINGS_CATALOG` con las 10 bendiciones de decisión #22 (4
-supervivencia + 3 socialización + 3 economía relacional). Cada
-entrada tiene `id`, `name`, `effect: NPCModifier`, `domain`. Unit:
-aplicar cada bendición a un NPC sin rasgos lo deja con 1 rasgo; el 4º
-rasgo reemplaza al más antiguo o pide confirmación.
+**Entregable testeable**: al amanecer (tick `% TICKS_PER_DAY === 0`)
+la simulación se pausa y emite un modal con las 6 intenciones +
+"guarda silencio hoy". Unit: `prng_cursor` no avanza mientras el
+modal está abierto; la intención elegida se graba en
+`state.village.activeMessage`; recargar partida mid-modal re-abre
+el modal sin avanzar tick.
 
-- Lista completa: Hambre sagrada, Ojo de halcón, Piel dura, Paso
-  firme, Voz de todos, Corazón fiel, Sangre caliente, Manos que
-  recuerdan, Vínculo de deuda, Vista de mercader.
-- Máx 3 rasgos simultáneos por NPC.
+- `lib/messages.ts` expone `MESSAGE_INTENTS` con los 6 ids
+  (auxilio, coraje, paciencia, encuentro, renuncia, esperanza) +
+  `'silence'`.
+- `state.village.activeMessage: MessageIntent | 'silence' | null`
+  (null fuera de modal, valor tras selección).
+- `state.village.messageHistory: Array<{ day: number, intent:
+  MessageIntent | 'silence' }>` en orden canónico ascendente.
+- E2E Playwright: arrancar partida, llegar al primer amanecer,
+  verificar aparición del modal, seleccionar "Coraje", verificar
+  que el tick siguiente corre.
 
-**Dependencias**: Fase 4 completa.
+**Dependencias**: Fase 4 completa (la economía debe estar viva para
+que las intenciones tengan sobre qué empujar).
 
-**Consume**: decisiones #13, #22.
+**Consume**: decisiones #30, #30.a, #30.b. CLAUDE-primigenia §3.
 
-### Sprint 5.2 — Rasgos alteran comportamiento (Pilar 1 verificable)
+### Sprint 5.2 — Motor de interpretación emergente por NPC (Pilar 1)
 
-**Entregable testeable**: unit test de Pilar 1 — clonar dos NPCs con
-stats distintos (uno supervivencia-alta, otro socialización-alta),
-aplicar la misma bendición a ambos, correr 5.000 ticks, verificar
-que sus trayectorias (posición final, skills, relaciones) son
-**medible-distintas** (distancia L2 > umbral).
+**Entregable testeable**: cada NPC "lee" la intención activa del día
+según su estado individual (niveles 0-100 de supervivencia +
+socialización + economía relacional) y su linaje. `lib/messages.ts`
+expone `interpretIntent(intent, npc, state): NPCBehaviorBias`. Unit
+de Pilar 1: mismo intent sobre dos NPCs con niveles/linajes
+opuestos → `NPCBehaviorBias` medible-distintos. Integration: 5.000
+ticks con mismo mensaje produce trayectorias finales divergentes
+entre NPCs con perfil distinto.
 
-- Rasgos enganchan en los puntos donde las funciones puras consultan
-  `npc.traits`: `decideDestination`, `harvest`, `crafting`, `needs`.
-- El hook es declarativo — cada rasgo es un modificador conocido, no
-  un patch imperativo.
+- Tabla de interpretación puramente declarativa (`INTERPRETATION_RULES:
+  Record<IntentId, Rule[]>`), no lógica hardcoded.
+- `NPCBehaviorBias` modula `decideDestination`, `harvest`,
+  `cohabitation`, etc. Hooks declarativos, mismos sitios donde en
+  v1.0.1 entraban los rasgos.
+- Crónica narra 2-3 interpretaciones más relevantes del día
+  (§3.7 vision-primigenia); el resto se consulta vía ficha del NPC.
 
-**Dependencias**: Sprint 5.1.
+**Dependencias**: Sprint 5.1, Sprint 4.1 (niveles individuales).
 
-**Consume**: vision-primigenia §2 Pilar 1.
+**Consume**: decisión #30.c. vision-primigenia §3.7, §2 Pilar 1.
 
-### Sprint 5.3 — Herencia 50% a descendientes directos
+### Sprint 5.3 — Pool de gratitud (ganancia, pérdida, techo)
 
-**Entregable testeable**: cuando nace un hijo, cada rasgo del padre
-y de la madre tiene 50% de probabilidad (seedable via `prng_cursor`)
-de pasar al hijo. Unit: 1.000 nacimientos simulados, distribución de
-herencia en [0.45, 0.55]. Unit: hijo sin padres con rasgo nunca
-hereda.
+**Entregable testeable**: `lib/gratitude.ts` expone
+`computeGratitudeDelta(tick, events, activeMessage, state): number`
+puro. `state.village.gratitude: number` entero, clamp [0,
+`GRATITUDE_CEILING`]. Unit: mismo evento benéfico a un NPC con
+mensaje activo → delta positivo; sin mensaje → delta 0. Unit:
+saturación en ceiling; clamp en 0 al restar más de lo disponible.
+Unit: silencio acumulado N días drena según curva declarada.
+Integration: 10.000 ticks con/sin mensajes dan pools finales
+distintos medibles.
 
-- `inheritTraits(parent1, parent2, prngState): { traits, prngState'
-  }`.
-- Dilución por generación: la probabilidad no se compone si un rasgo
-  ya existía (no se duplica).
+- Constantes (`GRATITUDE_CEILING`, deltas por tipo de evento, curva
+  de silencio) en `lib/gratitude.ts`, auditables, sin spaghetti.
+- Muerte de Elegido: `delta = -ELEGIDO_DEATH_PENALTY`.
+- Suma determinista conmutativa sobre enteros; reordenar eventos
+  del tick no cambia el pool final.
+- HUD muestra `Gratitud: N / CEILING` en Sprint 5.4 (la UI la añade
+  el siguiente sprint).
 
-**Dependencias**: Sprint 5.1.
+**Dependencias**: Sprint 5.1 (activeMessage existe), Sprint 4.1
+(niveles + eventos "benéficos" identificables).
 
-### Sprint 5.4 — Coste de bendecir (drena socialización del clan)
+**Consume**: decisión #31. CLAUDE-primigenia §2.
 
-**Entregable testeable**: bendecir un NPC resta socialización a los
-NPCs cercanos del clan (radio declarado, p.ej. 8 tiles). Unit:
-bendecir con socialización media alta → coste pagado sin colapso;
-bendecir con socialización baja → bloqueado o aviso de riesgo
-(decisión de UX en sprint 5.5).
+### Sprint 5.4 — Los 5 milagros con coste en gratitud + herencia 50%
 
-- Coste implementa decisión #23 (opción C arriesgada).
-- Fallback a coste alternativo (A: fe numérica) documentado como
-  flag si el playtest de Fase 4 rompe la opción C.
+**Entregable testeable**: `lib/miracles.ts` expone `MIRACLES_CATALOG`
+con los 5 milagros de decisión #32 (Hambre sagrada 30, Ojo de halcón
+40, Voz de todos 50, Manos que recuerdan 60, Corazón fiel 80). Cada
+entrada tiene `id`, `name`, `cost`, `effect: NPCModifier`,
+`domain`. Unit: ejecutar un milagro gasta `cost` del pool si hay
+suficiente, rechaza si no. Unit: milagro añade rasgo permanente al
+NPC; máx 3 rasgos simultáneos, el 4º reemplaza al más antiguo con
+confirmación. Unit: herencia 50% determinista vía `prng_cursor`
+(1.000 nacimientos → ratio [0.45, 0.55]).
 
-**Dependencias**: Sprint 5.3, Sprint 4.1.
+- Panel `components/miracles/MiraclePanel.tsx` (UI escasa — los
+  milagros no son el verbo principal, el modal diario sí).
+- HUD `components/hud/GratitudeMeter.tsx` muestra `Gratitud: N /
+  CEILING`; warning si queda 1 Elegido sin descendiente (decisión
+  #18, derrota espiritual).
+- E2E: seleccionar un NPC, abrir panel, elegir milagro disponible,
+  confirmar → gratitud baja, rasgo persiste, crónica narra.
 
-**Consume**: decisión #23.
+**Dependencias**: Sprints 5.2 (bias declarativo sobre el que
+enganchar rasgos), 5.3 (pool de gratitud funcional).
 
-### Sprint 5.5 — UI de bendecir + Fe como creyentes vivos
+**Consume**: decisiones #18, #32. vision-primigenia §3.8.
 
-**Entregable testeable**: E2E Playwright — el jugador clica un NPC,
-abre panel de bendiciones (filtrado por dominio y por rasgos
-existentes del NPC), selecciona, ve efecto en crónica + HUD de
-socialización del clan. HUD muestra "Fe: N" donde N = número de NPCs
-del culto vivos (sin contador oculto).
-
-- Componente `components/hud/FaithMeter.tsx`.
-- Panel `components/blessings/BlessingPanel.tsx` con catálogo + coste
-  simulado antes de confirmar.
-- Derrota espiritual trackeada: HUD muestra warning si queda 1
-  Elegido sin descendientes directos vivos (decisión #18).
-
-**Dependencias**: Sprints 5.1-5.4.
-
-**Consume**: decisiones #18, vision-primigenia §3.7.
-
-**Gate de Fase 5**: verbo del jugador funcional. Pilar 1 cuantificado
-con test que distingue trayectorias. Fe = contador derivado visible.
-Derrota espiritual rastreable aunque no dispare fin de partida.
+**Gate de Fase 5**: pulso diario operativo (modal pausa determinista
++ 6 intenciones + silencio). Pilar 1 cuantificado: mismo mensaje,
+NPCs con niveles distintos → trayectorias medibles-distintas.
+Gratitud acumulable con economía predecible. Los 5 milagros
+gastables con coste y herencia 50% funcionando. Derrota espiritual
+rastreable aunque no dispare fin de partida.
 
 ---
 
