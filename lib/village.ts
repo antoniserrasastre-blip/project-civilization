@@ -13,11 +13,13 @@
  * Todo entero/string estable, serializable §A4.
  */
 
+import type { MessageChoice } from './messages';
+
 export interface VillageState {
   consecutiveNightsAtFire: number;
   gratitude: number;
-  activeMessage: string | null;
-  messageHistory: Array<{ day: number; intent: string }>;
+  activeMessage: MessageChoice | null;
+  messageHistory: Array<{ day: number; intent: MessageChoice }>;
   blessings: string[];
 }
 
