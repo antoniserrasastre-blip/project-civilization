@@ -18,12 +18,13 @@ import { decideDestination, tickNeeds } from './needs';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
-import { tickResources } from './resources';
+import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
 import { archiveAtDawn } from './messages';
+import { firstStructureOfKind } from './structures';
 import {
   canBuild,
   CRAFTABLE,
@@ -80,10 +81,17 @@ function nextBuildPriority(state: GameState): CraftableId | undefined {
 }
 
 export function tick(state: GameState): GameState {
+  const fire = firstStructureOfKind(
+    state.structures,
+    CRAFTABLE.FOGATA_PERMANENTE,
+  );
   const ctx = {
     world: state.world,
     npcs: state.npcs,
     nextBuildPriority: nextBuildPriority(state),
+    firePosition: fire?.position,
+    currentTick: state.tick,
+    ticksPerDay: TICKS_PER_DAY,
   };
   const newNPCs: NPC[] = [];
   let prng = state.prng;

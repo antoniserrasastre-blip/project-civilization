@@ -38,6 +38,13 @@ export interface DestinationContext {
    *  presente, NPCs con stats OK van a recolectar los recursos
    *  que falten para esa receta. */
   nextBuildPriority?: CraftableId;
+  /** Posición de la fogata permanente si existe — los NPCs vuelven
+   *  a ella durante la última cuarta parte del día (dusk). */
+  firePosition?: { x: number; y: number };
+  /** Tick actual — para detectar dusk. */
+  currentTick?: number;
+  /** Ticks por día del mundo. */
+  ticksPerDay?: number;
 }
 
 export interface Position {
@@ -91,6 +98,22 @@ export function decideDestination(
   ctx: DestinationContext,
 ): Position {
   const { supervivencia, socializacion } = npc.stats;
+
+  // Dusk → vuelve a la fogata si existe y el NPC no está crítico.
+  // Garantiza que el contador de noches consecutivas (Sprint 4.6)
+  // pueda arrancar: NPCs vuelven a casa al caer la noche.
+  if (
+    ctx.firePosition &&
+    ctx.currentTick !== undefined &&
+    ctx.ticksPerDay !== undefined &&
+    supervivencia >= NEED_THRESHOLDS.supervivenciaCritical
+  ) {
+    const duskStart = Math.floor(ctx.ticksPerDay * 0.75);
+    const posInDay = ctx.currentTick % ctx.ticksPerDay;
+    if (posInDay >= duskStart) {
+      return ctx.firePosition;
+    }
+  }
 
   if (supervivencia < NEED_THRESHOLDS.supervivenciaCritical) {
     const water = nearestResource(

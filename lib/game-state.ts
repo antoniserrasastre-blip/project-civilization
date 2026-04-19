@@ -20,6 +20,11 @@ import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
 import type { WorldMap } from './world-state';
 
+import type { MonumentState } from './monument';
+import { initialMonumentState } from './monument';
+
+export type Era = 'primigenia' | 'tribal';
+
 export interface GameState {
   world: WorldMap;
   npcs: NPC[];
@@ -27,6 +32,8 @@ export interface GameState {
   structures: Structure[];
   relations: Edge[];
   village: VillageState;
+  monument: MonumentState;
+  era: Era;
   tick: number;
   prng: PRNGState;
 }
@@ -52,7 +59,29 @@ export function initialGameState(
     structures: [],
     relations: [],
     village: initialVillageState(),
+    monument: initialMonumentState(),
+    era: 'primigenia',
     tick: 0,
     prng: seedState(seed),
   };
+}
+
+/** Transición a la era tribal — requiere monumento 'built' y
+ *  al menos 1 village-blessing elegida. Cambia era sin limpiar
+ *  state (tribal v1 reconstruye sobre primigenia). */
+export function canTransitionToTribal(state: GameState): boolean {
+  return (
+    state.era === 'primigenia' &&
+    state.monument.phase === 'built' &&
+    state.village.blessings.length >= 1
+  );
+}
+
+export function transitionToTribal(state: GameState): GameState {
+  if (!canTransitionToTribal(state)) {
+    throw new Error(
+      `no se puede transicionar: era=${state.era} monument=${state.monument.phase} blessings=${state.village.blessings.length}`,
+    );
+  }
+  return { ...state, era: 'tribal' };
 }
