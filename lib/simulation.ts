@@ -14,7 +14,7 @@
  * socialización) llegan en Sprint 4.1.
  */
 
-import { decideDestination } from './needs';
+import { decideDestination, tickNeeds } from './needs';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
@@ -59,12 +59,18 @@ export function tick(state: GameState): GameState {
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }
 
-  return {
-    world: {
-      ...state.world,
-      resources: tickResources(state.world.resources, state.tick + 1),
-    },
+  const nextWorld = {
+    ...state.world,
+    resources: tickResources(state.world.resources, state.tick + 1),
+  };
+  const npcsAfterNeeds = tickNeeds(newNPCs, {
+    world: nextWorld,
     npcs: newNPCs,
+  });
+
+  return {
+    world: nextWorld,
+    npcs: npcsAfterNeeds,
     fog,
     tick: state.tick + 1,
     prng,

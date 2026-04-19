@@ -48,7 +48,18 @@ describe('tick — pureza + avance determinista', () => {
     expect(tick(s1).tick).toBe(2);
   });
 
-  it('10.000 ticks no crashean con NPC sin destino', () => {
+  it('10.000 ticks no crashean con NPC sobre recurso (sobrevive)', () => {
+    const world = mkFlatWorld();
+    // NPC sobre agua continuo → supervivencia recupera y no muere.
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 10,
+      y: 10,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
     const npcs: NPC[] = [
       makeTestNPC({
         id: 'ok',
@@ -56,7 +67,7 @@ describe('tick — pureza + avance determinista', () => {
         stats: { supervivencia: 90, socializacion: 90 },
       }),
     ];
-    let s = initialGameState(1, npcs, mkFlatWorld());
+    let s = initialGameState(1, npcs, world);
     for (let i = 0; i < 10_000; i++) {
       s = tick(s);
     }

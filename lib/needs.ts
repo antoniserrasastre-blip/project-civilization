@@ -1,11 +1,13 @@
 /**
- * Decisión de destino del NPC por tick — Sprint 3.2.
+ * Necesidades del NPC por tick — Sprint 3.2 (decideDestination) +
+ * Sprint 4.1 (tickNeeds: decay/recovery + socialización +
+ * feed-forward de hambre).
  *
  * Sin PRNG: empates por (x, y) lex. `decideDestination` devuelve el
  * objetivo de movimiento del NPC para este tick; el pathfinding
  * (Sprint 3.1) resuelve después cómo llegar.
  *
- * Prioridades:
+ * Prioridades de decideDestination:
  *   1. Supervivencia crítica (<20) → agua visible más cercana.
  *   2. Supervivencia baja (<40) → comida visible más cercana
  *      (berry/game/fish).
@@ -108,4 +110,111 @@ export function decideDestination(
   }
 
   return npc.position;
+}
+
+// --- Sprint 4.1: feed-forward de necesidades por tick ---
+
+export const NEED_TICK_RATES = {
+  /** Decay pasivo de supervivencia por tick (entropía). */
+  supervivenciaDecay: 1,
+  /** Recovery cuando el NPC está sobre un recurso activo. */
+  supervivenciaRecover: 2,
+  /** Socialización al estar en soledad (sin NPCs en radio). */
+  socializacionAlone: 1,
+  /** Socialización al estar con compañeros en radio. */
+  socializacionNear: 1,
+  /** Drenaje adicional a vecinos cuando uno está hambriento. */
+  feedForwardHunger: 2,
+  /** Radio para "estar con el clan". */
+  socialRadius: 3,
+} as const;
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function isOnRecoverySpawn(
+  npc: NPC,
+  world: WorldMap,
+): boolean {
+  for (const r of world.resources) {
+    if (r.x !== npc.position.x || r.y !== npc.position.y) continue;
+    if (r.quantity <= 0) continue;
+    if (
+      r.id === RESOURCE.BERRY ||
+      r.id === RESOURCE.GAME ||
+      r.id === RESOURCE.FISH ||
+      r.id === RESOURCE.WATER
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function companionsInRadius(npc: NPC, npcs: readonly NPC[]): number {
+  let c = 0;
+  const r = NEED_TICK_RATES.socialRadius;
+  for (const other of npcs) {
+    if (other === npc || other.id === npc.id) continue;
+    if (!other.alive) continue;
+    if (
+      Math.abs(other.position.x - npc.position.x) <= r &&
+      Math.abs(other.position.y - npc.position.y) <= r
+    ) {
+      c++;
+    }
+  }
+  return c;
+}
+
+/** Avanza supervivencia y socialización de cada NPC para un tick.
+ *  Puro — devuelve array nuevo. Aplica clamps y marca muerto si
+ *  supervivencia cae a 0. */
+export function tickNeeds(
+  npcs: readonly NPC[],
+  ctx: DestinationContext,
+): NPC[] {
+  return npcs.map((n) => {
+    if (!n.alive) return n;
+    let sv = n.stats.supervivencia;
+    let so = n.stats.socializacion;
+
+    if (isOnRecoverySpawn(n, ctx.world)) {
+      sv += NEED_TICK_RATES.supervivenciaRecover;
+    } else {
+      sv -= NEED_TICK_RATES.supervivenciaDecay;
+    }
+
+    const companions = companionsInRadius(n, ctx.npcs);
+    if (companions > 0) {
+      so += NEED_TICK_RATES.socializacionNear;
+    } else {
+      so -= NEED_TICK_RATES.socializacionAlone;
+    }
+
+    // Feed-forward: otros NPCs hambrientos en radio drenan mi
+    // socialización por cada uno.
+    for (const other of ctx.npcs) {
+      if (other.id === n.id) continue;
+      if (!other.alive) continue;
+      if (other.stats.supervivencia >= 30) continue;
+      const d =
+        Math.abs(other.position.x - n.position.x) +
+        Math.abs(other.position.y - n.position.y);
+      if (d <= NEED_TICK_RATES.socialRadius) {
+        so -= NEED_TICK_RATES.feedForwardHunger;
+      }
+    }
+
+    sv = clamp(sv, 0, 100);
+    so = clamp(so, 0, 100);
+    const alive = sv > 0;
+
+    return {
+      ...n,
+      stats: { supervivencia: sv, socializacion: so },
+      alive,
+    };
+  });
 }
