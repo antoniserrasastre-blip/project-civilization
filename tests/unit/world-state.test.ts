@@ -48,7 +48,9 @@ describe('WorldMap — round-trip JSON (§A4)', () => {
       x: 5,
       y: 10,
       quantity: 20,
+      initialQuantity: 20,
       regime: 'regenerable',
+      depletedAtTick: null,
     };
     const withRes: WorldMap = { ...w, resources: [spawn] };
     const after = JSON.parse(JSON.stringify(withRes)) as WorldMap;
