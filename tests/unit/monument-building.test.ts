@@ -88,7 +88,11 @@ describe('startMonument', () => {
   });
 
   it('tira si ya en construcción o built', () => {
-    const m = { phase: 'building' as const, progress: 0, startedAtTick: 0 };
+    const m: import('@/lib/monument').MonumentState = {
+      phase: 'building',
+      progress: 0,
+      startedAtTick: 0,
+    };
     expect(() => startMonument(stockedNpcs(10), m, 0)).toThrow();
   });
 });
@@ -96,7 +100,11 @@ describe('startMonument', () => {
 describe('tickMonumentProgress', () => {
   it('acumula aliveWorkers por tick; completa al llegar al objetivo', () => {
     const npcs = Array.from({ length: 14 }, (_, i) => makeTestNPC({ id: `n${i}` }));
-    let m = { phase: 'building' as const, progress: 0, startedAtTick: 0 };
+    let m: import('@/lib/monument').MonumentState = {
+      phase: 'building',
+      progress: 0,
+      startedAtTick: 0,
+    };
     // 14 NPCs vivos por tick → necesita BUILD_TICK_HOURS/14 ticks.
     const expectedTicks = Math.ceil(BUILD_TICK_HOURS / 14);
     for (let i = 0; i < expectedTicks; i++) {
@@ -110,7 +118,11 @@ describe('tickMonumentProgress', () => {
     const npcs = Array.from({ length: 14 }, (_, i) =>
       makeTestNPC({ id: `n${i}`, alive: i < MIN_WORKERS - 1 }),
     );
-    let m = { phase: 'building' as const, progress: 100, startedAtTick: 0 };
+    let m: import('@/lib/monument').MonumentState = {
+      phase: 'building',
+      progress: 100,
+      startedAtTick: 0,
+    };
     m = tickMonumentProgress(m, npcs);
     expect(m.phase).toBe('ruin');
   });
