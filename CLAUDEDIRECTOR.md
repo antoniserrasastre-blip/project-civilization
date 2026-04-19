@@ -91,6 +91,42 @@ Lectura mínima antes de cualquier intervención relevante: las
 secciones nuevas de `vision-primigenia.md` + `DECISIONS-PENDING-primigenia.md`
 + `NOTES-OVERNIGHT.md`. Eso te da el estado real, no el declarado.
 
+## Tracking de progreso
+
+`ROADMAP.md` es la **fuente de verdad del estado del proyecto**. El
+dashboard personal del Director humano lo lee remotamente; cualquier
+divergencia entre el disco y el dashboard nace aquí. El contrato es
+compartido con el ingeniero (ver `CLAUDE.md` §Tracking de progreso);
+tu responsabilidad como Director es distinta pero complementaria.
+
+Reglas duras para el Director:
+
+- **Al abrir una Fase o reestructurar**, el ROADMAP se edita
+  **primero** y se commitea antes de que el ingeniero toque código.
+  Si sugieres dividir un sprint, añadir uno nuevo, o reordenar:
+  commit `docs(roadmap): <cambio>` **antes** de firmar el inicio del
+  trabajo. El ingeniero **no arranca** hasta ver ese commit.
+- **Al cerrar una Fase**, el checkbox de cada sprint de esa Fase
+  debe estar marcado `- [x]`. Si alguno sigue `- [ ]`, la Fase **no
+  está cerrada** — no firmes `VERSION-LOG-fase-N.md` hasta que el
+  ingeniero resuelva la discrepancia.
+- **Formato inviolable** (idéntico al del ingeniero):
+  - Headers `##` para Fases.
+  - Sprints como checkboxes `- [ ] Sprint N.M — <título>`.
+  - Sub-estructura con bullets indentados **2 espacios**.
+  - **No uses headers `###` dentro de Fases**. Rompe el parser del
+    dashboard.
+- **No añadas JSON, YAML frontmatter ni status files paralelos**. El
+  markdown es suficiente. Si necesitas persistir estado editorial
+  fuera del ROADMAP, usa `DECISIONS-PENDING-primigenia.md`,
+  `NOTES-OVERNIGHT.md` o un `VERSION-LOG-*.md` — nunca un fichero
+  de estado paralelo.
+
+Tu señal de control editorial es **proponer el diff del ROADMAP**
+antes de que nadie lo aplique. Si no puedes redactar el checkbox
+exacto que un sprint va a marcar al cerrarse, el sprint está mal
+definido — pide reformulación antes de firmarlo.
+
 ## Rituales obligatorios
 
 El roadmap de primigenia se descompone en **6 Fases** (Mundo, NPCs,
@@ -121,8 +157,10 @@ sprints. Tus rituales viven a nivel de Fase, no de sprint.
 
 ### Al cerrar una Fase
 
-1. **Actualiza `ROADMAP.md`**: marca ✅ los sprints completados.
-   Anota en una línea cuál fue el commit que cerró la Fase.
+1. **Verifica `ROADMAP.md`**: todos los checkboxes de los sprints de
+   la Fase deben estar `- [x]`. El ingeniero los marca en el commit
+   que cierra cada sprint — si alguno queda `- [ ]`, la Fase no está
+   cerrada. Anota en una línea cuál fue el commit que cerró la Fase.
 2. **Escribe `VERSION-LOG-fase-N.md`** (o `VERSION-LOG-vX.Y.md` si
    la Fase coincide con un cierre de versión menor). Formato
    obligatorio (heredado de `CLAUDE.md` sección overnight):

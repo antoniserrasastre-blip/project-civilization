@@ -97,8 +97,44 @@ Todos verdes. Cualquier fallo → NO commit. Arréglalo primero.
    este proyecto — está advertido explícitamente en el roadmap.
 4. **NO inviertas el orden canónico** (v0.3 antes de v0.4, etc.). Hay
    restricciones escritas en el roadmap con su "why".
-5. **Al terminar un sprint**: actualizar la marca ✅ en `ROADMAP.md`,
-   commitear con mensaje `sprint N: <entregable>`.
+5. **Al terminar un sprint**: marca su checkbox en `ROADMAP.md`
+   (`- [ ]` → `- [x]`) **en el mismo commit** que cierra el trabajo.
+   Mensaje: `sprint N: <entregable>`. Ver "Tracking de progreso"
+   abajo para el contrato de formato.
+
+## Tracking de progreso
+
+El fichero `ROADMAP.md` de la raíz es la **fuente de verdad del estado
+del proyecto**. El dashboard personal del Director humano lo lee
+remotamente; cualquier divergencia entre el disco y el dashboard
+nace aquí.
+
+Reglas duras:
+
+- **Al completar una tarea**, marca su checkbox en `ROADMAP.md`
+  (`- [ ]` → `- [x]`) **en el mismo commit** que la cierra. No en un
+  commit aparte. El commit que mergea el código y el commit que marca
+  la casilla son el mismo commit.
+- **Al abrir una fase nueva o reestructurar**, edita `ROADMAP.md`
+  primero y commitea antes de tocar código. El roadmap manda; si no
+  está escrito en él, no se hace.
+- **Formato inviolable**:
+  - Headers `##` para Fases (ej. `## Fase 1 — Mundo`).
+  - Sprints como checkboxes `- [ ] Sprint N.M — <título>`.
+  - Sub-estructura del sprint (detalle, dependencias, consume
+    decisión #N) como bullets indentados con **2 espacios**.
+  - **No uses headers `###` dentro de Fases**. Rompe el parser del
+    dashboard. La sub-estructura va en checkboxes/bullets anidados,
+    nunca en subheaders.
+- **No añadas JSON, YAML frontmatter ni status files paralelos**
+  (nada de `.status.json`, `progress.yml`, etc). El markdown es
+  suficiente. El dashboard parsea `ROADMAP.md` directamente.
+
+Si un cambio al código **no** tiene un checkbox que marcar en
+`ROADMAP.md`, pregúntate si pertenece al roadmap. Si no pertenece
+(ej. fix de typo, rebase), commitea sin tocar el roadmap. Si
+pertenece pero no está en el roadmap, añádelo al roadmap en un
+commit `docs(roadmap): ...` antes de hacer el trabajo.
 
 ## Convenciones de código
 
