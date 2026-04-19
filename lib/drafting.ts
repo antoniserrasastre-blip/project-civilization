@@ -11,13 +11,14 @@
  * arrancables del arquetipo + linaje; Bloque B genera candidatos).
  */
 
-import { seedState, nextInt, type PRNGState } from './prng';
+import { seedState, next, nextChoice, nextInt, type PRNGState } from './prng';
 import {
   ARCHETYPE,
   CASTA,
   LINAJE,
   SEX,
   type Archetype,
+  type Linaje,
   type NPC,
   type Sex,
 } from './npcs';
@@ -189,4 +190,175 @@ export function finalizeBlockA(draft: DraftState): NPC[] {
     };
   });
   return npcs;
+}
+
+// --- Bloque B — 10 Ciudadanos en 4 tiers (decisión #3) ---
+
+export type FollowerTierLabel = 'excelente' | 'bueno' | 'regular' | 'malo';
+
+export interface FollowerTierDef {
+  label: FollowerTierLabel;
+  picks: number;
+  /** Rango de stats supervivencia/socialización generados. */
+  statRange: [number, number];
+  /** Rango de skills generados por cada skill. */
+  skillRange: [number, number];
+}
+
+export const FOLLOWER_TIERS: FollowerTierDef[] = [
+  { label: 'excelente', picks: 3, statRange: [70, 95], skillRange: [25, 45] },
+  { label: 'bueno', picks: 3, statRange: [50, 70], skillRange: [15, 30] },
+  { label: 'regular', picks: 2, statRange: [30, 50], skillRange: [5, 20] },
+  { label: 'malo', picks: 2, statRange: [10, 30], skillRange: [0, 10] },
+];
+
+export const TIER_CANDIDATE_COUNT = 10;
+
+/** Linajes disponibles para Ciudadanos (excluye Tramuntana,
+ *  reservado para Elegidos — decisión #14). */
+const CITIZEN_LINAJES: Linaje[] = [
+  LINAJE.LLEVANT,
+  LINAJE.MIGJORN,
+  LINAJE.PONENT,
+  LINAJE.XALOC,
+  LINAJE.MESTRAL,
+  LINAJE.GREGAL,
+  LINAJE.GARBI,
+];
+
+export interface FollowerCandidate {
+  id: string;
+  sex: Sex;
+  linaje: Linaje;
+  stats: { supervivencia: number; socializacion: number };
+  skills: {
+    hunting: number;
+    gathering: number;
+    crafting: number;
+    fishing: number;
+    healing: number;
+  };
+  tier: FollowerTierLabel;
+}
+
+/** Mezcla determinista de seed + tier + pantalla. */
+function candidateSeed(
+  baseSeed: number,
+  tier: FollowerTierLabel,
+  pantalla: number,
+): number {
+  const tierIdx = FOLLOWER_TIERS.findIndex((t) => t.label === tier);
+  // Mezcla reversible para que seeds cercanos produzcan partidas
+  // distintas, no variaciones pequeñas.
+  return ((baseSeed | 0) ^ ((tierIdx + 1) * 0x9e37)) + pantalla * 0x53 | 0;
+}
+
+function pickLinajesForGame(baseSeed: number): Linaje[] {
+  let prng = seedState(baseSeed ^ 0x1ddf);
+  // Entre 2 y 4 linajes (decisión #14).
+  const countR = nextInt(prng, 2, 5);
+  prng = countR.next;
+  const pool = [...CITIZEN_LINAJES];
+  const chosen: Linaje[] = [];
+  for (let i = 0; i < countR.value; i++) {
+    const idxR = nextInt(prng, 0, pool.length);
+    prng = idxR.next;
+    chosen.push(pool[idxR.value]);
+    pool.splice(idxR.value, 1);
+  }
+  return chosen;
+}
+
+export function generateCandidates(
+  baseSeed: number,
+  tier: FollowerTierLabel,
+  pantalla: number,
+): FollowerCandidate[] {
+  const tierDef = FOLLOWER_TIERS.find((t) => t.label === tier);
+  if (!tierDef) throw new Error(`tier inválido: ${tier}`);
+  const linajes = pickLinajesForGame(baseSeed);
+  let prng = seedState(candidateSeed(baseSeed, tier, pantalla));
+  const out: FollowerCandidate[] = [];
+  for (let i = 0; i < TIER_CANDIDATE_COUNT; i++) {
+    const sxR = next(prng);
+    prng = sxR.next;
+    const sex: Sex = sxR.value < 0.5 ? SEX.M : SEX.F;
+    const ljR = nextChoice(prng, linajes);
+    prng = ljR.next;
+    const [slo, shi] = tierDef.statRange;
+    const [klo, khi] = tierDef.skillRange;
+    const sv = nextInt(prng, slo, shi + 1);
+    prng = sv.next;
+    const so = nextInt(prng, slo, shi + 1);
+    prng = so.next;
+    const sk1 = nextInt(prng, klo, khi + 1);
+    prng = sk1.next;
+    const sk2 = nextInt(prng, klo, khi + 1);
+    prng = sk2.next;
+    const sk3 = nextInt(prng, klo, khi + 1);
+    prng = sk3.next;
+    const sk4 = nextInt(prng, klo, khi + 1);
+    prng = sk4.next;
+    const sk5 = nextInt(prng, klo, khi + 1);
+    prng = sk5.next;
+    out.push({
+      id: `c-${tier}-${pantalla}-${i}-${baseSeed}`,
+      sex,
+      linaje: ljR.value,
+      stats: { supervivencia: sv.value, socializacion: so.value },
+      skills: {
+        hunting: sk1.value,
+        gathering: sk2.value,
+        crafting: sk3.value,
+        fishing: sk4.value,
+        healing: sk5.value,
+      },
+      tier,
+    });
+  }
+  return out;
+}
+
+export interface FollowerDraftState {
+  seed: number;
+  picks: FollowerCandidate[];
+}
+
+export function startFollowerDraft(seed: number): FollowerDraftState {
+  return { seed, picks: [] };
+}
+
+export function pickFollower(
+  state: FollowerDraftState,
+  candidate: FollowerCandidate,
+): FollowerDraftState {
+  if (state.picks.length >= 10) {
+    throw new Error('ya seleccionados 10 Ciudadanos');
+  }
+  return { ...state, picks: [...state.picks, candidate] };
+}
+
+export function finalizeBlockB(state: FollowerDraftState): NPC[] {
+  if (state.picks.length !== 10) {
+    throw new Error(
+      `bloque B incompleto: esperados 10 picks, hay ${state.picks.length}`,
+    );
+  }
+  return state.picks.map(
+    (c, i): NPC => ({
+      id: c.id,
+      sex: c.sex,
+      casta: CASTA.CIUDADANO,
+      linaje: c.linaje,
+      archetype: null,
+      stats: c.stats,
+      skills: c.skills,
+      position: { x: 0, y: 0 }, // Colocado al spawn del clan en Sprint 2.5+.
+      visionRadius: 6,
+      parents: null,
+      traits: [],
+      birthTick: 0,
+      alive: true,
+    }),
+  );
 }
