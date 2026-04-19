@@ -21,8 +21,23 @@
 El jugador es un dios incipiente. Sus primeros hijos — **los Hijos de
 Tramuntana** — son un **clan nómada de 14 personas** que recorren un
 archipiélago balear-ficticio buscando dónde arraigar. El dios no
-gobierna: **bendice**. Cada bendición se traduce en un **rasgo** que
-altera cómo los NPCs se comportan. El mundo hace el resto.
+gobierna: **habla**. Cada amanecer escribe **un mensaje al clan**
+(una profecía, una intención, una palabra), y los mortales lo
+interpretan como pueden — cada uno según quién es. Esa es la
+totalidad de tu verbo diario. No hay más presión posible.
+
+Cuando tu voz ayuda, los mortales sienten **gratitud**. La gratitud
+se acumula en el clan y, de tiempo en tiempo, te da poder para un
+**milagro**: un don concreto a un NPC que altera cómo se comporta
+para el resto de su vida. Los milagros son raros, caros y
+hereditarios. Son la **parte escasa** del verbo del dios; el mensaje
+diario es la parte continua.
+
+**Inspiración declarada**: *The NPCs in this Village Sim Game Must
+Be Real!* (Murazukuri Game no NPC ga Namami no Ningen to Shika
+Omoenai), de Hirukuma. El bucle diario del mensaje, la gratitud
+como moneda de milagros y la interpretación emergente son deuda
+directa con esa obra.
 
 El objetivo mecánico de la edad es **dejar de ser nómadas**: construir
 un **monumento al dios** que ancle al clan a un punto del mapa. Ese
@@ -37,9 +52,9 @@ reconstruirán encima de la base de sistemas que aquí se asienta.
 
 | Elemento | `vision-godgame.md` | Primigenia |
 |-|-|-|
-| Pilar 1 · Mismo don, distinto resultado | **intacto** | Catálogo de 8-12 bendiciones; rasgos hereditarios 50%. |
-| Pilar 2 · Mundo cambia sin tocarlo | **intacto** | NPCs autónomos con pathfinding y necesidades. |
-| Pilar 3 · Fe como economía narrativa | **reinterpretado** | Fe se materializa en **creyentes reales** (humanos), no en contador abstracto. |
+| Pilar 1 · Mismo don, distinto resultado | **intacto** | Cada NPC interpreta el mismo mensaje diario de forma distinta; 5 milagros raros con rasgos hereditarios 50%. |
+| Pilar 2 · Mundo cambia sin tocarlo | **intacto** | NPCs autónomos con pathfinding y necesidades; la simulación avanza aunque "guardes silencio hoy". |
+| Pilar 3 · Fe como economía narrativa | **reinterpretado** | La Fe se sustituye por **gratitud emergente** — los NPCs la generan al vivir un mensaje que les ayuda, y esa gratitud es la moneda de los milagros. Cuenta de creyentes vivos sigue siendo la métrica global del culto. |
 | Pilar 4 · Anti-presión del dios rival | **diferido** | No hay rival en primigenia. Reaparece en tribal. |
 | Pilar 5 · Linaje reina | **intacto** | Casta Elegido hereditaria por un solo progenitor. |
 | §A4 pureza/determinismo/round-trip | **intacto** | Obligatorio. Mapa y PRNG seedables; sin `Math.random`. |
@@ -249,37 +264,85 @@ transición "ya no somos nómadas":
 + **fogata permanente con ≥ 10 noches consecutivas durmiendo
 alrededor**. Dispara la disponibilidad del **monumento** (§5).
 
-### 3.7 Bendiciones → rasgos
+### 3.7 El mensaje diario — el verbo continuo del dios
 
-El verbo del jugador. Único. No hay control directo de NPCs —
-solo bendición.
+**El dios habla una vez al amanecer in-game**. Ese es su único
+verbo continuo, siempre disponible, sin coste. Al iniciarse cada
+nuevo día del clan, la simulación se pausa y se muestra un modal
+con seis **intenciones** posibles. El jugador elige una — o marca
+"guarda silencio hoy" y avanza sin hablar.
 
-**Catálogo fijo de 8-12 bendiciones** para primigenia. Número final
-se fija en Fase 4+ del roadmap. Cada bendición:
+**Las seis intenciones primigenia** (plantilla fija; texto libre
+llegará post-primigenia cuando se active LLM real):
 
-- Se otorga a un NPC concreto seleccionado por el jugador.
-- Paga un coste (economía divina — ver §5 y §6 para creyentes y
-  bendiciones de aldea).
-- Añade un **rasgo permanente** al NPC que altera su comportamiento.
-- **Hereda 50% probabilidad** a descendientes directos; diluye por
-  generación.
-- **Máx 3 rasgos simultáneos** por NPC. El 4º reemplaza al más
-  antiguo o exige confirmación del jugador.
+| Intención | Cuándo encaja | Tonalidad que empuja |
+|-|-|-|
+| **Auxilio** | Clan hambriento, herido, cansado | Supervivencia primero; reparto de recursos |
+| **Coraje** | Decisión difícil, migración, caza arriesgada | Acción, asumir riesgos, salir del confort |
+| **Paciencia** | Conflicto interno, deuda tensa, relaciones rotas | Aguardar, negociar, reparar antes que castigar |
+| **Encuentro** | Soledad, NPCs separados, linajes desconectados | Buscar al otro; pairing; reconciliación |
+| **Renuncia** | Recurso agotado localmente, apego a un lugar insostenible | Soltar; migrar; dejar ir |
+| **Esperanza** | Baja moral generalizada, herejía incipiente | Mirar al futuro; reforzar fe; perseverar |
 
-**Ejemplos orientativos** (catálogo definitivo en `DECISIONS-PENDING`):
+**Interpretación emergente (Pilar 1)**: cada NPC lee la intención
+del día **según sus niveles individuales y su linaje**. Un
+"coraje" en un NPC con supervivencia alta puede leerse como
+"lanzarse a cazar"; en uno con economía tensa, como "no robar al
+vecino"; en uno del linaje Gregal (inestable), como "provocar el
+conflicto que estaba evitando". La crónica narra las **2-3
+interpretaciones más relevantes** del día, no todas — quien
+quiera seguir a un NPC concreto puede abrir su ficha y ver qué
+leyó él.
 
-- **Hambre sagrada**: el NPC come menos pero comparte su ración con
-  otros con socialización baja. Efecto emergente: glue social.
-- **Ojo de halcón**: radio de visión +50%. Descubre recursos más
-  rápido.
-- **Manos que recuerdan**: skill de crafteo +20, con decaimiento
-  si no cría a un aprendiz.
-- **Sangre caliente**: +fuerza en caza y conflicto; socialización
-  decrece más rápido con deudas no pagadas.
-- **Voz de todos**: los NPCs cercanos a él ganan socialización
-  extra cuando realizan rituales.
+**Silencio**: si el jugador marca "guarda silencio hoy", la
+simulación avanza sin empujar a nadie. La **gratitud pasiva
+disminuye** y la **probabilidad de semilla de herejía aumenta**.
+Silenciar un día puntual es saludable; silenciar días seguidos
+abre boquete.
 
-### 3.8 Vientos — los ocho linajes del archipiélago
+**Por qué el pulso diario importa**: resuelve el vacío del
+jugador contemplativo (minimalista del playtest v1.0.1 perdía
+por no tener verbo activo). Ahora siempre hay exactamente una
+cosa que pensar cada mañana. El jugador activo escribe mensaje
++ gasta un milagro si puede; el contemplativo escribe sólo el
+mensaje y deja que el mundo lo interprete.
+
+### 3.8 Milagros y gratitud — el verbo escaso del dios
+
+Los milagros son **dones raros y costosos** a un NPC concreto que
+alteran permanentemente su comportamiento. Sustituyen al catálogo
+antiguo de "bendiciones como verbo central" y quedan relegados a
+la parte escasa de la economía divina.
+
+**Gratitud** (moneda emergente):
+- Se acumula en un **pool del clan** (no por NPC individual).
+- La generan los NPCs cuando viven un mensaje diario que les
+  **beneficia tangiblemente** — supervivencia salvada, conflicto
+  evitado, linaje restaurado, deuda saldada.
+- No se puede forzar: emerge si tu mensaje acertó con la necesidad
+  del día. Mensajes que no aprovechan al clan generan **cero
+  gratitud**.
+- Se pierde parcialmente al silenciar días seguidos o cuando
+  muere un creyente clave (cada Elegido muerto drena pool).
+
+**Los 5 milagros primigenia** (costes en gratitud — provisionales,
+revalidables en playtest Fase 5):
+
+| Milagro | Coste | Efecto | Hereda 50% |
+|-|-|-|-|
+| **Hambre sagrada** | 30 | El NPC come menos y comparte ración con NPCs de socialización baja. Glue social emergente. | Sí |
+| **Ojo de halcón** | 40 | Radio de visión +50%; descubre recursos antes. | Sí |
+| **Voz de todos** | 50 | Los NPCs cercanos ganan socialización extra al hacer rituales juntos. | Sí |
+| **Manos que recuerdan** | 60 | Skill de crafteo +20 con decaimiento si no cría un aprendiz. | Sí |
+| **Corazón fiel** | 80 | Nunca abandona a su linaje; bonus de socialización al protegerlo. | Sí |
+
+**Reglas del milagro**:
+- Máx **3 rasgos simultáneos** por NPC. El 4º reemplaza al más
+  antiguo con confirmación del jugador.
+- Herencia 50% a descendientes directos; diluye por generación.
+- **Sin retroceso**: una vez concedido el milagro, no se retira.
+
+### 3.9 Vientos — los ocho linajes del archipiélago
 
 Dentro de los **Hijos de Tramuntana** (nombre del clan completo)
 conviven hasta ocho **linajes internos**, cada uno nombrado por un
@@ -311,7 +374,8 @@ Llevant queda en reserva para la edad tribal.
 ## 4. Loop del jugador
 
 El jugador **no mueve NPCs**. El juego corre solo. El rol del jugador
-es **observar, diagnosticar y bendecir**.
+es **observar, hablar al amanecer y gastar los milagros que se ha
+ganado**.
 
 **El primer minuto**
 - Pantallas de drafting encadenadas: 4 Elegidos con puntos, luego
@@ -319,22 +383,27 @@ es **observar, diagnosticar y bendecir**.
   un punto costero del mapa.
 - Una **fogata precaria** ya está encendida. No cuenta como
   asentamiento — es el bivouac nómada.
+- Primer amanecer: modal con las **6 intenciones** (§3.7). Eliges
+  una — o guardas silencio. La simulación arranca.
 
 **El minuto cinco**
 - Los 14 NPCs ya se han separado en grupos pequeños siguiendo
   necesidades. Algunos cazan, algunos buscan agua, algunos cargan leña.
 - El jugador ve **indicadores de supervivencia por NPC** (barra de
-  hambre/sed). Los primeros descubrimientos de recursos rellenan el
-  mapa poco a poco.
+  hambre/sed) y un **pool de gratitud** en la cabecera.
 - La **crónica** empieza a narrar en voz partisana: "los nuestros
   han encontrado una cueva con agua dulce al pie del Mestral".
+- Si la intención del día acertó con la necesidad del clan, la
+  gratitud sube unos puntos. Si no, nada.
 
 **El minuto quince**
 - Primer conflicto social: un Ciudadano de skill baja empieza a no
   producir; su socialización baja; los demás cuchichean. El jugador
-  decide si bendecirle (Manos que recuerdan) o dejar que caiga.
-- Primera muerte por hambre o herida. La Fe del jugador — medida en
-  **creyentes vivos** — baja por primera vez.
+  tiene dos opciones: pedir **Paciencia** en el mensaje del día, o
+  — si ya tiene 60 puntos de gratitud — gastar un **milagro de
+  Manos que recuerdan** para que ese Ciudadano se vuelva útil.
+- Primera muerte por hambre o herida. El pool de gratitud cae
+  porque el clan ha perdido a un suyo.
 
 **El minuto treinta**
 - El clan ha construido los primeros 1-2 crafteables umbral. El
@@ -478,13 +547,26 @@ Crafteables umbral funcionando. Condición de fogata permanente.
 **Entregable testeable**: clan capaz de llegar a los 5 crafteables
 umbral por sí solo en una partida de 20.000 ticks determinista.
 
-### Fase 5 — Bendiciones y rasgos
+### Fase 5 — Mensaje diario, gratitud y milagros
 
-Verbo del jugador: catálogo de bendiciones + rasgos hereditarios.
-Fe-como-creyentes (contador = NPCs vivos del culto).
+Verbo del jugador implementado completo:
+- Modal diario con las 6 intenciones y "guarda silencio hoy".
+- Motor de interpretación emergente por NPC (cada uno lee la
+  intención según supervivencia/socialización/economía/linaje).
+- Pool de gratitud a nivel clan con reglas de ganancia
+  (mensaje acertado) y pérdida (silencio prolongado, muerte de
+  creyente clave).
+- 5 milagros con su catálogo de efectos y herencia 50%.
+- Contador global de creyentes vivos como métrica del culto.
 
-**Entregable testeable**: el mismo NPC con diferentes combinaciones
-de rasgos produce trayectorias medibles distintas (Pilar 1).
+**Entregable testeable**:
+1. El mismo NPC con diferentes combinaciones de rasgos produce
+   trayectorias medibles distintas (Pilar 1).
+2. La misma intención diaria se interpreta diferente en clanes con
+   composiciones distintas (Pilar 1 versión social).
+3. Una partida silenciada 20 días seguidos dispara semilla de
+   herejía; un milagro concedido con 80 puntos de gratitud deja el
+   pool al coste exacto.
 
 ### Fase 6 — Monumento y bendición de aldea
 
