@@ -325,6 +325,174 @@ Procedimiento:
 - CK3: dinastías emergentes trait-driven, no random puro.
 - Dwarf Fortress: mundos deterministas con eventos narrativos.
 
+## Eficiencia de Contexto y Tokens
+
+Esta sección es del ingeniero ejecutor (el contrapeso editorial vive
+en `CLAUDEDIRECTOR.md`). Aplica al flujo real de sprints: evitar
+gastar tokens en ruido cuando la tarea es "implementar Sprint N con
+TDD" y el output natural es código + tests + commit.
+
+### Hack #1 — Modo Caveman
+
+System prompt para respuestas concisas durante sprints activos:
+"Responde en ≤3 frases. Mínimo preamble. Solo código y decisiones.
+Las justificaciones van en comentarios dentro del código, no en chat."
+Apaga el acompañamiento narrativo y deja la tubería tests → Edit →
+gate correr sola.
+
+**Aplica**: implementación Red/Green/Refactor, fixes de balance
+numéricos (tocar constantes), correr el gate, ajustes de flakes E2E
+mecánicos.
+
+**NO aplica**: tests Red que deben describir el gap (`"Fe no existe
+aún"` es el mensaje que el ingeniero necesita leer fallar), redacción
+de `VERSION-LOG` (la perspectiva del jugador no cabe en caveman),
+análisis de balance previo a tocar constantes, decisiones §A4 donde
+un comentario corto no explica el porqué.
+
+### Hack #2 — Code Review Graph
+
+Herramienta: `github.com/tirth8205/code-review-graph`. Reduce el
+contexto de revisión a un grafo de dependencias entre ficheros
+tocados, no el repo entero.
+
+**Aplica**: antes de tocar `lib/` (validación del contrato §A4:
+pureza, determinismo, round-trip JSON), refactors que cruzan 2-3
+módulos del núcleo, verificar que un evento nuevo no rompe la rama
+correspondiente de `applyEvents`.
+
+**NO aplica**: cambios aislados a un único componente de UI, ajustes
+de balance dentro de un solo fichero, nuevos tests que no introducen
+imports nuevos.
+
+**Regla de inyección**: solo los ficheros afectados por el cambio y
+sus imports directos. Nunca el repo completo, la historia git ni
+`CHANGELOG`. Si el cambio toca `scheduler.ts`, entra `scheduler.ts`
++ `world-state.ts` (sus tipos) + los tests que lo cubren; nada más.
+
+### Hack #3 — Modelo correcto para cada tarea
+
+Empieza con el modelo más barato que cumpla el contrato. Si el gate
+no pasa dos veces seguidas con Haiku, escala a Sonnet. Opus se
+reserva para bugs de determinismo y decisiones §A4 irreversibles.
+
+| Tarea | Modelo | Razón |
+|-|-|-|
+| Unit test de función pura nueva | Haiku | Patrón repetitivo, contrato explícito, sin ambigüedad |
+| Ajuste de constante de balance | Haiku | Single-file edit, test ya escrito |
+| Sprint completo (Red + Green + Refactor) | Sonnet | Flujo multi-fichero, tests + implementación |
+| Arquitectura cross-módulo (nuevo evento, bump de storage version) | Sonnet | Lectura de 3-5 ficheros + coordinación de cambios |
+| Redacción de `VERSION-LOG` / `REPORT.md` | Sonnet | Perspectiva del jugador pide tono, no solo listado |
+| Debugging de determinismo roto | Opus | Trace multi-tick, error sutil, decisión fina §A4 |
+| Decisión §A4 irreversible (shape del estado) | Opus | Impacto amplio, bump de storage obligatorio |
+
+**Aplica**: al arrancar cualquier tarea, elige el modelo *antes* del
+primer prompt.
+
+**NO aplica**: cambios de modelo a mitad de sprint por capricho —
+si Haiku arrancó el sprint, termínalo con Haiku salvo bloqueo duro.
+Saltar a Opus "por si acaso" quema tokens sin ROI.
+
+### Hack #4 — No inyectar `vision-godgame.md` entero
+
+El documento de visión es el más pesado del repo. Pegarlo entero en
+cada sesión gasta 15-25% del contexto sin ROI — la mayoría del ruido
+son analogías y prosa de contexto que el ingeniero no necesita para
+implementar un sprint.
+
+Pasa la visión por Haiku una vez, con este prompt de compresión:
+
+> Lee `../vision-godgame.md` y devuélveme SOLO: (1) claims
+> factuales numerados, (2) Pilares 1-5 en una frase cada uno,
+> (3) §A1-A5 resumidos a 2-3 frases cada anexo, (4) instrucciones
+> accionables ("nunca X", "siempre Y"). Descarta: prosa de
+> contexto, repeticiones, analogías con otros juegos. Output en
+> Markdown.
+
+Pega al siguiente agente solo el texto condensado (objetivo: 20-30%
+del original). Guárdalo como `vision-compressed.md` fuera del repo
+y reúsalo entre sesiones si la visión no se ha actualizado.
+
+**Aplica**: cualquier sprint que referencie Pilares o §A (es decir,
+casi todos).
+
+**NO aplica**: si el sprint toca una sección concreta de 2-3 párrafos
+— cita solo esos. Tampoco tiene sentido comprimir para ajustes de
+UI o flakes E2E que no dependen de la visión.
+
+### Hack #5 — Session Timing
+
+Aplicado al flujo overnight (ver sección "Sesiones autónomas"):
+
+- **No abrir sesión** sin leer `ROADMAP.md` y identificar el sprint
+  activo *antes* del primer prompt. Quema 500-1000 tokens menos que
+  preguntar al agente "¿qué toca?".
+- **Concentra los sprints pesados** (muchos módulos tocados, E2E
+  nuevos, refactors §A4) en la primera mitad de la ventana de tu
+  sesión. Cuando llevas 3-4 sprints encadenados, el contexto
+  acumulado hace que el gate empiece a consumir más tokens por
+  cada ajuste pequeño.
+- **Cierra la sesión tras cerrar versión mayor** aunque tengas más
+  sprints planeados. El `VERSION-LOG` + Polish & Debug pass son el
+  corte natural; la siguiente versión se abre con sesión limpia y
+  sin arrastre de decisiones ya resueltas.
+
+**Aplica**: sesiones de más de 2 sprints consecutivos o cualquier
+overnight.
+
+**NO aplica**: intervenciones de 1 sprint corto (polish, fix de
+flake). En esos casos el timing no cambia nada.
+
+### Hack #6 — Compact Conversation Skill
+
+Antes de abrir chat nuevo (sesión pausada, rehome tras límite de
+contexto, entrega entre agentes), comprime el estado con este
+prompt estándar:
+
+> Resume el estado actual en este formato exacto:
+> 1. **Sprint activo**: número, entregables pendientes, fase
+>    (Red/Green/Refactor).
+> 2. **Decisiones de implementación tomadas** en esta sesión:
+>    lista breve; cada una con el archivo tocado.
+> 3. **Código / config clave en code blocks verbatim**: bloques
+>    exactos que el próximo agente debe preservar (constantes de
+>    balance, types nuevos, `data-testid` añadidos, shape del
+>    estado).
+> 4. **Estado del gate**: qué pasa (`pnpm test: 330/330`), qué
+>    falla y por qué, qué se ignoró temporalmente.
+> 5. **Próximos pasos concretos**: los 3 siguientes `Edit` /
+>    `Write` / `Bash` que corresponden.
+
+Pega ese resumen como primer mensaje al nuevo chat. Onboarding de
+5k tokens → ~1.5k.
+
+**Aplica**: cambio de sesión a mitad de sprint, rehome de contexto,
+entrega entre Ingeniero y Director (y viceversa).
+
+**NO aplica**: fin de versión mayor — ahí el compacto obligatorio es
+el `VERSION-LOG`, no este resumen técnico.
+
+### Hack #7 — Avoid Peak Hours
+
+Planifica la carga según ventana horaria:
+
+- **Sprints más largos** (E2E nuevos, refactors cross-módulo, bumps
+  de storage version, nuevas mecánicas completas) → noches,
+  madrugadas, fines de semana. Mismo coste en tokens, sin rate
+  limits interrumpiendo a mitad de gate.
+- **Sprints de balance / polish** (ajustes de constantes, fixes de
+  flakes E2E, redacción de `VERSION-LOG`) → aptos para peak hours
+  porque cada intervención es de vuelta corta y rebobinable.
+- **Nunca arrancar un refactor §A4** a pocas horas del límite de
+  ventana diario. Si el gate se cae a mitad, necesitas contexto
+  fresco para rebobinar sin perder el árbol de decisiones.
+
+**Aplica**: cualquier sesión sin urgencia fuerte; el proyecto es
+asíncrono por defecto.
+
+**NO aplica**: fixes bloqueantes (main roto, E2E en CI fallando) —
+ahí se corre cuando haga falta, con el modelo que toque.
+
 ## Cuándo pausar y preguntar
 
 - Ambigüedad entre lo que pide el roadmap y lo que pide la visión.
