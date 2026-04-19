@@ -439,7 +439,7 @@ opción válida de juego contemplativo. No se fuerza progresión.
 
 Orden canónico, aprobado por el Director humano. **Ninguna fase
 arranca sin las anteriores cerradas con TDD verde**. Esto es la
-columna vertebral del `ROADMAP-primigenia.md` que escribirá el
+columna vertebral del `ROADMAP.md` que escribirá el
 ingeniero.
 
 ### Fase 1 — Mundo
@@ -509,8 +509,8 @@ abre la puerta a la edad tribal completa y al resto del roadmap.
 Creativo, fechado 2026-04-19. Próximos pasos:
 1. Director humano firma los huecos pendientes listados en
    `DECISIONS-PENDING-primigenia.md`.
-2. Ingeniero (`CLAUDE.md`) arranca `ROADMAP-primigenia.md` desde las
+2. Ingeniero (`CLAUDE.md`) arranca `ROADMAP.md` desde las
    fases 1-6 con entregables testeables.
-3. v1.0.1 existente se archiva en rama `claude/v1.0.1-archivada`
-   como referencia histórica — se reconstruirá sobre primigenia cuando
+3. v1.0.1 existente se archiva en rama `archive/v1.0.1` como
+   referencia histórica — se reconstruirá sobre primigenia cuando
    llegue la edad tribal.

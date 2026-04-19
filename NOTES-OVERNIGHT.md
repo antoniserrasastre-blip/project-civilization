@@ -2,7 +2,7 @@
 
 Bitácora técnica del ingeniero ejecutor tras la edición del 2026-04-19
 que reemplaza la edad temprana (v1.0.1) por la edad primigenia. El log
-histórico de v0.x → v1.0.1 vive en `claude/v1.0.1-archivada`.
+histórico de v0.x → v1.0.1 vive en `archive/v1.0.1`.
 
 ## Tarea 1 — Archivo de v1.0.1 y wipe del scaffolding
 
@@ -10,16 +10,13 @@ histórico de v0.x → v1.0.1 vive en `claude/v1.0.1-archivada`.
 wipe, contiene v1.0.1 + v1.2 map baleares + `CLAUDEDIRECTOR.md` +
 hacks de eficiencia).
 
-- Rama `claude/v1.0.1-archivada` creada en ese commit y pusheada al
-  remoto ✅.
+- Rama `archive/v1.0.1` creada en ese commit y pusheada al remoto ✅
+  (sustituye a la rama provisional `claude/v1.0.1-archivada`, que
+  sigue existiendo como redundancia).
 - Tag local `v1.0.1-archive` creado sobre el mismo commit ✅.
 - **Push del tag**: bloqueado por el servidor git con HTTP 403
-  persistente (4 intentos con backoff). La rama archivada
-  (`claude/v1.0.1-archivada`) preserva el mismo SHA, así que la
-  recuperación histórica sigue garantizada sin el tag. **Acción
-  sugerida al Director humano**: pushear manualmente el tag desde
-  entorno con permisos (`git push origin v1.0.1-archive`) o dejar
-  la rama como único pin.
+  persistente. La rama archivada `archive/v1.0.1` preserva el mismo
+  SHA, así que la recuperación histórica sigue garantizada sin el tag.
 
 ### Qué se conservó en la rama principal (scaffolding mínimo)
 
@@ -50,16 +47,21 @@ hacks de eficiencia).
   enteros.
 - `components/map-view.tsx` (depende del `lib/map.ts` borrado).
 - `app/api/chronicle/enhance/route.ts` (server route del chronicle LLM).
-- Docs archivadas: `ROADMAP.md`, `DECISIONS-PENDING.md`,
-  `PLAYTEST-REPORT.md`, `REPORT.md`, `VERSION-LOG-v0.{1,2,3,4}.md`,
-  `VERSION-LOG-v1.0.md`, `VERSION-LOG-v1.0.1.md`. Todas recuperables
-  en `claude/v1.0.1-archivada`.
+- Docs archivadas: el `ROADMAP.md` previo (sprints 1-13 hasta v1.0),
+  `DECISIONS-PENDING.md`, `PLAYTEST-REPORT.md`, `REPORT.md`,
+  `VERSION-LOG-v0.{1,2,3,4}.md`, `VERSION-LOG-v1.0.md`,
+  `VERSION-LOG-v1.0.1.md`. Todas recuperables en `archive/v1.0.1`.
+  El `ROADMAP.md` actual del repo es el de primigenia (renombrado
+  desde `ROADMAP-primigenia.md`).
 
 ## Blockers y acciones requeridas al Director humano
 
 1. **Tag `v1.0.1-archive`**: push manual si se quiere referencia
    versionada (opcional — rama archivada ya cubre el requisito).
-2. **Primigenia docs**: los documentos llegaron desde una rama
-   editorial (`claude/read-claudedirector-a3VyQ`). Merge a `main` de
-   la rama editorial pendiente de decisión del Director humano;
-   mientras tanto viven copiados en `claude/primigenia-bootstrap-nGvO9`.
+2. **Primigenia docs**: los documentos `vision-primigenia.md` y
+   `DECISIONS-PENDING-primigenia.md` ya están en `main` (provenientes
+   de la rama editorial original `claude/read-claudedirector-a3VyQ`,
+   ahora preservada en `archive/read-claudedirector`). El bootstrap
+   completo se mergeó a `main` el 2026-04-19; la rama
+   `claude/primigenia-bootstrap-nGvO9` queda preservada en
+   `archive/primigenia-bootstrap`.

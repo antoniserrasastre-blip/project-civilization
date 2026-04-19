@@ -1,23 +1,40 @@
 # Proyecto Civilización — GODGAME
 
 Motor de simulación determinista de civilizaciones. Juegas como un dios
-observador en un archipiélago balear ficticio: eliges a tu pueblo (3
-grupos disponibles), unges mortales como Elegidos, les concedes dones
-o maldices a sus rivales. Compites con hasta 2 dioses IA por el
-dominio del mundo.
+incipiente sobre **los Hijos de Tramuntana**, un clan nómada de 14
+personas en un archipiélago balear-ficticio. No gobiernas: bendices.
+Cada bendición se traduce en un rasgo que altera cómo los NPCs se
+comportan, y el mundo hace el resto.
 
-La arquitectura es un **núcleo puro JSON-serializable** (`lib/`) envuelto
-en una capa React (`app/`, `components/`). Cada tick es determinista:
-misma semilla + mismas acciones → mismo mundo byte a byte.
+La arquitectura es un **núcleo puro JSON-serializable** (`lib/`)
+envuelto en una capa React (`app/`, `components/`). Cada tick es
+determinista: misma semilla + mismas acciones → mismo mundo byte a
+byte.
 
-## Estado actual — v1.0 feature-complete
+## Estado actual — Bootstrap Edad Primigenia (camino a v2.0)
 
-- **Single-player completo**: 5 pilares del diseño sostenidos y testados.
-- **13 sprints cerrados** desde el MVP hasta v1.0 (ver `ROADMAP.md`).
-- **230 tests unit + integration** y **26 E2E** en verde.
-- Un reporte detallado del estado y propuestas está en `REPORT.md`.
-- Los cambios de cada versión mayor documentados en
-  `VERSION-LOG-v*.md` con perspectiva de jugador, balance y flags.
+El repo está en pleno **wipe-y-refundación**. La v1.0.1 single-player
+(`13 sprints`, eras tribal → atómica, dioses rivales) se completó en
+abril de 2026 y está **archivada** en la rama remota `archive/v1.0.1`.
+
+A partir del 2026-04-19 el `main` ejecuta la **Edad Primigenia**: una
+edad totalmente nueva, **anterior** a la tribal, donde el objetivo
+mecánico es construir un **monumento** que ancle al clan a un punto
+del mapa y desbloquee la siguiente era. El v1.0.1 archivado se
+reconstruirá sobre primigenia cuando llegue la edad tribal.
+
+Hoy el `main` contiene:
+
+- **Scaffolding mínimo** — `lib/prng.ts`, `lib/utils.ts`, harness de
+  tests, primitives de UI, shell de Next.js, placeholder de página.
+- **Sprint 1.1-1.2 cerrado** — `lib/world-gen.ts` genera el
+  archipiélago determinista 512×512 con recursos. Test de
+  reproducibilidad byte-idéntica 1000 veces.
+- **Documentación constitucional** — `vision-primigenia.md` (anexo
+  editorial), `DECISIONS-PENDING-primigenia.md` (bandeja del Director),
+  `ROADMAP.md` (Fases 1-6 descompuestas en sprints), `CLAUDE.md` /
+  `CLAUDE-primigenia.md` (metodología del ingeniero), `CLAUDEDIRECTOR.md`
+  (contrapeso editorial).
 
 ## Stack
 
@@ -32,132 +49,71 @@ pnpm install
 pnpm dev          # next dev en :4747
 ```
 
-Abre `http://localhost:4747`.
-
-### Partida con semilla compartible
-
-Cualquier URL con `?seed=123&group=llevant` reproduce el mismo mundo
-en cualquier máquina. El botón **Compartir** en el panel de crónica
-copia la URL al portapapeles.
+Abre `http://localhost:4747`. Hoy verás el placeholder de primigenia
+hasta que la Fase 1 (mundo + render) cierre.
 
 ## Tests
 
 ```bash
-pnpm test              # 230 unit + integration (Vitest)
-pnpm test:e2e          # 26 E2E (Playwright — Next en :3100)
-pnpm exec tsc --noEmit # type check limpio
-pnpm exec eslint .     # lint limpio
-pnpm build             # build Next.js
+pnpm test              # Vitest unit + integration
+pnpm test:unit         # Sólo unit
+pnpm test:integration  # Sólo integration (vacío hoy)
+pnpm test:e2e          # Playwright (Next en :3100, vacío hoy)
+pnpm exec tsc --noEmit
+pnpm exec eslint .
+pnpm build
 ```
 
-Todos en verde en la rama principal (`claude/update-claude-md-mPM1k`).
-
-## Contrato del núcleo (§A4 del Vision Document)
+## Contrato del núcleo (§A4)
 
 Todo módulo de `lib/` respeta tres reglas duras:
 
-1. **Pureza**: recibe estado, devuelve estado nuevo. Sin side effects.
-2. **Determinismo**: mismo input → mismo output, byte a byte. Toda
+1. **Pureza** — recibe estado, devuelve estado nuevo. Sin side effects.
+2. **Determinismo** — mismo input → mismo output, byte a byte. Toda
    aleatoriedad pasa por `state.prng_cursor`. Nunca `Math.random`,
    `Date.now` ni `crypto.randomUUID`.
-3. **Round-trip JSON**: el `WorldState` sobrevive `JSON.stringify/parse`
-   sin pérdida — requisito para localStorage, replays y partidas
-   compartibles.
+3. **Round-trip JSON** — `JSON.parse(JSON.stringify(state))`
+   estructuralmente idéntico al original.
 
 Si un test de determinismo falla, no se mergea.
 
-## Estructura
+## Roadmap (resumen)
 
-```
-lib/ · núcleo puro (15 módulos)
-  prng.ts              mulberry32 funcional con seed+cursor.
-  world-state.ts       Tipos + initialState multi-grupo. GROUPS catálogo.
-  simulation.ts        tick(state) compone scheduler + applyEvents.
-  scheduler.ts         9 pases: lifecycle + fe + tech + IA rival.
-  rival-ai.ts          Ciclo de decisión de dioses rivales.
-  anoint.ts            Ungir — "solo tu grupo".
-  gifts.ts             Fuerza Sobrehumana, Aura de Carisma + coste Fe.
-  curses.ts            3 niveles — "solo grupo rival".
-  tech.ts              6 eras: tribal → bronce → clásica → medieval → industrial → atómica.
-  verdict.ts           Influencia + top-3 + ¿reina tu linaje?.
-  tutorial.ts          Fases del onboarding coreografiado.
-  chronicle.ts         Plantillas partisanas del cronista.
-  chronicle-provider.ts 3 providers (template / mock-llm / claude).
-  export.ts            TXT + HTML + shareUrl.
-  persistence.ts       localStorage versioned (v3).
-  map.ts               Costa procedural sine-wave layered.
+Plan en 6 fases hasta cerrar el loop primigenia. Detalle por sprint
+en `ROADMAP.md`.
 
-app/
-  page.tsx                           Dashboard principal.
-  api/chronicle/enhance/route.ts     Stub LLM (501 hasta configurar ANTHROPIC_API_KEY).
+| Fase | Tema | Sprints | Estado |
+|-|-|-|-|
+| 1 | Mundo (mapa + render) | 5 | sprint 1.1-1.2 ✅, resto pendiente |
+| 2 | NPCs + recursos + fog-of-war | 6 | pendiente |
+| 3 | Movimiento + pathfinding | 4 | pendiente |
+| 4 | Economía (necesidades + crafting + grafo) | 7 | pendiente |
+| 5 | Bendiciones y rasgos | 5 | pendiente |
+| 6 | Monumento + bendición de aldea + transición | 4 | pendiente |
 
-components/
-  map-view.tsx         SVG: costa + NPCs coloreados por grupo + halo + símbolos hand-drawn.
-  ui/                  shadcn primitives.
-
-tests/
-  unit/                27 specs — contratos módulo por módulo.
-  integration/         4 specs — flujos multi-módulo + runs de 10k ticks + pillars.
-  e2e/                 10 specs — flujos de usuario.
-```
-
-## Feature tour
-
-- **Onboarding coreografiado** (§A1): intro narrativa → halo dorado
-  sobre el NPC más ambicioso → evento forzado día 6 → fin.
-- **Lifecycle puro y determinista**: muertes por edad, conflictos
-  entre ambiciosos, emparejamientos (mismo y cross-grupo),
-  nacimientos con herencia de dones.
-- **Economía de Fe de 3 verbos**: rezar (pasiva), enemigo caído (kill
-  bonus), descendencia (bonus por nacimiento de linaje sagrado).
-- **2 dones y 3 maldiciones** con coste escalonado.
-- **Tutorial dinástico**: tu linaje se propaga — descendientes del
-  Elegido viviendo en grupo rival siguen generando Fe.
-- **Dioses rivales IA** (`aggressive`, `opportunistic`) con ciclo de
-  decisión anti-presión (1 decisión / ~100s a 1×).
-- **6 eras con transición automática** cuando se completa el pool
-  tecnológico de cada una + cinemática pergamino.
-- **Veredicto de era** con top-3 por influencia:
-  `influence = fuerza + carisma + 10·seguidores + 5·descendientes`.
-- **Exportación**: códice HTML standalone o .txt; URL compartible con
-  seed+group para replicar tu mundo.
-- **Crónica generativa**: provider swappable en vivo (plantilla
-  determinista, LLM simulado offline, o Claude real — requiere
-  configurar `ANTHROPIC_API_KEY`).
-
-## Metodología
-
-El trabajo sigue **TDD estricto**: test Red → min implementation →
-refactor → gate → commit. El gate se pasa siempre antes de mergear:
-
-```
-pnpm test && pnpm test:e2e && pnpm exec tsc --noEmit && pnpm exec eslint . && pnpm build
-```
-
-Cada versión mayor (v0.1, v0.2, v0.3, v0.4, v1.0) se cierra con un
-**Polish & Debug pass** + un **VERSION-LOG-vX.Y.md** escrito desde la
-perspectiva del jugador, con análisis de balance y flags para
-decisiones humanas pendientes. Ver `CLAUDE.md` para la metodología
-completa.
-
-## Roadmap
-
-- `ROADMAP.md` — plan original hasta v1.0 (sprints 1-13). Todos
-  cerrados.
-- `ROADMAP-v2.md` (rama `claude/v2-roadmap`) — plan post-v1.0: eras
-  clásica → atómica + arquitectura multijugador. v1.3 esqueleto ya
-  está en esa rama, pendiente de validación.
+Total: **31 sprints** antes de cerrar primigenia. Fase 7 (migrantes
+externos + dios rival) queda diferida; abre la puerta a la edad
+tribal completa.
 
 ## Documentación
 
 | Documento | Qué contiene |
 |-|-|
-| `CLAUDE.md` | Metodología para agentes Claude Code trabajando en este repo. |
-| `ROADMAP.md` | Plan canónico hasta v1.0 (todos los sprints cerrados). |
-| `ROADMAP-v2.md` | Plan post-v1.0 en rama provisional. |
-| `REPORT.md` | Reporte final overnight: estado + flags + propuestas. |
-| `NOTES-OVERNIGHT.md` | Bitácora técnica sprint-por-sprint. |
-| `VERSION-LOG-v0.1.md` → `v1.0.md` | Logs por versión con perspectiva de jugador. |
+| `vision-primigenia.md` | Anexo editorial: identidad, sistemas base, fases. Manda sobre la visión madre para mecánicas primigenia. |
+| `ROADMAP.md` | Plan canónico de primigenia (Fases 1-6). |
+| `DECISIONS-PENDING-primigenia.md` | Bandeja del Director humano. Sprints bloqueados hasta firmar. |
+| `CLAUDE.md` | Metodología del ingeniero (TDD estricto, contratos §A4, batches anti-timeout, eficiencia de tokens). |
+| `CLAUDE-primigenia.md` | Convenciones específicas de la nueva arquitectura. |
+| `CLAUDEDIRECTOR.md` | Contrapeso editorial: rituales, protocolos de frenada, plantillas. |
+| `NOTES-OVERNIGHT.md` | Bitácora técnica del bootstrap y blockers. |
+
+## Ramas
+
+- `main` — primigenia activa.
+- `archive/v1.0.1` — referencia histórica del juego v1.0 single-player
+  pre-wipe (todo el código + version logs + reportes de playtest).
+- `archive/*` — copias 1:1 de las ramas `claude/*` previas, conservadas
+  por consulta histórica.
 
 ## Licencia
 

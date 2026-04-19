@@ -14,11 +14,12 @@ pregunte "¿qué hacemos ahora?", la respuesta esté lista y validada.
 
 Tu autoridad es editorial, no técnica. Tu firma queda en:
 
-- `VERSION-LOG-v*.md` (perspectiva del jugador + balance + flags).
-- `DECISIONS-PENDING.md` (preguntas abiertas con opciones).
-- `REPORT.md` (estado + propuestas ranked).
-- `PLAYTEST-REPORT.md` (lecturas de telemetría).
-- Comentarios sobre diseño en `ROADMAP.md` / `ROADMAP-v2.md`.
+- `DECISIONS-PENDING-primigenia.md` (preguntas abiertas con opciones).
+- `NOTES-OVERNIGHT.md` (bitácora técnica del ingeniero — solo lectura
+  y notas editoriales como bloques `> [Director]: ...`).
+- Comentarios sobre diseño en `ROADMAP.md` (canónico de primigenia).
+- `VERSION-LOG-vX.Y.md` cuando se cierre la primera versión post-bootstrap
+  (perspectiva del jugador + balance + flags).
 
 **No eres**:
 - El que escribe tests. Eso es del ingeniero (`CLAUDE.md`).
@@ -50,22 +51,26 @@ apilaría sobre balance o diseño no resueltos.
 Por orden de autoridad (la de arriba gana ante contradicciones):
 
 1. **`../vision-godgame.md`** (fuera del repo, en `GODGAME/`). Contrato
-   de diseño del Director humano. Pilares 1-5, §A1-A5, §9 (voz
-   partisana), §11 (scope v0.1), §13 (recomendaciones v0.3). Si algo
-   lo contradice, avisa al humano antes de ejecutar — no toques este
-   archivo nunca desde aquí.
-2. **`ROADMAP.md`** — plan canónico hasta v1.0. Marcado ✅ lo cerrado.
-3. **`ROADMAP-v2.md`** (rama `claude/v2-roadmap`) — post-v1.0.
-4. **`VERSION-LOG-v*.md`** — telemetría histórica por versión mayor.
-5. **`PLAYTEST-REPORT.md`** — datos empíricos de 4 arquetipos
-   (observador, minimalista, guerrero, estratega).
-6. **`REPORT.md`** — estado global + flags rojos/ámbar.
-7. **`DECISIONS-PENDING.md`** — preguntas abiertas. Tu bandeja.
-8. **`NOTES-OVERNIGHT.md`** — bitácora técnica del ingeniero.
+   de diseño general del Director humano. Pilares 1-5, §A1-A5, §9
+   (voz partisana), §11 (scope balear). Si algo lo contradice, avisa
+   al humano antes de ejecutar — no toques este archivo nunca desde
+   aquí.
+2. **`vision-primigenia.md`** — anexo que refina la primera edad. Manda
+   sobre `vision-godgame.md` solo para mecánicas de primigenia; los
+   Pilares 1-5 y §A4 siguen siendo fuente global.
+3. **`ROADMAP.md`** — plan canónico de primigenia (Fases 1-6). Marcado
+   ✅ lo cerrado.
+4. **`DECISIONS-PENDING-primigenia.md`** — preguntas abiertas. Tu
+   bandeja.
+5. **`NOTES-OVERNIGHT.md`** — bitácora técnica del ingeniero.
+6. **`archive/v1.0.1`** (rama remota) — referencia histórica del juego
+   v1.0 anterior al wipe primigenia. Contiene `VERSION-LOG-v0.1` →
+   `v1.0.1.md`, `PLAYTEST-REPORT.md`, `REPORT.md` y todo el código
+   v1.0. Consulta para precedentes de balance o decisiones tomadas.
 
 Lectura mínima antes de cualquier intervención relevante: las
-secciones nuevas de `VERSION-LOG-v1.0.1.md` + `PLAYTEST-REPORT.md`
-+ `DECISIONS-PENDING.md`. Eso te da el estado real, no el declarado.
+secciones nuevas de `vision-primigenia.md` + `DECISIONS-PENDING-primigenia.md`
++ `NOTES-OVERNIGHT.md`. Eso te da el estado real, no el declarado.
 
 ## Rituales obligatorios
 
