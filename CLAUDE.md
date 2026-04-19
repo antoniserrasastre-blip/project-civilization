@@ -121,6 +121,44 @@ nuevo. Resumen:
 - **Comentarios**: sólo cuando el *why* no es obvio. Nunca describir
   *qué hace el código* si los identificadores ya lo dicen.
 
+## Ejecución por batches pequeños (anti-timeout)
+
+Toda operación que produzca output grande — escritura de docs
+extensos (ROADMAP, VERSION-LOG, CLAUDE-primigenia), suites de tests
+con múltiples `describe`, refactors cross-módulo, wipes del
+scaffolding — se **fractura en batches** de tamaño acotado. Un batch
+cabe en una sola llamada `Write`/`Edit`/`Bash` sin riesgo de que la
+herramienta se corte a mitad.
+
+**Reglas operativas**:
+
+1. **Un batch = una unidad conceptual independiente**. Secciones
+   numeradas de un doc, un `describe` de una suite, un módulo de
+   `lib/`, un grupo de ficheros a borrar por categoría. Nunca más.
+2. **Tamaño objetivo por batch**: ≤ 300 líneas al escribir; ≤ 15
+   ficheros al borrar/mover; ≤ 3 módulos al editar en cadena.
+   Si el batch excede, pártelo.
+3. **Entre batches, un tool call corto**: `git status`, `Read` de una
+   cabecera, `Bash` de un `wc -l`. Sirve para verificar el progreso
+   y resetea el buffer antes del siguiente batch pesado.
+4. **Frase previa al primer batch**: anuncia en una línea qué vas a
+   escribir y en cuántos batches (p.ej. "redacto el ROADMAP en 3
+   batches: Fase 1-2, Fase 3-4, Fase 5-6 + cierre").
+5. **Un solo commit por entregable completo**, no por batch. Los
+   batches son costura interna del agente, no pasos del sprint. El
+   commit se hace cuando el entregable está entero y el gate pasa.
+
+**Aplica**: cualquier tarea que al estimarla supere ~400 líneas de
+output o ~20 ficheros tocados.
+
+**NO aplica**: edits de una constante, fixes de un test, cambios
+localizados a un solo fichero pequeño — ahí batchear es ceremonia
+inútil.
+
+**Razón**: timeouts a mitad de `Write` pierden el progreso sin
+dejar rastro recuperable; una sesión de 3 sprints encadenados se
+rompe por un solo write demasiado grande.
+
 ## Comandos
 
 ```bash
