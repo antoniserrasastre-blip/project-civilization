@@ -25,14 +25,25 @@ test.describe('MapView — pan + zoom', () => {
 
   test('drag desplaza el mapa', async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
     const canvas = page.getByTestId('map-view-canvas');
+    await expect(canvas).toBeVisible();
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas no tiene bounding box');
     const before = await canvas.screenshot();
-    // Drag de 200px hacia la derecha/abajo.
-    await page.mouse.move(box.x + 100, box.y + 100);
+    // Arranca el drag cerca del centro y lo arrastra hacia la
+    // esquina superior-izquierda. El viewport inicial tiene
+    // offsetX/Y = 0 clampado al borde del mapa: un drag positivo
+    // (hacia abajo-derecha) se clamparía a 0 y no generaría
+    // cambio visible. Dirección negativa siempre tiene margen
+    // dentro de [screen - mapPx, 0].
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
+    const endX = startX - 200;
+    const endY = startY - 200;
+    await page.mouse.move(startX, startY);
     await page.mouse.down();
-    await page.mouse.move(box.x + 300, box.y + 300, { steps: 10 });
+    await page.mouse.move(endX, endY, { steps: 10 });
     await page.mouse.up();
     const after = await canvas.screenshot();
     expect(Buffer.compare(before, after)).not.toBe(0);

@@ -149,3 +149,59 @@ playwright install chromium` en un entorno con red a
 `playwright.azureedge.net`, luego `pnpm test:e2e` para validar
 los 3 tests escritos. Si fallan, eran bugs latentes de MapView
 (primera vez que se ejecutan).
+
+## Sprint FIX-GATE-PRIMIGENIA — causa raíz de los 2 fallos post-merge
+
+Tras mergear PR #1 a `main`, el gate reportó 2 de 5 checks rojos.
+Causas identificadas y corregidas en rama
+`claude/fix-gate-primigenia`.
+
+### 1. `pnpm build` — `PageNotFoundError: /_document`
+
+**Causa probable**: estado stale en `.next/` heredado de un build
+previo (antes del wipe v1.0.1 → primigenia), donde
+`pages-manifest.json` referenciaba rutas obsoletas del Pages
+Router. Next 15.5 intenta resolver esas rutas durante "Collecting
+page data" y tira `PageNotFoundError` sobre `/_document`, aunque
+el codebase actual sea 100% App Router.
+
+**No reproducible en entorno limpio** (fresh `rm -rf .next && pnpm
+install && pnpm build` pasa verde). Depende del estado heredado
+entre merges.
+
+**Fix**: script `prebuild` añadido a `package.json` que ejecuta
+`rm -rf .next` antes de cada `pnpm build`. Garantiza start-from-
+scratch en cualquier entorno (local o CI), sin coste de dev (el
+overhead de rebuild es < 1s). El script `clean` obsoleto
+(`next clean` no existe como subcomando) queda corregido al mismo
+estilo.
+
+### 2. `pnpm test:e2e` — drag test falla 1/3 en chromium
+
+**Causa raíz**: el test dragea `box.x+100 → box.x+300` (dx=+200,
+dy=+200), sentido **positivo**. El viewport inicial de MapView
+tiene `offsetX = offsetY = 0` (borde superior-izquierdo del mapa
+visible en la esquina del viewport). `clampOffset` fuerza
+`offsetX ∈ [screen-mapPx, 0]`: cualquier delta positivo se clampa
+a 0. El drag no genera cambio visible → `Buffer.compare(before,
+after) === 0` → test falla. NO era flake — era bug determinista
+de dirección.
+
+**Fix** (`tests/e2e/map-view.spec.ts`): drag desde el centro del
+canvas hacia la esquina superior-izquierda (dx=-200, dy=-200).
+Sentido negativo: siempre dentro del rango válido de `clampOffset`,
+siempre produce cambio visible. Más robusto también ante futuros
+ajustes de viewport inicial. Añadido `waitForLoadState('networkidle')`
++ `expect(canvas).toBeVisible()` como barandilla.
+
+### Verificación local
+
+Gate reproducido con browser chromium-1194 pre-instalado en el
+sandbox (vía `PLAYWRIGHT_CHROMIUM_PATH` override soportado por
+`playwright.config.ts`):
+
+  pnpm test              ✅ 301/301 (33 ficheros)
+  pnpm test:e2e          ✅ 3/3 (chromium)
+  pnpm exec tsc --noEmit ✅ limpio
+  pnpm exec eslint .     ✅ limpio
+  pnpm build             ✅ prebuild + build OK
