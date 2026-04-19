@@ -7,13 +7,16 @@ reglas de sesión siguen vigentes tal cual. Aquí solo se documentan las
 convenciones que **no existían** en el scaffolding de v1.0.1 porque la
 edad primigenia introduce sistemas nuevos:
 
-1. Pathfinding determinista sobre grid 512×512.
-2. Fog-of-war reproducible seed-driven.
-3. Mapa del mundo como fixture JSON versionada (no procedural por
+1. Extensión de §A4 para grafos NPC×NPC (economía relacional).
+2. Extensión de §A4 para el pool de gratitud del clan (decisión #31).
+3. Extensión de §A4 para el modal diario determinista — pausa sin
+   consumir PRNG (decisión #30.b).
+4. Pathfinding determinista sobre grid 512×512.
+5. Fog-of-war reproducible seed-driven.
+6. Mapa del mundo como fixture JSON versionada (no procedural por
    partida).
-4. Registry de assets gráficos (`assets/ORIGINS.md`) con licencia CC0
+7. Registry de assets gráficos (`assets/ORIGINS.md`) con licencia CC0
    por sprite.
-5. Extensión de §A4 para grafos NPC×NPC (economía relacional).
 
 Ante contradicción con `CLAUDE.md`, gana `CLAUDE.md` **salvo que la
 contradicción sea específica de mecánicas primigenia**, en cuyo caso
@@ -78,7 +81,137 @@ función, referencia circular). Es un bug de §A4, no un flake.
 
 ---
 
-## 2. Pathfinding determinista (A*)
+## 2. §A4 extendido — pool de gratitud del clan
+
+Decisión #31 introduce **gratitud** como moneda emergente del clan
+que financia los 5 milagros (decisión #32). No es per-NPC: es un
+contador único del clan (`state.village.gratitude`).
+
+### 2.1 Representación canónica
+
+- **Entero**, nunca float. Los floats intermedios se redondean al
+  mezclar con el estado (`Math.floor` o `Math.round`, nunca truncar
+  implícitamente).
+- Vive en `state.village.gratitude: number`. Sin contadores
+  paralelos por NPC; si alguna mecánica necesita "gratitud personal",
+  se modela como peso en el grafo de relaciones (§1), no como nueva
+  columna del estado.
+- Cap declarado en constante (`GRATITUDE_CEILING`). Sumar por encima
+  satura — no desborda. La sustracción clamp-a a 0, nunca negativa.
+
+### 2.2 Reglas de ganancia y pérdida
+
+- **Ganancia**: un tick produce `+delta` al pool cuando un NPC vive
+  un efecto que le beneficia tangiblemente (supervivencia salvada,
+  conflicto evitado, deuda saldada, linaje restaurado) **Y** ese
+  efecto es consecuencia causal del mensaje diario activo (decisión
+  #31). Sin mensaje → sin ganancia.
+- **Pérdida**: silencio acumulado (días seguidos sin mensaje),
+  muerte de un Elegido, gasto explícito en milagro. Cada vía tiene
+  su `delta` negativo en constante declarada.
+- **Determinismo total**: `computeGratitudeDelta(tick, events,
+  activeMessage, state)` es puro, y la suma al pool es idempotente
+  por `tick`. Reordenar los eventos del tick no cambia el resultado
+  (suma conmutativa sobre enteros).
+
+### 2.3 Round-trip JSON
+
+- Trivial: es un entero dentro de `state.village`. Los tests de
+  round-trip del estado completo cubren el pool sin trabajo
+  adicional. No necesita test propio.
+
+### 2.4 Tests mínimos
+
+- Unit: ganancia condicional — mismo evento, **con** mensaje activo
+  suma al pool; **sin** mensaje activo, 0.
+- Unit: pérdida por silencio acumulado — N días sin mensaje drenan
+  pool según la curva declarada.
+- Unit: cap — sumar por encima del `GRATITUDE_CEILING` satura.
+- Unit: clamp en 0 — restar más de lo disponible deja el pool en 0,
+  no negativo.
+- Integration: 10.000 ticks con y sin mensajes tienen pools finales
+  distintos medibles (sanity del feed-forward).
+
+### 2.5 Regla de oro
+
+> La gratitud NO es una variable interna de balance que el
+> ingeniero retoca en runtime. Es **lectura del estado del mundo**:
+> si el clan vive, el pool sube; si el clan colapsa, baja. Toda
+> constante numérica (deltas, ceiling, curva de silencio) vive en
+> un solo módulo (`lib/gratitude.ts`) auditable.
+
+---
+
+## 3. §A4 extendido — modal diario determinista
+
+Decisión #30.b: al amanecer de cada día in-game, la simulación se
+pausa y aparece un modal con las 6 intenciones + "guarda silencio
+hoy". Hasta que el jugador elige, **el tiempo no corre**. El
+determinismo exige reglas específicas para no romper §A4.
+
+### 3.1 Pausa sin consumir PRNG
+
+- El modal se abre en el tick K donde `K % TICKS_PER_DAY === 0`
+  (o equivalente de "amanecer"). Esa detección es una función pura
+  sobre el tick actual, no consume PRNG.
+- Mientras el modal está abierto, **no se llama a `tick(state)`**.
+  La UI queda congelada en el estado del tick K. El `prng_cursor`
+  no avanza ni un paso.
+- Si el jugador cierra la pestaña y recarga, la partida se
+  deserializa en el mismo tick K con el modal reabierto. El cursor
+  y el estado son idénticos al momento de guardar.
+
+### 3.2 La intención elegida es parte del estado
+
+- `state.village.activeMessage: MessageIntent | 'silence'` persiste.
+  Se setea en el instante de la elección, antes de llamar a
+  `tick(state)` para K+1.
+- El mensaje activo **modula** los ticks siguientes pero **no
+  consume PRNG por sí mismo**. Los efectos sobre NPCs consumen PRNG
+  normalmente cuando sus funciones puras lo pidan.
+- Al amanecer del siguiente día, `activeMessage` se archiva en
+  `state.village.messageHistory: Array<{ day, intent }>` (orden
+  canónico por `day` ascendente) y se limpia para el nuevo modal.
+
+### 3.3 Testing determinista del modal
+
+- Unit: abrir modal → `prng_cursor` inalterado. Seleccionar
+  intención → `activeMessage` poblado, `prng_cursor` aún inalterado.
+  Llamar `tick` post-selección → `prng_cursor` avanza según la
+  lógica normal.
+- Unit: misma seed + mismo mensaje elegido → misma trayectoria
+  byte-idéntica sobre los N ticks siguientes.
+- Unit: misma seed + mensaje distinto → trayectorias distintas
+  medibles (test del Pilar 1).
+- Integration: simular partida con scripted choices (array de
+  intenciones por día) + correr 10.000 ticks → resultado
+  determinista, hash estable entre corridas.
+
+### 3.4 Qué NO se permite
+
+- **Nunca** consumir PRNG para "precalcular" lo que pasará si el
+  jugador elige X. La simulación no adelanta futuros — si el modal
+  necesita preview ("si eliges Coraje, los NPCs leerán así"), ese
+  preview se genera a partir del estado **actual** sin tocar el
+  cursor.
+- **Nunca** avanzar tick mientras el modal está abierto por
+  "timeout de UX" o similar. El silencio es una elección explícita
+  del jugador, no un fallback automático.
+- **Nunca** meter el mensaje activo en el grafo de relaciones ni
+  en otros sub-estados — vive SOLO en `state.village`.
+
+### 3.5 Regla de oro
+
+> El modal es un **punto de sincronización** entre jugador y
+> simulación. La regla mental: "el mundo se congela mientras el
+> dios habla; cuando el dios se calla, el mundo resume con la
+> nueva intención grabada". Cualquier tentación de "mejorar la
+> fluidez" haciendo que algo pase durante el modal rompe
+> determinismo.
+
+---
+
+## 4. Pathfinding determinista (A*)
 
 Los NPCs en primigenia se mueven autónomamente sobre un grid 512×512.
 El pathfinding **debe ser reproducible** tick a tick con el mismo seed.
@@ -137,7 +270,7 @@ secundaria determinista derivada del estado:
 
 ---
 
-## 3. Fog-of-war reproducible
+## 5. Fog-of-war reproducible
 
 El clan no ve todo el mapa al arrancar. Los recursos aparecen a medida
 que los NPCs los descubren (§3.5 de `vision-primigenia.md`). El
@@ -195,7 +328,7 @@ fog-of-war **es parte del estado del mundo**, no una capa de render.
 
 ---
 
-## 4. Mapa del mundo como fixture JSON versionada
+## 6. Mapa del mundo como fixture JSON versionada
 
 **Un único mapa por versión de producción**. No procedural por partida.
 Se compila una vez con el generador (Fase 1 Sprint 1) y se congela como
@@ -262,7 +395,7 @@ y el output depende **solo** de él y del código del generador.
 
 ---
 
-## 5. Registry de assets gráficos (`assets/ORIGINS.md`)
+## 7. Registry de assets gráficos (`assets/ORIGINS.md`)
 
 Prioridad CC0 (Kenney, OpenGameArt). IA generativa **solo como relleno
 de huecos**, registrada explícitamente. Decisión #9 del
@@ -313,7 +446,7 @@ una fila por sprite/tile/sfx:
 
 ---
 
-## 6. Estructura de directorios de la edad primigenia
+## 8. Estructura de directorios de la edad primigenia
 
 Actualización del layout. Conserva lo reutilizable de v1.0.1 (harness
 de tests, PRNG, shadcn UI) y añade las capas nuevas:
@@ -343,7 +476,7 @@ scripts/
   check-asset-registry.ts  [Fase 2+] Lint de assets/ORIGINS.md.
 
 assets/
-  ORIGINS.md           Registry obligatorio (§5).
+  ORIGINS.md           Registry obligatorio (§7).
   tiles/               Tileset del mapa.
   sprites/             NPCs, recursos, construcciones.
 
@@ -367,7 +500,7 @@ no antes. Carpetas vacías = ruido.
 
 ---
 
-## 7. Convenciones de testing específicas de primigenia
+## 9. Convenciones de testing específicas de primigenia
 
 ### 7.1 Fixtures de mundo
 
@@ -412,7 +545,7 @@ intermedio. Se testea así:
 
 ---
 
-## 8. Qué NO hacer en primigenia (específico)
+## 10. Qué NO hacer en primigenia (específico)
 
 - **No procedural por partida**. El mapa es fixture versionado. Si
   un feature quiere "variantes", se expresan como seeds alternativos
@@ -435,7 +568,7 @@ intermedio. Se testea así:
 
 ---
 
-## 9. Cuándo actualizar este anexo
+## 11. Cuándo actualizar este anexo
 
 - Al introducir una nueva mecánica cross-módulo que requiera regla
   §A4 extendida (como el grafo de relaciones).

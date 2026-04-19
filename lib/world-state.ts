@@ -39,9 +39,17 @@ export interface ResourceSpawn {
   id: ResourceId;
   x: number;
   y: number;
-  /** Cantidad disponible ahora. Para agotables, va a 0 sin vuelta. */
+  /** Cantidad disponible ahora. Para agotables, va a 0 sin vuelta.
+   *  Para regenerables, puede dropear a 0 por harvest (Sprint 4.2)
+   *  y volver a initialQuantity tras el timer. */
   quantity: number;
+  /** Cantidad al spawn — referencia para restaurar al regenerar. */
+  initialQuantity: number;
   regime: ResourceRegime;
+  /** Tick en el que se agotó (quantity cayó a 0). null si no
+   *  agotado. Irrelevante para depletable/continuous, pero se
+   *  serializa igual para uniformidad. */
+  depletedAtTick: number | null;
 }
 
 /** Metadata del mapa — versiona el generador y permite invalidación

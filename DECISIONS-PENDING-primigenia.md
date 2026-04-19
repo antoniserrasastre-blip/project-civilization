@@ -56,6 +56,80 @@ firmadas como se recoge abajo, con tres reglas operativas:
 | **28** | **Política editorial esclavitud** | **A implementar tal como descrito + aviso en pantalla de inicio**. Firmado por delegación del Director humano; el Director Creativo recomendaba esta opción por coherencia con el realismo pre-moderno del proyecto. | §3.2 |
 | **29** | **Anexo `CLAUDE-primigenia.md`** | **B anexo nuevo**. Lo redacta el ingeniero en Fase 1 con convenciones específicas (pathfinding determinista, fog-of-war seedable, assets registry). | — |
 
+### Segunda pasada — inspiración del manga "The NPCs in this Village Sim Game Must Be Real!" (firma 2026-04-19)
+
+Tras lectura del manga/novela que inspira el proyecto (Yoshio, dios
+del destino, cuyo único verbo es un mensaje/profecía al día;
+gratitud de los villagers → poder de milagros), el Director humano
+firma paquete "B" para adaptar el verbo central sin reescribir el
+diseño completo (opción B del análisis del Director Creativo).
+
+| # | Tema | Decisión | Referencia |
+|-|-|-|-|
+| **30** | **Verbo central del dios** | **B pulso diario fijo**: el dios escribe **un mensaje/profecía al día** (1 por ciclo diario in-game, sin moneda). Es el verbo principal y siempre está disponible. Los milagros (bendiciones individuales) pasan a ser secundarios y costosos. | vision-primigenia §3.7, §3.9 (nueva) |
+| **31** | **Gratitud como recurso** | **B gratitud emergente**: los NPCs generan **gratitud** cuando tu mensaje diario produce un resultado que les beneficia (supervivencia salvada, socialización reparada, conflicto evitado). La gratitud se **acumula** en un pool del clan y es la moneda de los milagros. **Deroga firma #23** (drenaje pasivo de socialización). | §3.7, §6 |
+| **32** | **Catálogo de bendiciones individuales ante el cambio de verbo** | **B reducción a 5 milagros raros**. Se recorta el catálogo de 10 (firma #22) a **5 milagros potentes** que cuestan gratitud sustancial. Los 5 "desaparecidos" se recuperan como **modificadores del mensaje diario** (opciones de tonalidad del mensaje, no milagros separados). | §3.7 revisado |
+
+### Decisiones derivadas — mecánica del mensaje diario
+
+La firma #30 abre subdecisiones que quedan fijadas con defaults del
+Director Creativo (provisionales, revalidables en playtest Fase 5):
+
+**#30.a — ¿Qué contiene un mensaje?**
+Texto libre (escrito por el jugador) vs selección de plantilla
+fija. **Default: plantilla fija de 6 intenciones** (auxilio, coraje,
+paciencia, encuentro, renuncia, esperanza) — tu tonalidad filtra la
+interpretación del clan. Texto libre llega cuando se active el
+provider LLM real (post-primigenia).
+
+**#30.b — ¿Cuándo se entrega?**
+Al amanecer del día in-game, con modal que pausa la simulación
+hasta que elijas tu intención. Si saltas el día (botón "guarda
+silencio hoy"), la simulación avanza sin tu voz — baja la
+gratitud pasiva y sube la probabilidad de herejía.
+
+**#30.c — ¿Los NPCs lo interpretan igual?**
+No. Cada NPC interpreta el mensaje según sus niveles individuales
+(supervivencia/socialización/economía) y su linaje. La crónica
+narra **las 2-3 interpretaciones más relevantes** del día, no
+todas. Un mensaje de "coraje" en un clan hambriento puede leerse
+como "lanzarse a cazar" (supervivencia baja) o "no robar al
+vecino" (economía tensa).
+
+### Los 5 milagros (catálogo revisado de bendiciones individuales)
+
+Sustituye la firma #22. Cada milagro cuesta **gratitud acumulada**
+del clan (números provisionales — ajustables en Fase 5):
+
+| Milagro | Coste (gratitud) | Efecto | Nivel individual afectado |
+|-|-|-|-|
+| **Hambre sagrada** | 30 | El NPC come menos y comparte ración con NPCs de socialización baja. Rasgo hereditario 50%. | Supervivencia / Socialización |
+| **Ojo de halcón** | 40 | Radio de visión +50%, descubre recursos antes. Rasgo hereditario 50%. | Supervivencia |
+| **Voz de todos** | 50 | Los NPCs cercanos ganan socialización al hacer rituales juntos. Rasgo hereditario 50%. | Socialización |
+| **Manos que recuerdan** | 60 | Skill de crafteo +20 con decaimiento si no cría un aprendiz. Rasgo hereditario 50%. | Economía |
+| **Corazón fiel** | 80 | Nunca abandona a su linaje. Bonus de socialización al protegerlo aunque sufra. Rasgo hereditario 50%. | Socialización / Linaje |
+
+Las 5 bendiciones "desaparecidas" (Piel dura, Paso firme, Sangre
+caliente, Vínculo de deuda, Vista de mercader) pasan a ser
+**tonalidades del mensaje diario** que sesgan la interpretación
+del clan sin gastar gratitud. El ingeniero las cablea como modos
+del modal del mensaje en Fase 5.
+
+### Impacto sobre decisiones anteriores
+
+- **#22 (catálogo 10 bendiciones)**: **superseded**. El catálogo
+  pasa a ser de 5 milagros (arriba) + 5 tonalidades del mensaje.
+- **#23 (coste de bendecir = drena socialización)**: **superseded**.
+  La gratitud es emergente y positiva, no drenaje.
+- **#24 (4 bendiciones de aldea primigenia)**: **intacta**. Siguen
+  siendo el premio del monumento (§6) y son categóricas
+  (comercio/producción/recolecta/reconocimiento/fertilidad/salud/
+  longevidad, 4 disponibles en primigenia).
+
+Las firmas #22 y #23 quedan registradas como "superseded por #30-32"
+— su texto original se conserva arriba para auditoría del cambio
+de dirección.
+
 ## Catálogo de 10 bendiciones individuales — primigenia
 
 Fijado por firma de la decisión #22. Cada bendición se otorga a un NPC

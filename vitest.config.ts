@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 /**
@@ -9,8 +10,12 @@ import path from 'node:path';
  * - `setupFiles`: ver tests/setup.ts (reloj congelado, limpieza de env).
  * - `alias '@/'`: espejo del `tsconfig.json` del proyecto para que los
  *   imports en tests resuelvan idénticos a los del código de la app.
+ * - plugin-react: permite importar .tsx desde tests (smoke tests del
+ *   MapView y siguientes componentes React). Sin él, el parser de
+ *   Vite falla en JSX porque tsconfig.json tiene jsx:"preserve".
  */
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: 'node',
     globals: true,

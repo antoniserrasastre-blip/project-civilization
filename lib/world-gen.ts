@@ -230,7 +230,9 @@ function spawnResources(
           x,
           y,
           quantity: q.value,
+          initialQuantity: q.value,
           regime: 'regenerable',
+          depletedAtTick: null,
         });
       } else if (tile === TILE.MOUNTAIN && r.value < 0.2) {
         const q = nextInt(prng, 20, 60);
@@ -240,7 +242,9 @@ function spawnResources(
           x,
           y,
           quantity: q.value,
+          initialQuantity: q.value,
           regime: 'depletable',
+          depletedAtTick: null,
         });
       } else if (tile === TILE.GRASS && r.value < 0.012) {
         const q = nextInt(prng, 5, 15);
@@ -250,7 +254,9 @@ function spawnResources(
           x,
           y,
           quantity: q.value,
+          initialQuantity: q.value,
           regime: 'regenerable',
+          depletedAtTick: null,
         });
       } else if (
         (tile === TILE.GRASS || tile === TILE.FOREST) &&
@@ -263,7 +269,9 @@ function spawnResources(
           x,
           y,
           quantity: q.value,
+          initialQuantity: q.value,
           regime: 'regenerable',
+          depletedAtTick: null,
         });
       } else if (tile === TILE.SHORE && r.value < 0.02) {
         spawns.push({
@@ -271,7 +279,9 @@ function spawnResources(
           x,
           y,
           quantity: 999,
+          initialQuantity: 999,
           regime: 'continuous',
+          depletedAtTick: null,
         });
       }
     }
@@ -309,7 +319,9 @@ function spawnFish(
           x,
           y,
           quantity: q.value,
+          initialQuantity: q.value,
           regime: 'continuous',
+          depletedAtTick: null,
         });
       }
     }

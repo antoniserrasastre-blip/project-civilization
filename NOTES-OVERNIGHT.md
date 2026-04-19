@@ -65,3 +65,60 @@ hacks de eficiencia).
    completo se mergeó a `main` el 2026-04-19; la rama
    `claude/primigenia-bootstrap-nGvO9` queda preservada en
    `archive/primigenia-bootstrap`.
+
+## Bloqueo Sprint 1.4 — assets CC0 externos
+
+**Contexto**: el sprint 1.4 pedía descarga de tileset Kenney CC0 para
+los 6 tipos de tile (water/shore/grass/forest/mountain/sand).
+
+**Bloqueo**: el sandbox del entorno de agente responde HTTP 403
+`host_not_allowed` al probar `kenney.nl`. Asumido también bloqueado
+para `opengameart.org`. Sin red outbound, no hay forma de traer el
+tileset canónico.
+
+**Decisión operativa tomada**: generé placeholders SVG procedurales
+(32×32, solid color por tile type) y los registré en `assets/ORIGINS.md`
+con origen `Proyecto Civilización (procedural) · Licencia CC0 · Equipo
+interno`. Son arte propio trivial — sin dependencia externa, CC0 por
+declaración. El Director Creativo puede sustituir cuando haya entorno
+con red: solo hay que reemplazar los `.svg` bajo `assets/tiles/` y
+actualizar hash + origen en ORIGINS.md.
+
+**Lint operativo**: `pnpm lint:assets` funcional — verifica que cada
+fichero bajo `assets/` tiene fila en ORIGINS.md con hash SHA-256
+correcto y licencia en la whitelist (solo CC0 por ahora). Tests
+sintéticos en `tests/unit/asset-registry.test.ts` cubren happy path
++ fallos (hash mismatch, fila huérfana, licencia no whitelisted).
+
+**Acción requerida al Director humano**: cuando el entorno permita
+fetch, descargar tileset Kenney o equivalente, reemplazar SVGs y
+actualizar ORIGINS.md. Hasta entonces los placeholders procedurales
+sirven para desarrollar el render (Sprint 1.5) sin bloqueo.
+
+## Bloqueo Sprint 1.5 — E2E Playwright
+
+**Contexto**: el sprint 1.5 pedía E2E Playwright cubriendo carga,
+drag, zoom y snapshot del MapView.
+
+**Bloqueo**: `pnpm exec playwright install chromium` falla con
+"Failed to download Chrome for Testing 147.0.7727.15" — igual que
+Sprint 1.4, la sandbox no permite fetch a CDN del browser.
+
+**Decisión operativa tomada**:
+  - La lógica de viewport (pan, zoom, clamp, screen→tile) tiene
+    cobertura unit completa en `tests/unit/viewport.test.ts`
+    (14 tests).
+  - `tests/unit/map-view-smoke.test.ts` añadido como sanity de
+    import/export del componente.
+  - `tests/e2e/map-view.spec.ts` escrito en modo "ready-for-future":
+    entra automáticamente al gate cuando `pnpm exec playwright
+    install` funcione. Cubre canvas presente, drag desplaza,
+    scroll zoomea.
+  - Build de Next.js compila la página con MapView (14.5 kB); el
+    dev server arrancaría correctamente.
+
+**Acción requerida al Director humano**: arrancar `pnpm exec
+playwright install chromium` en un entorno con red a
+`playwright.azureedge.net`, luego `pnpm test:e2e` para validar
+los 3 tests escritos. Si fallan, eran bugs latentes de MapView
+(primera vez que se ejecutan).
