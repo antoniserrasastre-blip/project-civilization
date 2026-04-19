@@ -121,43 +121,61 @@ nuevo. Resumen:
 - **Comentarios**: sólo cuando el *why* no es obvio. Nunca describir
   *qué hace el código* si los identificadores ya lo dicen.
 
-## Ejecución por batches pequeños (anti-timeout)
+## Ejecución por batches pequeños (anti-timeout — reglas duras)
 
-Toda operación que produzca output grande — escritura de docs
-extensos (ROADMAP, VERSION-LOG, CLAUDE-primigenia), suites de tests
-con múltiples `describe`, refactors cross-módulo, wipes del
-scaffolding — se **fractura en batches** de tamaño acotado. Un batch
-cabe en una sola llamada `Write`/`Edit`/`Bash` sin riesgo de que la
-herramienta se corte a mitad.
+Los timeouts a mitad de tool call pierden progreso **sin rastro
+recuperable**. Esta sección **no es orientativa** — son thresholds
+numéricos duros que aplican a todo el trabajo del agente.
 
-**Reglas operativas**:
+### 5 thresholds, sin excepciones
 
-1. **Un batch = una unidad conceptual independiente**. Secciones
-   numeradas de un doc, un `describe` de una suite, un módulo de
-   `lib/`, un grupo de ficheros a borrar por categoría. Nunca más.
-2. **Tamaño objetivo por batch**: ≤ 300 líneas al escribir; ≤ 15
-   ficheros al borrar/mover; ≤ 3 módulos al editar en cadena.
-   Si el batch excede, pártelo.
-3. **Entre batches, un tool call corto**: `git status`, `Read` de una
-   cabecera, `Bash` de un `wc -l`. Sirve para verificar el progreso
-   y resetea el buffer antes del siguiente batch pesado.
-4. **Frase previa al primer batch**: anuncia en una línea qué vas a
-   escribir y en cuántos batches (p.ej. "redacto el ROADMAP en 3
-   batches: Fase 1-2, Fase 3-4, Fase 5-6 + cierre").
-5. **Un solo commit por entregable completo**, no por batch. Los
-   batches son costura interna del agente, no pasos del sprint. El
-   commit se hace cuando el entregable está entero y el gate pasa.
+1. **`Write`: ≤ 150 líneas por llamada.** Si el fichero final pasa
+   de eso, se crea con cabecera + primer bloque (≤ 150 líneas) y se
+   rellena con `Edit` append sucesivos.
+2. **`Edit`: ≤ 100 líneas de `new_string`.** Un edit grande se parte
+   en múltiples edits contiguos con anclas estables distintas.
+3. **`Bash`: `timeout` explícito siempre**. Nunca el default
+   silencioso. Para operaciones potencialmente > 30s (`pnpm install`,
+   `pnpm build`, `pnpm test:e2e`), **`run_in_background: true`** y
+   espera por notificación — no por polling.
+4. **Multi-fichero: ≤ 10 ficheros por tool call.** `git rm`, `git
+   add`, renames masivos — lotes por categoría (lib primero, tests
+   después, docs al final). Nunca un solo comando de 50+ rutas.
+5. **Checkpoint commit intermedio**. Un entregable que necesita > 2
+   tool calls grandes para producirse se commitea parcial con prefijo
+   `wip:`. Los `wip` son costura interna; se dejan en el historial
+   sin squashear — la prioridad es **no perder trabajo**, no la
+   limpieza del log.
 
-**Aplica**: cualquier tarea que al estimarla supere ~400 líneas de
-output o ~20 ficheros tocados.
+### Protocolo de recuperación tras corte
 
-**NO aplica**: edits de una constante, fixes de un test, cambios
-localizados a un solo fichero pequeño — ahí batchear es ceremonia
-inútil.
+Si una tool call se corta a mitad:
 
-**Razón**: timeouts a mitad de `Write` pierden el progreso sin
-dejar rastro recuperable; una sesión de 3 sprints encadenados se
-rompe por un solo write demasiado grande.
+1. Primer acto **siempre** `git status --short` + `Read` del fichero
+   tocado (o `wc -l`) para verificar qué parte llegó al disco.
+2. Reanudar desde la última línea verificada, nunca desde el
+   principio. Si no hay forma de saber dónde paró, rebobinar con
+   `git checkout -- <file>` al último commit limpio y rehacer en
+   batches más pequeños que la tentativa fallida.
+3. Nunca asumir "seguro que se guardó". La única fuente de verdad
+   es `git status` + `Read`.
+
+### Anuncio previo obligatorio
+
+Antes del primer batch de una tarea larga, el agente anuncia **en
+una línea**: qué va a escribir, en cuántos batches, qué es cada
+batch. Ejemplo: "redacto ROADMAP en 3 batches: (1) Fase 1-2, (2)
+Fase 3-4, (3) Fase 5-6 + cierre". Esto le da al humano visibilidad
+del progreso esperado y sirve de ancla si un batch falla.
+
+### Aplica / no aplica
+
+- **Aplica**: docs extensos (ROADMAP, VERSION-LOG, CLAUDE-*),
+  suites de tests (`describe` a `describe`), refactors cross-módulo,
+  wipes de scaffolding, cualquier tarea estimada en > 300 líneas de
+  output o > 20 ficheros tocados.
+- **NO aplica**: edit de una constante, fix de un test, cambio
+  localizado a un fichero corto. Ahí batchear es ceremonia.
 
 ## Comandos
 
