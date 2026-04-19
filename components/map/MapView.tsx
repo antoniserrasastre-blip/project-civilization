@@ -13,6 +13,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import worldMapJson from '@/lib/fixtures/world-map.v1.json';
 import type { WorldMap, TileId } from '@/lib/world-state';
+import type { NPC } from '@/lib/npcs';
+import { CASTA } from '@/lib/npcs';
 import { TILE_COLOR } from '@/lib/tile-colors';
 import {
   applyDrag,
@@ -27,6 +29,34 @@ import {
 const TILE_SIZE = 32;
 
 const WORLD = worldMapJson as unknown as WorldMap;
+
+function renderNPCs(
+  ctx: CanvasRenderingContext2D,
+  npcs: readonly NPC[],
+  dims: ViewportDims,
+  state: ViewportState,
+) {
+  const tilePx = dims.tileSize * state.zoom;
+  const radius = Math.max(2, tilePx * 0.3);
+  for (const npc of npcs) {
+    if (!npc.alive) continue;
+    const cx = npc.position.x * tilePx + state.offsetX + tilePx / 2;
+    const cy = npc.position.y * tilePx + state.offsetY + tilePx / 2;
+    // Culling.
+    if (
+      cx < -radius ||
+      cy < -radius ||
+      cx > dims.screenWidth + radius ||
+      cy > dims.screenHeight + radius
+    ) {
+      continue;
+    }
+    ctx.fillStyle = npc.casta === CASTA.ELEGIDO ? '#ffd54f' : '#ffffff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
 
 function renderTiles(
   ctx: CanvasRenderingContext2D,
@@ -65,7 +95,13 @@ function renderTiles(
   }
 }
 
-export function MapView() {
+export interface MapViewProps {
+  /** NPCs a renderizar encima del mapa. Vacío si solo mostramos el
+   *  tablero. Elegidos se pintan en amarillo; resto en blanco. */
+  npcs?: readonly NPC[];
+}
+
+export function MapView({ npcs = [] }: MapViewProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dims, setDims] = useState<ViewportDims>({
@@ -114,7 +150,8 @@ export function MapView() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     renderTiles(ctx, WORLD, dims, viewport);
-  }, [dims, viewport]);
+    renderNPCs(ctx, npcs, dims, viewport);
+  }, [dims, viewport, npcs]);
 
   // Drag.
   const draggingRef = useRef<{ x: number; y: number } | null>(null);
