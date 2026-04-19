@@ -78,6 +78,18 @@ export interface Position {
   y: number;
 }
 
+/** Inventario personal del NPC. Enteros; cap por tipo en
+ *  INVENTORY_CAP_PER_TYPE (constante viva en lib/harvest.ts).
+ *  Agua no se guarda — se consume on-the-spot (recovery vía
+ *  tickNeeds). */
+export interface NPCInventory {
+  wood: number;
+  stone: number;
+  berry: number;
+  game: number;
+  fish: number;
+}
+
 /** NPC = entero individual del clan. Incluye Elegidos, Ciudadanos y
  *  Esclavos (si los hubiera — en drafting inicial no aparecen). */
 export interface NPC {
@@ -105,6 +117,8 @@ export interface NPC {
    *  consumirse en ticks, pero permanece en `state.npcs` para que
    *  crónica / verdict / grafo de relaciones puedan referenciarlo. */
   alive: boolean;
+  /** Inventario — Sprint 4.2. Agua no se guarda. */
+  inventory: NPCInventory;
 }
 
 /** Helper para tests — construye un NPC con defaults razonables y
@@ -129,6 +143,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     traits: [],
     birthTick: 0,
     alive: true,
+    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
     ...overrides,
   };
 }

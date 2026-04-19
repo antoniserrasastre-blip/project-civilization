@@ -187,6 +187,7 @@ export function finalizeBlockA(draft: DraftState): NPC[] {
       traits: [],
       birthTick: 0,
       alive: true,
+      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
     };
   });
   return npcs;
@@ -359,6 +360,7 @@ export function finalizeBlockB(state: FollowerDraftState): NPC[] {
       traits: [],
       birthTick: 0,
       alive: true,
+      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
     }),
   );
 }

@@ -19,6 +19,7 @@ import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
 import { tickResources } from './resources';
+import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 
@@ -59,13 +60,15 @@ export function tick(state: GameState): GameState {
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }
 
-  const nextWorld = {
-    ...state.world,
-    resources: tickResources(state.world.resources, state.tick + 1),
-  };
-  const npcsAfterNeeds = tickNeeds(newNPCs, {
+  const regen = tickResources(state.world.resources, state.tick + 1);
+  // Recolección ANTES de tickNeeds para que el inventario post-harvest
+  // pueda usarse en sprints siguientes. El estado "on-the-spot" de
+  // needs también puede ver el mismo spawn antes de agotarse.
+  const harvested = tickHarvests(newNPCs, regen, state.tick + 1);
+  const nextWorld = { ...state.world, resources: harvested.resources };
+  const npcsAfterNeeds = tickNeeds(harvested.npcs, {
     world: nextWorld,
-    npcs: newNPCs,
+    npcs: harvested.npcs,
   });
 
   return {
