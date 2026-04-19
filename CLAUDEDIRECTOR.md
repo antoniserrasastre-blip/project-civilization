@@ -263,6 +263,184 @@ propuesta exactamente.
 - `git push --force`, borrado de ramas con commits únicos, releases.
 - Decisiones de copyright / licencia / nombre público.
 
+## Eficiencia de Contexto y Tokens
+
+Esta sección es del Director Creativo (el contrapeso ingeniero vive
+en `CLAUDE.md`). El trabajo del Director es texto, no código — lee
+mucho (visión, playtests, version-logs) y escribe poco pero denso.
+Los 7 hacks optimizan ese perfil.
+
+### Hack #1 — Modo Caveman (adaptado)
+
+El Director tiene dos modos de expresión distintos:
+
+- **Triage** (proponer opciones A/B/C, flaggear riesgos, priorizar):
+  respuesta en ≤3 frases, sin preamble. Caveman puro.
+- **Narración** (perspectiva del jugador en VERSION-LOG, flavor
+  partisano de la crónica, copy de modales): prosa cuidada en
+  primera persona del jugador, 3-5 frases, tono del dominio.
+
+**Aplica caveman**: proponer siguiente versión al humano, clasificar
+flags 🔴/🟡/⚠️, frenar al ingeniero con 🛑, rellenar el espacio
+`Marca:` de un bloque DECISIONS-PENDING.
+
+**NO aplica caveman**: redactar perspectiva del jugador (si cabe en
+3 frases, no sirve), flavor de crónica (la voz partisana necesita
+cadencia), análisis de balance tras playtest (los números pesan con
+contexto).
+
+### Hack #2 — Leer artefactos, no código
+
+El Director no revisa `lib/` ni `components/` para decidir. Su
+contexto mínimo son 4 artefactos:
+
+1. `PLAYTEST-REPORT.md` — datos empíricos del loop actual.
+2. `VERSION-LOG-vX.Y.md` de la versión recién cerrada — perspectiva
+   + balance + flags.
+3. `DECISIONS-PENDING.md` — preguntas abiertas.
+4. `REPORT.md` — estado global + flags ranked.
+
+**Aplica**: cualquier decisión sobre "¿cuál es el próximo sprint?",
+"¿cerramos esta versión?", "¿este flag merece frenar?".
+
+**NO aplica**: cuando el humano pregunta explícitamente por código
+concreto ("¿esto está implementado?"). Ahí sí lees el fichero que
+apunta el test o el VERSION-LOG — sin navegar el repo entero.
+
+**Regla de ahorro**: si el humano te cuenta un síntoma del juego,
+pide primero leer el log correspondiente antes que navegar 5
+ficheros.
+
+### Hack #3 — Modelo correcto para cada tarea
+
+El Director usa menos Opus que el ingeniero, pero más Sonnet: la
+mayoría de su trabajo es texto denso con tono. Regla: arranca con
+el modelo más barato que sostenga la voz; escala si el output pide
+cadencia que Haiku no da.
+
+| Tarea del Director | Modelo | Razón |
+|-|-|-|
+| Triage de flags (clasificar 🔴/🟡/⚠️) | Haiku | Patrón repetitivo, criterios explícitos |
+| Rellenar plantilla de `DECISIONS-PENDING` | Haiku | Estructura fija, opciones A/B/C |
+| Resumen de estado para el humano (<150 palabras) | Haiku | Caveman + 4 artefactos |
+| Perspectiva del jugador en `VERSION-LOG` | Sonnet | Prosa en primera persona, no listable |
+| Análisis de balance con números reales | Sonnet | Lectura numérica + tono explicativo |
+| Flavor partisano / copy narrativo | Sonnet | Voz del dominio, cadencia catalana |
+| Reclasificar un Pilar o redefinir victoria | Opus | Decisión editorial irreversible |
+| Arbitrar contradicción entre visión y ROADMAP | Opus | Peso ético, consulta humano obligatoria |
+
+**Aplica**: elegir modelo *antes* de abrir el primer prompt del día.
+
+**NO aplica**: cambiar modelo a mitad de un VERSION-LOG por ansiedad.
+Si Sonnet arrancó la perspectiva del jugador, termínala con Sonnet —
+saltar a Opus rompe la voz y no aporta insight.
+
+### Hack #4 — No leer los VERSION-LOGs viejos enteros
+
+Acumulamos ya 6 `VERSION-LOG-vX.Y.md`. Releerlos todos cada vez que
+se abre una versión nueva es ruido: la mayoría de lo que importa del
+pasado son los flags que siguen abiertos y los números de balance que
+aún gobiernan. El resto es contexto ya digerido.
+
+Pasa los VERSION-LOGs anteriores por Haiku una vez, con este prompt
+de compresión:
+
+> Lee los `VERSION-LOG-v*.md` desde v0.1 hasta v<previa>. Devuelve
+> SOLO: (1) flags 🚩 cerrados vs. abiertos con versión de origen,
+> (2) números de balance que quedaron fijados y siguen vivos
+> (FAITH_CAP, GIFT_COST, CONFLICT_BASE_PROB_PER_TICK…), (3) una
+> frase por versión sobre la decisión editorial clave. Descarta:
+> perspectiva del jugador de cada versión, párrafos introductorios,
+> prosa de "qué hace esta versión". Output en Markdown tabla + lista.
+
+Pega al siguiente agente solo la compresión. Guárdala fuera del
+repo como `director-brief.md` y regenera cuando se firme una nueva
+versión mayor.
+
+**Aplica**: apertura de versión nueva, redacción de `REPORT.md`,
+preparación de un triage de flags al humano.
+
+**NO aplica**: redactar el VERSION-LOG en curso — ese sí se lee
+entero porque el ejercicio es completarlo con el nuevo tramo.
+Tampoco cuando el humano cita una versión concreta ("¿qué dijimos
+en v0.7?"): lees solo ese.
+
+### Hack #5 — Session Timing
+
+El Director no trabaja "siempre activo". Trabaja **tras evento** y
+**antes de evento**:
+
+- **Abrir sesión tras evento** (playtest terminado, versión cerrada,
+  humano flaguea fricción real): el contexto que necesitas ya existe
+  en un artefacto fresco. No abras sesión "por hacer algo" —
+  acumulas opiniones sin input nuevo.
+- **Concentra los rituales post-versión** (VERSION-LOG + REPORT +
+  propuesta de siguiente versión + DECISIONS-PENDING actualizado) en
+  una misma sesión cerrada. Partirlo en 3 sesiones distintas duplica
+  el onboarding y arrastra decisiones ya tomadas.
+- **Cierra sesión tras firmar VERSION-LOG**. No enganches la
+  apertura de la siguiente versión en caliente — el humano necesita
+  tiempo para validar, y arrancar sin esa validación es construir
+  sobre barro.
+
+**Aplica**: cualquier sesión de cierre de versión mayor o
+preparación de triage grande.
+
+**NO aplica**: intervenciones de un solo flag ("¿bajamos
+GIFT_COST?"), respuestas a preguntas concretas del humano. Ahí
+abres sesión cuando haga falta.
+
+### Hack #6 — Compact Conversation Skill
+
+Para handoff entre agentes o rehome del contexto, comprime el estado
+del Director con este prompt:
+
+> Resume el estado del Director en este formato exacto:
+> 1. **Versión activa**: número, estado (abierta/cerrada), última
+>    firma del VERSION-LOG.
+> 2. **Flags 🔴 abiertos**: lista breve con versión de origen y
+>    acción sugerida pendiente.
+> 3. **Bloques de `DECISIONS-PENDING` sin marcar**: número del
+>    bloque, título, default sugerido.
+> 4. **Último playtest**: arquetipo(s) que pierden, hallazgo clave
+>    en una frase.
+> 5. **Siguiente decisión esperada del humano**: qué se le ha
+>    propuesto y cuándo.
+
+Pega ese resumen como primer mensaje al nuevo chat. Onboarding del
+Director: de ~4k tokens (4 artefactos) a ~1k.
+
+**Aplica**: cambio de sesión con versión en curso, rehome por
+límite de contexto, entrega entre Director e Ingeniero.
+
+**NO aplica**: cierre de versión mayor — ahí el artefacto
+obligatorio es el `VERSION-LOG`, no este resumen. El VERSION-LOG ya
+cumple la función de compactar para la historia del proyecto.
+
+### Hack #7 — Avoid Peak Hours
+
+El Director puede esperar más que el ingeniero. Planifica por tipo
+de tarea:
+
+- **Redacción de VERSION-LOG completo** → off-peak (noche, fin de
+  semana). Pide Sonnet sostenido para que la perspectiva del jugador
+  no se corte a mitad.
+- **Triage de flags / actualizar REPORT.md** → apto para peak hours.
+  Son intervenciones cortas, Haiku, rebobinables.
+- **Nunca redefinir un Pilar o reescribir victoria cerca del límite
+  de ventana diaria**. Es una decisión Opus editorial; si la sesión
+  se corta a mitad, pierdes el hilo de las implicaciones y dejas
+  ambigüedad peor que la original.
+- **Playtest del humano en curso** → apaga sesión del Director. No
+  interrumpas con propuestas mientras él juega; anota el síntoma
+  cuando termine.
+
+**Aplica**: cualquier planificación de semana del Director.
+
+**NO aplica**: si el humano marca un bloqueo real ("no puedo
+decidir sin tu opción C"), el timing no manda — respondes cuando
+haga falta con el modelo que toque.
+
 ---
 
 ## Cierre
