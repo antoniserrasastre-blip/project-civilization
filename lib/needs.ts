@@ -15,13 +15,15 @@
  *   4. Default → quedarse en posición actual.
  */
 
-import type { NPC } from './npcs';
+import type { NPC, NPCInventory } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
   type ResourceSpawn,
   type WorldMap,
 } from './world-state';
+import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
+import type { CraftableId } from './crafting';
 
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
@@ -32,6 +34,10 @@ export const NEED_THRESHOLDS = {
 export interface DestinationContext {
   world: WorldMap;
   npcs: readonly NPC[];
+  /** Prioridad actual de construcción (si existe). Cuando está
+   *  presente, NPCs con stats OK van a recolectar los recursos
+   *  que falten para esa receta. */
+  nextBuildPriority?: CraftableId;
 }
 
 export interface Position {
@@ -109,7 +115,50 @@ export function decideDestination(
     if (c) return c;
   }
 
+  // Recolección proactiva para el próximo crafteable (Pilar 2 —
+  // el mundo cambia sin tocarlo). Solo si el NPC está bien de
+  // stats; sino las necesidades personales tienen prioridad.
+  if (ctx.nextBuildPriority) {
+    const recipe = RECIPES[ctx.nextBuildPriority];
+    const missing = missingResourceFor(recipe, ctx.npcs);
+    if (missing) {
+      const spawn = nearestResource(
+        npc.position,
+        ctx.world.resources,
+        (id) => matchesMissing(id, missing),
+      );
+      if (spawn) return spawn;
+    }
+  }
+
   return npc.position;
+}
+
+function missingResourceFor(
+  recipe: Recipe,
+  npcs: readonly NPC[],
+): keyof NPCInventory | null {
+  const clan = clanInventoryTotal(npcs);
+  for (const [key, needed] of Object.entries(recipe.inputs) as Array<
+    [keyof NPCInventory, number]
+  >) {
+    if (clan[key] < needed) return key;
+  }
+  return null;
+}
+
+function matchesMissing(
+  id: ResourceId,
+  missing: keyof NPCInventory,
+): boolean {
+  // Mapeo directo entre ResourceId y campo de inventario. Agua y
+  // fish no aparecen en recetas primigenia; cobertura simbólica.
+  if (missing === 'wood') return id === RESOURCE.WOOD;
+  if (missing === 'stone') return id === RESOURCE.STONE;
+  if (missing === 'berry') return id === RESOURCE.BERRY;
+  if (missing === 'game') return id === RESOURCE.GAME;
+  if (missing === 'fish') return id === RESOURCE.FISH;
+  return false;
 }
 
 // --- Sprint 4.1: feed-forward de necesidades por tick ---

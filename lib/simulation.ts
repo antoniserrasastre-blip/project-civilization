@@ -23,9 +23,67 @@ import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
+import {
+  canBuild,
+  CRAFTABLE,
+  clanInventoryTotal,
+  consumeForRecipe,
+  RECIPES,
+  type CraftableId,
+} from './crafting';
+import { addStructure } from './structures';
+
+const BUILD_PRIORITY: CraftableId[] = [
+  CRAFTABLE.FOGATA_PERMANENTE,
+  CRAFTABLE.HERRAMIENTA_SILEX,
+  CRAFTABLE.REFUGIO,
+  CRAFTABLE.DESPENSA,
+  CRAFTABLE.PIEL_ROPA,
+];
+
+/** El clan construye de forma autónoma si tiene recursos y la
+ *  receta no está ya construida. Orden fijo — el jugador no decide
+ *  (en primigenia el verbo del jugador es mensaje, no orden directa).
+ *  Una construcción por tick. */
+function tryAutoBuild(state: GameState): GameState {
+  const existing = new Set(state.structures.map((s) => s.kind));
+  const inv = clanInventoryTotal(state.npcs);
+  for (const kind of BUILD_PRIORITY) {
+    if (existing.has(kind)) continue;
+    const recipe = RECIPES[kind];
+    if (!canBuild(recipe, inv)) continue;
+    const npcs = consumeForRecipe(state.npcs, recipe);
+    // Posición: el primer NPC vivo (determinista). La plaza real
+    // del clan la decidiremos con diseño mejorado; por ahora el
+    // asentamiento no tiene "centro" canónico.
+    const anchor =
+      state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
+    const structures = addStructure(
+      state.structures,
+      kind,
+      anchor.position,
+      state.tick,
+      state.structures.length,
+    );
+    return { ...state, npcs, structures };
+  }
+  return state;
+}
+
+function nextBuildPriority(state: GameState): CraftableId | undefined {
+  const existing = new Set(state.structures.map((s) => s.kind));
+  for (const kind of BUILD_PRIORITY) {
+    if (!existing.has(kind)) return kind;
+  }
+  return undefined;
+}
 
 export function tick(state: GameState): GameState {
-  const ctx = { world: state.world, npcs: state.npcs };
+  const ctx = {
+    world: state.world,
+    npcs: state.npcs,
+    nextBuildPriority: nextBuildPriority(state),
+  };
   const newNPCs: NPC[] = [];
   let prng = state.prng;
   let fog: FogState = state.fog;
@@ -72,26 +130,31 @@ export function tick(state: GameState): GameState {
     npcs: harvested.npcs,
   });
 
-  const newTick = state.tick + 1;
-  const nextVillage = isNightCheckTick(newTick)
+  // Auto-build antes del night-check para que una fogata construida
+  // este tick ya permita dormir esta noche.
+  const afterBuild = tryAutoBuild({
+    ...state,
+    world: nextWorld,
+    npcs: npcsAfterNeeds,
+    fog,
+    tick: state.tick + 1,
+    prng,
+  });
+
+  const nextVillage = isNightCheckTick(afterBuild.tick)
     ? {
         ...state.village,
         consecutiveNightsAtFire: evaluateNight(
-          state.structures,
-          npcsAfterNeeds,
+          afterBuild.structures,
+          afterBuild.npcs,
           state.village.consecutiveNightsAtFire,
         ),
       }
     : state.village;
 
   return {
-    world: nextWorld,
-    npcs: npcsAfterNeeds,
-    fog,
-    structures: state.structures,
+    ...afterBuild,
     relations: state.relations,
     village: nextVillage,
-    tick: newTick,
-    prng,
   };
 }
