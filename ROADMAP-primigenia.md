@@ -335,3 +335,350 @@ mapa. Snapshot visual del mapa post-movimiento distinto del inicial.
 **Gate de Fase 3**: 10.000 ticks deterministas sin atrascos. Clan se
 mueve, descubre mapa, el jugador ve nomadismo emergente. Sin
 objetivos aún — solo existir.
+
+---
+
+## Fase 4 — Economía (necesidades + crafting + grafo relacional)
+
+**Objetivo**: el clan recolecta recursos, craftea, genera deudas y
+favores entre NPCs. Los 5 crafteables umbral funcionan. Al cierre,
+una partida de 20.000 ticks determinista construye los 5 crafteables
+por sí sola sin intervención del jugador.
+
+Consume decisiones #7 (niveles individuales con feed-forward), #10
+(régimen recursos), #11 (crafting con skill + herencia 50%), #12 (5
+crafteables umbral), #20 (costes concretos), #21 (regeneración), #26
+(umbral fogata 10 noches), CLAUDE-primigenia §1 (grafo NPC×NPC).
+
+### Sprint 4.1 — Necesidades conectadas a recolección
+
+**Entregable testeable**: supervivencia y socialización varían por
+tick según consumo real de recursos. Unit: NPC sin comida 3 días
+baja supervivencia de 80 a ≤40. Unit: feed-forward hambre-alta →
+irritabilidad → socialización cercanos baja.
+
+- Hambre consume comida del NPC (piel/baya/caza).
+- Sed consume agua.
+- Frío consume refugio (si existe) o baja supervivencia.
+- Acoplamientos declarativos en `lib/needs.ts`, no spaghetti en tick.
+
+**Dependencias**: Fase 3 completa.
+
+**Consume**: decisión #7.
+
+### Sprint 4.2 — Recolección activa (recurso → inventario)
+
+**Entregable testeable**: NPC sobre tile con recurso lo recoge al
+tick. Inventario por NPC (entero, no stack infinito). Test
+integration: 1.000 ticks, el clan acumula 50+ bayas en inventarios.
+
+- `lib/resources.ts` expone `harvest(resource, collector, state):
+  state'` puro.
+- Inventario NPC limitado (capacity 5 items por slot, 4 slots).
+- Cargas excedentes se quedan en el tile para otros.
+
+**Dependencias**: Sprint 4.1.
+
+### Sprint 4.3 — Skills individuales con herencia 50%
+
+**Entregable testeable**: cada NPC tiene `skills: { hunting, crafting,
+gathering, fishing }` (0-100). Hijo nace con skill = (padre + madre)/2
+± ruido determinista. Unit: generación 1 (drafteada) vs generación 2
+(nacida): correlación de skills > 0.3 sobre 100 NPCs.
+
+- Decaimiento por desuso (tick-based).
+- Skill afecta tasa de recolección / caza / crafteo.
+
+**Dependencias**: Sprint 4.2.
+
+**Consume**: decisión #11.
+
+### Sprint 4.4 — Grafo de relaciones NPC×NPC
+
+**Entregable testeable**: `state.relations: Array<Edge>` ordenada
+canónicamente. Ops puras: `addDebt`, `settleFavor`, `recordSaved`.
+Unit: round-trip JSON. Unit: orden canónico preservado tras cada op.
+Integration: 10.000 ticks mantienen orden canónico (test sha256).
+
+- Edge: `{ from, to, type: 'debt' | 'favor' | 'kinship' | 'saved',
+  weight: int, createdAtTick: int, expiresAtTick?: int }`.
+- Índice derivado en memoria (no persistido).
+- Feed-forward: deuda impagada baja socialización de ambos
+  extremos.
+
+**Dependencias**: Sprint 4.3.
+
+**Consume**: CLAUDE-primigenia §1, decisión #7.
+
+### Sprint 4.5 — Recetas de crafting y árbol umbral
+
+**Entregable testeable**: `lib/crafting.ts` con 5 recetas fijas
+(refugio, fogata permanente, piel/ropa, herramienta sílex, despensa)
+con los costes de decisión #20. Unit: recetas descubribles cuando el
+NPC tiene los ingredientes. Unit: completar una receta consume
+inventarios y añade el crafteable al mundo (o al NPC).
+
+- Cada receta: `{ id, inputs: {leña, piedra, piel}, daysWork,
+  minSkill, output }`.
+- Crafteo descubrible: el NPC con skill suficiente y materiales a
+  mano inicia la receta sin bendición.
+- Los 5 costes son los de la tabla #20 (refugio 15L+8P+3piel 5d;
+  fogata 5L+15P 3d; piel 2piel 2d; herramienta 2L+5P 2d; despensa
+  10L+6P 4d).
+
+**Dependencias**: Sprints 4.2, 4.3.
+
+**Consume**: decisiones #11, #12, #20.
+
+### Sprint 4.6 — Fogata permanente + 10 noches
+
+**Entregable testeable**: el clan duerme alrededor de la fogata
+permanente. Contador persistente `state.world.consecutiveNightsAtFire:
+int` sube si ≥ 10 NPCs duermen en radio ≤ 3 tiles; se reinicia a 0 si
+una noche falla. Integration: test con clan forzado a dormir 10
+noches cumplido → contador = 10.
+
+- "Dormir": NPC en radio ≤ 3 tiles de la fogata al cierre del día.
+- Reinicio si rompe la cadena.
+- Prepara el desbloqueo del monumento (§5 primigenia, Fase 6).
+
+**Dependencias**: Sprint 4.5, Sprint 3.3.
+
+**Consume**: decisión #26.
+
+### Sprint 4.7 — Partida autónoma llega a los 5 crafteables
+
+**Entregable testeable**: test integration heavy — 20.000 ticks con
+clan drafteado por defecto y **sin bendiciones**, construye los 5
+crafteables umbral. Asserción sha256 del estado final anclada al test
+(regresión). Si falla, o se revalida el test (balance cambió) o se
+arregla el código.
+
+- Este es el **balance pass inicial** de Fase 4. Los costes de #20
+  pueden requerir ajuste si ni con 20k ticks llega. Se flaguea en
+  VERSION-LOG.
+
+**Dependencias**: Sprints 4.1-4.6.
+
+**Gate de Fase 4**: economía cerrada, grafo relacional vivo, partida
+autónoma llega al umbral del monumento sin intervención del jugador.
+Balance de costes validado o flagueado explícitamente.
+
+---
+
+## Fase 5 — Bendiciones y rasgos
+
+**Objetivo**: el verbo del jugador existe. Puede bendecir NPCs, los
+rasgos persisten, se heredan 50% a hijos directos, y el mismo don
+sobre traits distintos produce trayectorias medibles distintas (Pilar
+1). Fe = creyentes reales vivos (contador derivado, no stat persistido).
+
+Consume decisiones #13 (bendiciones individuales), #22 (catálogo de 10
+bendiciones), #23 (coste = drenar socialización del clan), #18
+(derrota espiritual por último Elegido sin hijo).
+
+### Sprint 5.1 — Catálogo de 10 bendiciones individuales
+
+**Entregable testeable**: `lib/blessings.ts` expone
+`BLESSINGS_CATALOG` con las 10 bendiciones de decisión #22 (4
+supervivencia + 3 socialización + 3 economía relacional). Cada
+entrada tiene `id`, `name`, `effect: NPCModifier`, `domain`. Unit:
+aplicar cada bendición a un NPC sin rasgos lo deja con 1 rasgo; el 4º
+rasgo reemplaza al más antiguo o pide confirmación.
+
+- Lista completa: Hambre sagrada, Ojo de halcón, Piel dura, Paso
+  firme, Voz de todos, Corazón fiel, Sangre caliente, Manos que
+  recuerdan, Vínculo de deuda, Vista de mercader.
+- Máx 3 rasgos simultáneos por NPC.
+
+**Dependencias**: Fase 4 completa.
+
+**Consume**: decisiones #13, #22.
+
+### Sprint 5.2 — Rasgos alteran comportamiento (Pilar 1 verificable)
+
+**Entregable testeable**: unit test de Pilar 1 — clonar dos NPCs con
+stats distintos (uno supervivencia-alta, otro socialización-alta),
+aplicar la misma bendición a ambos, correr 5.000 ticks, verificar
+que sus trayectorias (posición final, skills, relaciones) son
+**medible-distintas** (distancia L2 > umbral).
+
+- Rasgos enganchan en los puntos donde las funciones puras consultan
+  `npc.traits`: `decideDestination`, `harvest`, `crafting`, `needs`.
+- El hook es declarativo — cada rasgo es un modificador conocido, no
+  un patch imperativo.
+
+**Dependencias**: Sprint 5.1.
+
+**Consume**: vision-primigenia §2 Pilar 1.
+
+### Sprint 5.3 — Herencia 50% a descendientes directos
+
+**Entregable testeable**: cuando nace un hijo, cada rasgo del padre
+y de la madre tiene 50% de probabilidad (seedable via `prng_cursor`)
+de pasar al hijo. Unit: 1.000 nacimientos simulados, distribución de
+herencia en [0.45, 0.55]. Unit: hijo sin padres con rasgo nunca
+hereda.
+
+- `inheritTraits(parent1, parent2, prngState): { traits, prngState'
+  }`.
+- Dilución por generación: la probabilidad no se compone si un rasgo
+  ya existía (no se duplica).
+
+**Dependencias**: Sprint 5.1.
+
+### Sprint 5.4 — Coste de bendecir (drena socialización del clan)
+
+**Entregable testeable**: bendecir un NPC resta socialización a los
+NPCs cercanos del clan (radio declarado, p.ej. 8 tiles). Unit:
+bendecir con socialización media alta → coste pagado sin colapso;
+bendecir con socialización baja → bloqueado o aviso de riesgo
+(decisión de UX en sprint 5.5).
+
+- Coste implementa decisión #23 (opción C arriesgada).
+- Fallback a coste alternativo (A: fe numérica) documentado como
+  flag si el playtest de Fase 4 rompe la opción C.
+
+**Dependencias**: Sprint 5.3, Sprint 4.1.
+
+**Consume**: decisión #23.
+
+### Sprint 5.5 — UI de bendecir + Fe como creyentes vivos
+
+**Entregable testeable**: E2E Playwright — el jugador clica un NPC,
+abre panel de bendiciones (filtrado por dominio y por rasgos
+existentes del NPC), selecciona, ve efecto en crónica + HUD de
+socialización del clan. HUD muestra "Fe: N" donde N = número de NPCs
+del culto vivos (sin contador oculto).
+
+- Componente `components/hud/FaithMeter.tsx`.
+- Panel `components/blessings/BlessingPanel.tsx` con catálogo + coste
+  simulado antes de confirmar.
+- Derrota espiritual trackeada: HUD muestra warning si queda 1
+  Elegido sin descendientes directos vivos (decisión #18).
+
+**Dependencias**: Sprints 5.1-5.4.
+
+**Consume**: decisiones #18, vision-primigenia §3.7.
+
+**Gate de Fase 5**: verbo del jugador funcional. Pilar 1 cuantificado
+con test que distingue trayectorias. Fe = contador derivado visible.
+Derrota espiritual rastreable aunque no dispare fin de partida.
+
+---
+
+## Fase 6 — Monumento y bendición de aldea (cierre del loop)
+
+**Objetivo**: cerrar el loop primigenia. El clan cumple las 3
+condiciones del monumento, lo construye, el jugador elige una
+bendición de aldea (de las 4 disponibles en primigenia), y la partida
+transiciona con cinemática a un placeholder de edad tribal.
+
+Consume decisiones #15 (condiciones monumento), #16 (bendición aldea
+compounding), #24 (4 bendiciones primigenia), #25 (sin reelección),
+#26 (coste del monumento).
+
+### Sprint 6.1 — Desbloqueo del monumento
+
+**Entregable testeable**: `lib/monument.ts` expone
+`isMonumentUnlocked(state): boolean` puro. Unit: las 3 condiciones se
+verifican (5 crafteables + 10 noches + 1 creyente por linaje
+presente). Unit: quitando cualquiera de las 3, devuelve false.
+Integration: partida autónoma de Fase 4.7 con 10 noches extra
+desbloquea el monumento.
+
+**Dependencias**: Fase 5 completa.
+
+**Consume**: decisiones #15, #26.
+
+### Sprint 6.2 — Construcción del monumento
+
+**Entregable testeable**: cuando está desbloqueado, el clan arranca
+la construcción. Consume 200 piedra + 50 leña + 60 días-hombre
+(decisión #26). El clan sigue operativo durante la obra. Integration:
+test que corre construcción y verifica progreso por tick. Test de
+interrupción: si el clan colapsa (§7 derrotas), el monumento queda
+como ruina (flag en `state.world.ruin`).
+
+- Progreso trackeable en HUD.
+- Ruina como elemento narrativo preservado entre partidas futuras
+  (en esta versión, solo flag en estado).
+
+**Dependencias**: Sprint 6.1.
+
+**Consume**: decisión #26, vision-primigenia §5.
+
+### Sprint 6.3 — Selección de bendición de aldea + compounding
+
+**Entregable testeable**: al completar el monumento, el jugador ve
+pantalla de elección con **4 bendiciones disponibles** (recolecta,
+fertilidad, salud, reconocimiento — decisión #24). No hay reelección
+(decisión #25). Unit: la bendición elegida se guarda en
+`state.village.blessings: BlessingId[]` y aplica su efecto primigenia
+al tick siguiente.
+
+- `lib/village.ts` con el catálogo de 4 bendiciones primigenia.
+- Efecto primigenia aplicado (no compounding aún — compounding
+  activo al pasar a la siguiente era, que en primigenia es
+  placeholder).
+- Reservadas tribal+ (comercio, producción, longevidad) no
+  aparecen en la UI.
+
+**Dependencias**: Sprint 6.2.
+
+**Consume**: decisiones #16, #24, #25.
+
+### Sprint 6.4 — Cinemática de transición + placeholder tribal
+
+**Entregable testeable**: E2E completo del loop primigenia —
+desde drafting hasta cinemática de transición. El E2E corre en <
+2min simulados (no real-time), construye el monumento acelerado y
+verifica que aparece la cinemática + placeholder "Edad Tribal —
+en construcción".
+
+- Cinemática: 3-5 frames de texto en voz partisana, configurable.
+- Placeholder tribal: pantalla con `data-testid="tribal-placeholder"`
+  que confirma la transición. La edad tribal real (re-construcción
+  sobre la base de sistemas primigenia) es trabajo post-MVP.
+
+**Dependencias**: Sprint 6.3.
+
+**Gate de Fase 6 y cierre primigenia**: un jugador puede pasar de
+drafting a cinemática en una partida completa. Suite de coherencia
+(§tests/design) escrita y verde. VERSION-LOG redactado. Balance pass
+final. Si pasa: v1-primigenia shipable en beta pública.
+
+---
+
+## Guardrails globales
+
+- **Orden canónico inviolable**. Fase N+1 no arranca si Fase N no
+  está en verde (gate completo: pnpm test + test:e2e + tsc + eslint
+  + build + lint:assets).
+- **Tamaño de sprint**: si un sprint necesita > 3 días, se divide en
+  N.M-a / N.M-b antes de empezarlo. Nunca un sprint abierto varios
+  días.
+- **Rival diferido**: no reintroducir hasta Fase 7 (post-primigenia).
+  Si Fase 4-6 "pide" un rival, se deja hook vacío documentado sin
+  implementación.
+- **Balance revalidable**: los números de decisiones #20, #21, #26
+  son provisionales. Primer playtest real tras Fase 4 revisa
+  costes/tiempos; cambios quedan anclados en `DECISIONS-PENDING-primigenia.md`.
+- **CLAUDE-primigenia.md es ley**: pathfinding, fog, fixture, grafo
+  NPC×NPC, assets registry — no se adelantan convenciones, no se
+  inventan mecánicas fuera del doc.
+- **Batches anti-timeout** (CLAUDE.md §Ejecución por batches): todo
+  sprint que escriba docs extensos, suites de tests largas o refactor
+  cross-módulo se corta en batches con los thresholds duros.
+
+## Próximos pasos (post-Fase 6)
+
+- **Polish & Debug pass v1-primigenia**: gate completo, revisión de
+  TODOs, balance desde perspectiva del jugador, VERSION-LOG
+  redactado.
+- **Fase 7 (diferida)**: migrantes externos, reaparición del dios
+  rival, edad tribal reconstruida sobre la base primigenia.
+- **Edades posteriores** (bronce, clásica, medieval, industrial,
+  atómica): fuera de scope de este ROADMAP. Cada una tendrá su
+  propio doc cuando toque.
+
