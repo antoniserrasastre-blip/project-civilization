@@ -22,6 +22,7 @@ import { tickResources } from './resources';
 import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
+import { evaluateNight, isNightCheckTick } from './nights';
 
 export function tick(state: GameState): GameState {
   const ctx = { world: state.world, npcs: state.npcs };
@@ -71,11 +72,26 @@ export function tick(state: GameState): GameState {
     npcs: harvested.npcs,
   });
 
+  const newTick = state.tick + 1;
+  const nextVillage = isNightCheckTick(newTick)
+    ? {
+        ...state.village,
+        consecutiveNightsAtFire: evaluateNight(
+          state.structures,
+          npcsAfterNeeds,
+          state.village.consecutiveNightsAtFire,
+        ),
+      }
+    : state.village;
+
   return {
     world: nextWorld,
     npcs: npcsAfterNeeds,
     fog,
-    tick: state.tick + 1,
+    structures: state.structures,
+    relations: state.relations,
+    village: nextVillage,
+    tick: newTick,
     prng,
   };
 }
