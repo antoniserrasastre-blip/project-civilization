@@ -11,12 +11,17 @@
  * completo sea estable (revalidar en playtest del cierre de fase).
  */
 
+import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { initialGameState } from '@/lib/game-state';
 import { tick } from '@/lib/simulation';
 import { makeTestNPC, CASTA, LINAJE, SEX } from '@/lib/npcs';
 import { CRAFTABLE, RECIPES } from '@/lib/crafting';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
+
+function sha256(s: string): string {
+  return createHash('sha256').update(s).digest('hex');
+}
 
 /** Mundo 32×32 densamente rico — emula un área de asentamiento
  *  favorable. Recursos abundantes garantizan que el balance no
@@ -157,6 +162,26 @@ describe('Fase 4.7 — clan autónomo construye los 5 crafteables', () => {
       const a = run();
       const b = run();
       expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+    },
+    120_000,
+  );
+
+  // Ancla SHA-256 del estado final tras 20k ticks autónomos. Cualquier
+  // cambio futuro en `tick` / ramas puras de `lib/` que altere bytes
+  // del estado hará saltar este expect. Si salta: (1) decisión de
+  // diseño consciente → regenerar hash y commit con explicación; o
+  // (2) regresión determinismo → investigar antes de tocar.
+  it(
+    'ancla SHA-256 del estado tras 20k ticks autónomos',
+    () => {
+      let s = initialGameState(1, buildDraftedClan(), buildRichWorld());
+      for (let i = 0; i < 20_000; i++) {
+        s = tick(s);
+        if (s.structures.length === 5) break;
+      }
+      expect(sha256(JSON.stringify(s))).toBe(
+        '6fd15afa42b854984a13cfcc76f866b9acf753a045073a6660fd1eec52069bb0',
+      );
     },
     120_000,
   );
