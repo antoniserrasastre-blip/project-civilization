@@ -39,7 +39,7 @@ el **tablero** donde todo lo demás vivirá. Consume decisiones #8
 (mapa), #9 (assets), #21 (régimen de recursos para spawn estático),
 #29 (CLAUDE-primigenia).
 
-### Sprint 1.1 — PRNG extensions y tipos del mundo
+### Sprint 1.1 — PRNG extensions y tipos del mundo ✅
 
 **Entregable testeable**: `lib/world-state.ts` declara `WorldMap`,
 `Tile`, `ResourceSpawn`, `WorldState` (solo mundo, sin NPCs aún). Test
@@ -54,7 +54,7 @@ de round-trip JSON del shape vacío.
 
 **Dependencias**: ninguna. Primer sprint absoluto.
 
-### Sprint 1.2 — Generador de archipiélago determinista
+### Sprint 1.2 — Generador de archipiélago determinista ✅
 
 **Entregable testeable**: `lib/world-gen.ts` expone
 `generateWorld(seed): WorldMap`. Test de regeneración byte-idéntica
@@ -82,7 +82,7 @@ it('mismo seed → mapa byte-idéntico 1000 veces', () => {
 });
 ```
 
-### Sprint 1.3 — Compile fixture del mundo
+### Sprint 1.3 — Compile fixture del mundo ✅
 
 **Entregable testeable**: `scripts/compile-world.ts` ejecuta el
 generador y escribe `lib/fixtures/world-map.v1.json`. Test que verifica
@@ -98,7 +98,7 @@ generador sin recompilar.
 
 **Dependencias**: Sprint 1.2.
 
-### Sprint 1.4 — Registry de assets y tileset inicial
+### Sprint 1.4 — Registry de assets y tileset inicial ✅
 
 **Entregable testeable**: `assets/ORIGINS.md` con filas para los
 tiles base (hierba, agua, piedra, bosque, playa, montaña) desde
@@ -115,7 +115,7 @@ Kenney CC0. Script `pnpm lint:assets` verifica que todo asset bajo
 
 **Consume**: decisión #9.
 
-### Sprint 1.5 — Render pixel art con zoom + drag
+### Sprint 1.5 — Render pixel art con zoom + drag ✅
 
 **Entregable testeable**: `app/page.tsx` renderiza el mapa del
 fixture. E2E Playwright: carga página, verifica que canvas/imagen
@@ -153,7 +153,7 @@ Consume decisiones #2 (drafting Elegidos), #3 (drafting Seguidores),
 (régimen recursos), #14 (linajes de viento), #28 (política esclavitud,
 aviso inicial).
 
-### Sprint 2.1 — Shape de NPC y tipos de clan
+### Sprint 2.1 — Shape de NPC y tipos de clan ✅
 
 **Entregable testeable**: `lib/npcs.ts` declara `NPC`, `Archetype`,
 `Casta`, `Linaje`, `Stats`. `state.npcs` añadido a `WorldState`. Test
@@ -168,7 +168,7 @@ casta (solo Elegido / Ciudadano / Esclavo).
 
 **Dependencias**: Fase 1 completa.
 
-### Sprint 2.2 — Drafting Bloque A (4 Elegidos)
+### Sprint 2.2 — Drafting Bloque A (4 Elegidos) ✅
 
 **Entregable testeable**: `lib/drafting.ts` expone `startDraft()` y
 `pickArchetype(draft, slot, archetype): draft'`. Unit tests: 10 pt
@@ -184,7 +184,7 @@ del presupuesto. E2E de 4 pantallas encadenadas.
 
 **Consume**: decisión #2.
 
-### Sprint 2.3 — Drafting Bloque B (10 Ciudadanos)
+### Sprint 2.3 — Drafting Bloque B (10 Ciudadanos) ✅
 
 **Entregable testeable**: `pickFollower(draft, tier, candidate): draft'`.
 10 pantallas pick-1-of-10 con tiers 3/3/2/2 (excelentes, buenos,
@@ -204,7 +204,7 @@ stats entre tiers.
 
 **Consume**: decisiones #3, #14.
 
-### Sprint 2.4 — Aviso inicial sobre esclavitud
+### Sprint 2.4 — Aviso inicial sobre esclavitud ✅
 
 **Entregable testeable**: pantalla de inicio antes del drafting con
 aviso editorial sobre representación histórica de la esclavitud (#28).
@@ -221,7 +221,7 @@ skipea con Escape.
 
 **Consume**: decisión #28.
 
-### Sprint 2.5 — Recursos con régimen y spawn estático
+### Sprint 2.5 — Recursos con régimen y spawn estático ✅
 
 **Entregable testeable**: `lib/resources.ts` con tipos de recurso y
 régimen (regenerable / agotable). `state.world.resources` poblado al
@@ -239,7 +239,7 @@ regeneración (sin movimiento de NPCs aún).
 
 **Consume**: decisión #21.
 
-### Sprint 2.6 — Fog-of-war seedable
+### Sprint 2.6 — Fog-of-war seedable ✅
 
 **Entregable testeable**: `lib/fog.ts` con `markDiscovered(fog, x, y,
 radius): fog'`. Bitmap 512×512 empaquetado, round-trip JSON vía base64.
@@ -272,7 +272,7 @@ fogata). Sin crafting ni necesidades complejas aún — eso es Fase 4.
 
 Consume decisión #29 (pathfinding determinista según CLAUDE-primigenia).
 
-### Sprint 3.1 — A* determinista
+### Sprint 3.1 — A* determinista ✅
 
 **Entregable testeable**: `lib/pathfinding.ts` expone `findPath(map,
 start, end, prngState): { path, prngState' }`. Unit tests:
@@ -290,7 +290,7 @@ start, end, prngState): { path, prngState' }`. Unit tests:
 
 **Consume**: CLAUDE-primigenia §2.
 
-### Sprint 3.2 — Necesidades básicas y decisión de destino
+### Sprint 3.2 — Necesidades básicas y decisión de destino ✅
 
 **Entregable testeable**: `lib/needs.ts` expone
 `decideDestination(npc, state): Position`. Unit tests: NPC hambriento
@@ -305,7 +305,7 @@ la fogata o al grupo. Sin crafting — solo ir/volver.
 
 **Dependencias**: Sprint 3.1, Sprint 2.5.
 
-### Sprint 3.3 — Tick de movimiento integrado
+### Sprint 3.3 — Tick de movimiento integrado ✅
 
 **Entregable testeable**: `lib/simulation.ts` `tick(state)` mueve cada
 NPC 1 tile por tick en dirección de su destino computado. Test
@@ -319,7 +319,7 @@ desplaza de forma coherente tras agotar recurso local.
 
 **Dependencias**: Sprints 3.1, 3.2.
 
-### Sprint 3.4 — Nomadismo visible (render + crónica básica)
+### Sprint 3.4 — Nomadismo visible (render + crónica básica) ✅
 
 **Entregable testeable**: E2E Playwright — arrancar partida, dejar
 correr 30s de tiempo real, verificar que el grupo se movió en el
@@ -350,7 +350,7 @@ Consume decisiones #7 (niveles individuales con feed-forward), #10
 crafteables umbral), #20 (costes concretos), #21 (regeneración), #26
 (umbral fogata 10 noches), CLAUDE-primigenia §1 (grafo NPC×NPC).
 
-### Sprint 4.1 — Necesidades conectadas a recolección
+### Sprint 4.1 — Necesidades conectadas a recolección ✅
 
 **Entregable testeable**: supervivencia y socialización varían por
 tick según consumo real de recursos. Unit: NPC sin comida 3 días
@@ -366,7 +366,7 @@ irritabilidad → socialización cercanos baja.
 
 **Consume**: decisión #7.
 
-### Sprint 4.2 — Recolección activa (recurso → inventario)
+### Sprint 4.2 — Recolección activa (recurso → inventario) ✅
 
 **Entregable testeable**: NPC sobre tile con recurso lo recoge al
 tick. Inventario por NPC (entero, no stack infinito). Test
@@ -379,7 +379,7 @@ integration: 1.000 ticks, el clan acumula 50+ bayas en inventarios.
 
 **Dependencias**: Sprint 4.1.
 
-### Sprint 4.3 — Skills individuales con herencia 50%
+### Sprint 4.3 — Skills individuales con herencia 50% ✅
 
 **Entregable testeable**: cada NPC tiene `skills: { hunting, crafting,
 gathering, fishing }` (0-100). Hijo nace con skill = (padre + madre)/2
@@ -393,7 +393,7 @@ gathering, fishing }` (0-100). Hijo nace con skill = (padre + madre)/2
 
 **Consume**: decisión #11.
 
-### Sprint 4.4 — Grafo de relaciones NPC×NPC
+### Sprint 4.4 — Grafo de relaciones NPC×NPC ✅
 
 **Entregable testeable**: `state.relations: Array<Edge>` ordenada
 canónicamente. Ops puras: `addDebt`, `settleFavor`, `recordSaved`.
@@ -410,7 +410,7 @@ Integration: 10.000 ticks mantienen orden canónico (test sha256).
 
 **Consume**: CLAUDE-primigenia §1, decisión #7.
 
-### Sprint 4.5 — Recetas de crafting y árbol umbral
+### Sprint 4.5 — Recetas de crafting y árbol umbral ✅
 
 **Entregable testeable**: `lib/crafting.ts` con 5 recetas fijas
 (refugio, fogata permanente, piel/ropa, herramienta sílex, despensa)
@@ -430,7 +430,7 @@ inventarios y añade el crafteable al mundo (o al NPC).
 
 **Consume**: decisiones #11, #12, #20.
 
-### Sprint 4.6 — Fogata permanente + 10 noches
+### Sprint 4.6 — Fogata permanente + 10 noches ✅
 
 **Entregable testeable**: el clan duerme alrededor de la fogata
 permanente. Contador persistente `state.world.consecutiveNightsAtFire:
@@ -446,7 +446,7 @@ noches cumplido → contador = 10.
 
 **Consume**: decisión #26.
 
-### Sprint 4.7 — Partida autónoma llega a los 5 crafteables
+### Sprint 4.7 — Partida autónoma llega a los 5 crafteables ✅
 
 **Entregable testeable**: test integration heavy — 20.000 ticks con
 clan drafteado por defecto y **sin bendiciones**, construye los 5
@@ -481,7 +481,7 @@ interpretación por NPC), **#31** (gratitud emergente, supersede
 #23), **#32** (5 milagros raros con herencia 50%), **#18** (derrota
 espiritual por último Elegido sin hijo).
 
-### Sprint 5.1 — Modal diario + 6 intenciones + pausa determinista
+### Sprint 5.1 — Modal diario + 6 intenciones + pausa determinista ✅
 
 **Entregable testeable**: al amanecer (tick `% TICKS_PER_DAY === 0`)
 la simulación se pausa y emite un modal con las 6 intenciones +
@@ -506,7 +506,7 @@ que las intenciones tengan sobre qué empujar).
 
 **Consume**: decisiones #30, #30.a, #30.b. CLAUDE-primigenia §3.
 
-### Sprint 5.2 — Motor de interpretación emergente por NPC (Pilar 1)
+### Sprint 5.2 — Motor de interpretación emergente por NPC (Pilar 1) ✅
 
 **Entregable testeable**: cada NPC "lee" la intención activa del día
 según su estado individual (niveles 0-100 de supervivencia +
@@ -529,7 +529,7 @@ entre NPCs con perfil distinto.
 
 **Consume**: decisión #30.c. vision-primigenia §3.7, §2 Pilar 1.
 
-### Sprint 5.3 — Pool de gratitud (ganancia, pérdida, techo)
+### Sprint 5.3 — Pool de gratitud (ganancia, pérdida, techo) ✅
 
 **Entregable testeable**: `lib/gratitude.ts` expone
 `computeGratitudeDelta(tick, events, activeMessage, state): number`
@@ -554,7 +554,7 @@ distintos medibles.
 
 **Consume**: decisión #31. CLAUDE-primigenia §2.
 
-### Sprint 5.4 — Los 5 milagros con coste en gratitud + herencia 50%
+### Sprint 5.4 — Los 5 milagros con coste en gratitud + herencia 50% ✅
 
 **Entregable testeable**: `lib/miracles.ts` expone `MIRACLES_CATALOG`
 con los 5 milagros de decisión #32 (Hambre sagrada 30, Ojo de halcón
@@ -599,7 +599,7 @@ Consume decisiones #15 (condiciones monumento), #16 (bendición aldea
 compounding), #24 (4 bendiciones primigenia), #25 (sin reelección),
 #26 (coste del monumento).
 
-### Sprint 6.1 — Desbloqueo del monumento
+### Sprint 6.1 — Desbloqueo del monumento ✅
 
 **Entregable testeable**: `lib/monument.ts` expone
 `isMonumentUnlocked(state): boolean` puro. Unit: las 3 condiciones se
@@ -612,7 +612,7 @@ desbloquea el monumento.
 
 **Consume**: decisiones #15, #26.
 
-### Sprint 6.2 — Construcción del monumento
+### Sprint 6.2 — Construcción del monumento ✅
 
 **Entregable testeable**: cuando está desbloqueado, el clan arranca
 la construcción. Consume 200 piedra + 50 leña + 60 días-hombre
@@ -629,7 +629,7 @@ como ruina (flag en `state.world.ruin`).
 
 **Consume**: decisión #26, vision-primigenia §5.
 
-### Sprint 6.3 — Selección de bendición de aldea + compounding
+### Sprint 6.3 — Selección de bendición de aldea + compounding ✅
 
 **Entregable testeable**: al completar el monumento, el jugador ve
 pantalla de elección con **4 bendiciones disponibles** (recolecta,
@@ -649,7 +649,7 @@ al tick siguiente.
 
 **Consume**: decisiones #16, #24, #25.
 
-### Sprint 6.4 — Cinemática de transición + placeholder tribal
+### Sprint 6.4 — Cinemática de transición + placeholder tribal ✅
 
 **Entregable testeable**: E2E completo del loop primigenia —
 desde drafting hasta cinemática de transición. El E2E corre en <
