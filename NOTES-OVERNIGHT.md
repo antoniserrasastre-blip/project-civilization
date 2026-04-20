@@ -122,3 +122,161 @@ playwright install chromium` en un entorno con red a
 `playwright.azureedge.net`, luego `pnpm test:e2e` para validar
 los 3 tests escritos. Si fallan, eran bugs latentes de MapView
 (primera vez que se ejecutan).
+
+---
+
+> [Director] 2026-04-20: brief overnight para el ingeniero
+>
+> Gate local corrido hoy en `claude/review-repo-status-3rHDy`:
+>
+> - `pnpm exec tsc --noEmit` ✅ (exit 0)
+> - `pnpm exec eslint .` ✅ (exit 0)
+> - `pnpm test` ✅ **301/301** en 33 ficheros (5.16s)
+> - `pnpm lint:assets` ✅ 6 assets validados
+> - `pnpm build` ✅ 7.3s, `/` 15.6 kB + 101 kB shared
+> - `pnpm test:e2e` ⚠️ bloqueado (Playwright Chromium sin red — flag histórico)
+>
+> **Contexto**: Fases 1-6 primigenia están commiteadas (hasta
+> `777ea96` merge del PR #1). Pero el cierre ritual de v1-primigenia
+> NO está hecho: `ROADMAP.md` tiene **0 marcas ✅**, no existen
+> `VERSION-LOG-fase-N.md`, ni se ha redactado polish pass. La
+> `archive/v1.0.1` preserva el estado previo.
+>
+> **Prioridad overnight** (ordenada por ROI, ataca de arriba abajo;
+> no inviertas el orden, no te saltes nada; si te quedas sin tiempo,
+> corta en la tarea donde estés y deja nota en bloque
+> `wip: <tarea>` con commit parcial):
+>
+> **1. Marcar ✅ los 30 sprints en `ROADMAP.md`** (tuyo).
+>
+> Regla: una ✅ por sprint solo si existe commit en `git log` cuyo
+> mensaje empieza por `sprint N.M:`. Formato sugerido: añadir ✅ al
+> final de la cabecera `### Sprint N.M — <título>`. Si algún sprint
+> no tiene commit correspondiente (no debería, pero comprueba),
+> **no inventes la marca** — deja nota aquí abajo y para.
+>
+> **2. Actualizar `README.md`** (compartido, coordina conmigo en
+> conversación si rompes la voz editorial).
+>
+> Hoy dice literalmente "Sprint 1.1-1.2 cerrado". Desfase grande
+> respecto a la realidad (Fase 6 cerrada). Reescribe la sección
+> "Estado actual" en ≤ 10 líneas: Fases 1-6 completas, loop
+> primigenia end-to-end (drafting → cinemática tribal), bloqueos
+> pendientes conocidos (Playwright + assets CC0). NO menciones
+> v1.0.1 en la cabecera (sigue archivada); mantén el bloque
+> histórico de archivo pero mueve "estado actual" a primigenia-end.
+>
+> **3. Polish & Debug pass sobre `lib/`** (tuyo).
+>
+> - Revisa cada módulo por `TODO`/`FIXME`/`any` injustificado.
+>   Hoy solo detecté `any` en `next.config.ts` (infra, OK) y dos
+>   `eslint-disable-next-line` legítimos en `hooks/use-mobile.ts`
+>   y `components/map/MapView.tsx`. Confirma que siguen siendo
+>   los únicos y que cada uno tiene el motivo claro al lado.
+> - Lista de módulos: `prng`, `world-state`, `world-gen`, `npcs`,
+>   `drafting`, `disclaimer`, `resources`, `fog`, `pathfinding`,
+>   `needs`, `harvest`, `inheritance`, `relations`, `crafting`,
+>   `nights`, `simulation`, `messages`, `interpret`, `gratitude`,
+>   `miracles`, `monument`, `structures`, `village-blessings`,
+>   `village`, `chronicle`, `game-state`. Pasada visual de
+>   coherencia §A4 (pureza, determinismo, round-trip JSON) sobre
+>   cada uno; si detectas algún lugar donde se cuela
+>   `Math.random`, `Date.now`, `crypto.randomUUID` o una mutación
+>   de input, **PARA** y abre decisión en
+>   `DECISIONS-PENDING-primigenia.md` con bloque numerado #33+.
+>
+> **4. Test anti-regresión de determinismo extremo** (tuyo, si no
+> existe ya).
+>
+> `tests/integration/autonomous-building.test.ts` ya prueba 20k
+> ticks construyendo los 5 crafteables. Comprueba que ancla SHA-256
+> del estado final para que cualquier cambio futuro de `tick` lo
+> rompa explícitamente. Si NO ancla hash, añade un `expect` con el
+> hash actual. Commit aparte `test: anclar sha de 20k-tick
+> autonomous build` para que la regresión sea trazable.
+>
+> **5. Reintentar Playwright** (barato, si sigue bloqueado lo
+> descartamos).
+>
+> `pnpm exec playwright install chromium`. Si **sigue** 403
+> contra `playwright.azureedge.net`, no insistas — deja nota con
+> fecha ("reintentado 2026-04-20, sigue bloqueado"). Si **pasa**,
+> corre `pnpm test:e2e` y reporta resultado de los 3 tests de
+> `map-view.spec.ts`. Si alguno falla, **no lo arregles overnight**
+> — abre flag en `DECISIONS-PENDING-primigenia.md` (#33+) con
+> diagnóstico y para. Los bugs latentes de MapView van con ojo
+> humano delante.
+>
+> **6. Scaffold `tests/design/`** (tuyo, DEUDA para cierre v1).
+>
+> CLAUDE.md §"Suite de coherencia de diseño" exige esa carpeta al
+> cerrar versión mayor. Hoy NO existe. Crea
+> `tests/design/coherence.test.ts` con **solo los 10 `describe`
+> cabecera + un `it.todo` por dominio** (economía de fe → leer
+> gratitud en primigenia · población · ciclo de vida · determinismo
+> extremo · dones/milagros · rival diferido · veredicto/bendición
+> aldea · crónica · UI · edge cases). **No implementes los tests
+> todavía** — el redactado real lo hacemos juntos tras el playtest.
+> Añade script `pnpm test:design` al `package.json`. Objetivo:
+> que el hueco quede visible en el gate del próximo cierre.
+>
+> **7. Preparar materia prima para VERSION-LOGs** (insumo para mí,
+> NO los escribas tú).
+>
+> Los `VERSION-LOG-fase-1.md` ... `VERSION-LOG-fase-6.md` son MIOS
+> (ownership §CLAUDEDIRECTOR.md) y los redacto yo con perspectiva
+> del jugador tras el playtest del Director humano. Pero necesito
+> datos técnicos que solo tú tienes. Deja al final de este fichero
+> un bloque `## Insumos para VERSION-LOGs` con **una tabla** por
+> Fase:
+>
+> | Fase | Commit sha de cierre | Entregable técnico 1-frase | Balance numérico relevante |
+> |-|-|-|-|
+> | 1 | `xxxxxxx` | ... | — |
+> | ... | ... | ... | ... |
+>
+> El "balance numérico" solo aplica a Fases que introduzcan
+> números (2: drafting pt; 4: costes crafteables / regen; 5:
+> gratitud ceiling / costes milagros; 6: coste monumento). En
+> Fases 1 y 3 pon `—`.
+>
+> ---
+>
+> **Qué NO hagas overnight** (regla dura):
+>
+> - **NO** abras ni planifiques Fase 7. Rival diferido por diseño
+>   (vision-primigenia §2, §8). Cualquier "y si empezamos a dejar
+>   hooks para el rival" = scope creep, para.
+> - **NO** escribas los `VERSION-LOG-fase-N.md`. Son míos, los
+>   redacto tras playtest humano.
+> - **NO** toques `vision-primigenia.md` ni
+>   `DECISIONS-PENDING-primigenia.md` para añadir decisiones
+>   nuevas sin preguntarme; solo añade bloques #33+ si detectas
+>   bug estructural §A4 que requiere firma.
+> - **NO** mergees a `main` este branch. Trabaja en
+>   `claude/review-repo-status-3rHDy`, yo revisaré por la mañana
+>   antes de decidir merge o rebase.
+> - **NO** hagas `git push --force` ni borres ramas `archive/*`.
+> - **NO** añadas mecánica nueva al juego (nada de nuevos milagros,
+>   recetas, tonalidades, rasgos). Polish ≠ features.
+>
+> ---
+>
+> **Commits esperados overnight** (un commit por bloque, no uno
+> gigante):
+>
+> 1. `docs(roadmap): marcar ✅ sprints 1.1-6.4 cerrados`
+> 2. `docs(readme): estado actual → Fase 6 cerrada`
+> 3. `polish: revisión §A4 sobre lib/ (sin cambios funcionales)` o
+>    commits específicos por módulo si encuentras algo real
+> 4. `test: anclar sha en autonomous-building` (si no está)
+> 5. `test(design): scaffold tests/design con 10 describes todo`
+> 6. `docs(notes): insumos técnicos para VERSION-LOGs`
+>
+> Cada commit debe pasar el gate local completo antes de
+> crearse. Si un commit rompe el gate, **rebobina** con
+> `git checkout -- <file>` o `git reset HEAD~1 --soft` y re-ataca
+> en batch más pequeño (CLAUDE.md §5 thresholds duros).
+>
+> Buenas noches. Cuando vuelva reviso, redacto los VERSION-LOGs
+> y planeamos el playtest del loop completo.
