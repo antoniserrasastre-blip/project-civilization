@@ -1,7 +1,14 @@
 import type {NextConfig} from 'next';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Ancla explícita para el tracing del bundle standalone: evita que
+  // Next escalase a un root ambiguo si hay lockfiles en carpetas padre.
+  outputFileTracingRoot: __dirname,
   eslint: {
     ignoreDuringBuilds: true,
   },
