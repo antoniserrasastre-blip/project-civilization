@@ -123,6 +123,12 @@ playwright install chromium` en un entorno con red a
 los 3 tests escritos. Si fallan, eran bugs latentes de MapView
 (primera vez que se ejecutan).
 
+**Reintento 2026-04-20 (ingeniero overnight)**: sigue bloqueado.
+Ahora el 403 viene de `cdn.playwright.dev`
+(`https://cdn.playwright.dev/builds/cft/147.0.7727.15/linux64/chrome-linux64.zip`
+→ "Host not in allowlist"). Misma categoría de bloqueo. No insisto;
+entregable queda pendiente de entorno humano con red.
+
 ---
 
 > [Director] 2026-04-20: brief overnight para el ingeniero
@@ -280,3 +286,43 @@ los 3 tests escritos. Si fallan, eran bugs latentes de MapView
 >
 > Buenas noches. Cuando vuelva reviso, redacto los VERSION-LOGs
 > y planeamos el playtest del loop completo.
+
+---
+
+## Insumos para VERSION-LOGs (redacción del Director)
+
+> Material técnico para `VERSION-LOG-fase-1.md` ... `fase-6.md`.
+> Preparado por el ingeniero la madrugada 2026-04-20. El Director
+> redacta los logs con perspectiva de jugador tras playtest.
+> Fases 1 y 3 no introducen números de balance (infraestructura y
+> movimiento respectivamente) — columna `—`.
+
+| Fase | Commit sha de cierre | Entregable técnico 1-frase | Balance numérico relevante |
+|-|-|-|-|
+| 1 | `b9f0b0c` | Mundo determinista 512×512 renderizado con pan + zoom; assets CC0 propios; lint de registro de assets. | — |
+| 2 | `6378dd8` | Drafting de clan (4 Elegidos + 10 Ciudadanos en 4 tiers) sobre mapa con recursos y fog-of-war seedable. | `CHOSEN_SLOTS=4`, `CHOSEN_BUDGET=10 pt`, `TIER_CANDIDATE_COUNT=10`. |
+| 3 | `90f66c9` | Tick integrado con A* 4-conexo, necesidades y decisión de destino; crónica partisana inicial. | — |
+| 4 | `dfa4bbc` | Economía: recolección → inventario → crafting de 5 recetas umbral + grafo de relaciones + fogata permanente + 10 noches. Clan de 14 NPCs construye los 5 crafteables en <20k ticks en mundo rico. | `TICKS_PER_DAY=24`; regen: wood 60d / berry 45d / game 100d / stone nunca / water-fish continuous; recetas (wood/stone/game, daysWork, minSkill): REFUGIO 15/8/3, 5d, 10 · FOGATA 5/15/0, 3d, 5 · PIEL 0/0/2, 2d, 10 · HERRAMIENTA 2/5/0, 2d, 15 · DESPENSA 10/6/0, 4d, 10. |
+| 5 | `21c612f` | Modal diario (6 intenciones) con pausa determinista, motor de interpretación emergente por NPC, pool de gratitud del clan y 5 milagros con coste. | `GRATITUDE_CEILING=200`, `MAX_TRAITS_PER_NPC=3`; costes de milagros: 30 / 40 / 50 / 60 / 80 gratitud. |
+| 6 | `76ada22` | Desbloqueo del monumento (3 condiciones), construcción con progreso acumulativo + ruina si abandonada, selección de bendición de aldea y cinemática de transición a placeholder tribal. | `MONUMENT_COST={stone:200, wood:50, daysWork:60}` → `BUILD_TICK_HOURS=1440`; `MIN_CONSECUTIVE_NIGHTS=10`; `MIN_WORKERS=3`. |
+
+### Estado del gate local (2026-04-20 ingeniero, post-overnight)
+
+- Commits overnight en orden:
+  1. `docs(roadmap): marcar ✅ sprints 1.1-6.4 cerrados`
+  2. `docs(readme): estado actual → Fase 6 cerrada`
+  3. `polish: documentar eslint-disable legítimos en hooks/ y MapView`
+  4. `test: anclar sha de 20k-tick autonomous build` — SHA anclado:
+     `6fd15afa42b854984a13cfcc76f866b9acf753a045073a6660fd1eec52069bb0`
+  5. `test(design): scaffold tests/design con 10 describes todo` —
+     28 `it.todo` en 10 `describe`.
+  6. `docs(notes): insumos técnicos para VERSION-LOGs` (este commit).
+
+- Polish §A4: sin hallazgos estructurales. Cero `Math.random`,
+  `Date.now`, `crypto.randomUUID` en `lib/`. Cero `any`
+  injustificado. Cero `TODO`/`FIXME`. Los 2 `eslint-disable`
+  previos (hooks/use-mobile.ts, components/map/MapView.tsx) ahora
+  llevan comentario explicativo del *why*.
+
+- Playwright: reintento fallido (ver bloqueo Sprint 1.5 arriba,
+  nota fechada 2026-04-20).
