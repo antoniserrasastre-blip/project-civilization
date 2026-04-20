@@ -11,30 +11,26 @@ envuelto en una capa React (`app/`, `components/`). Cada tick es
 determinista: misma semilla + mismas acciones → mismo mundo byte a
 byte.
 
-## Estado actual — Bootstrap Edad Primigenia (camino a v2.0)
+## Estado actual — Edad Primigenia end-to-end (camino a v2.0)
 
-El repo está en pleno **wipe-y-refundación**. La v1.0.1 single-player
-(`13 sprints`, eras tribal → atómica, dioses rivales) se completó en
-abril de 2026 y está **archivada** en la rama remota `archive/v1.0.1`.
+Fases 1-6 del roadmap primigenia cerradas (30 sprints). Loop completo:
+drafting de 4 Elegidos + 10 Ciudadanos → mapa 512×512 con fog-of-war →
+pathfinding + necesidades + recolección + crafting (5 recetas) →
+grafo de relaciones → fogata + 10 noches → modal diario con 6
+intenciones + motor de interpretación → pool de gratitud + 5 milagros →
+construcción del monumento → bendición de aldea → cinemática de
+transición a placeholder tribal.
 
-A partir del 2026-04-19 el `main` ejecuta la **Edad Primigenia**: una
-edad totalmente nueva, **anterior** a la tribal, donde el objetivo
-mecánico es construir un **monumento** que ancle al clan a un punto
-del mapa y desbloquee la siguiente era. El v1.0.1 archivado se
-reconstruirá sobre primigenia cuando llegue la edad tribal.
+**Bloqueos activos** (ver `NOTES-OVERNIGHT.md`): Playwright Chromium
+no instala por sandbox sin red (`playwright.azureedge.net` 403); y
+assets CC0 externos (Kenney) tampoco — hay placeholders procedurales
+propios CC0 en `assets/tiles/` hasta que el Director humano reemplace
+en entorno con red.
 
-Hoy el `main` contiene:
-
-- **Scaffolding mínimo** — `lib/prng.ts`, `lib/utils.ts`, harness de
-  tests, primitives de UI, shell de Next.js, placeholder de página.
-- **Sprint 1.1-1.2 cerrado** — `lib/world-gen.ts` genera el
-  archipiélago determinista 512×512 con recursos. Test de
-  reproducibilidad byte-idéntica 1000 veces.
-- **Documentación constitucional** — `vision-primigenia.md` (anexo
-  editorial), `DECISIONS-PENDING-primigenia.md` (bandeja del Director),
-  `ROADMAP.md` (Fases 1-6 descompuestas en sprints), `CLAUDE.md` /
-  `CLAUDE-primigenia.md` (metodología del ingeniero), `CLAUDEDIRECTOR.md`
-  (contrapeso editorial).
+El v1.0.1 single-player histórico (13 sprints, eras tribal → atómica,
+dioses rivales, completado en abril 2026) está **archivado** en
+`archive/v1.0.1`; se reconstruirá sobre primigenia cuando la edad
+tribal entre en scope.
 
 ## Stack
 
@@ -49,16 +45,16 @@ pnpm install
 pnpm dev          # next dev en :4747
 ```
 
-Abre `http://localhost:4747`. Hoy verás el placeholder de primigenia
-hasta que la Fase 1 (mundo + render) cierre.
+Abre `http://localhost:4747`. Verás el loop primigenia desde el
+drafting de clan hasta la cinemática tribal.
 
 ## Tests
 
 ```bash
 pnpm test              # Vitest unit + integration
 pnpm test:unit         # Sólo unit
-pnpm test:integration  # Sólo integration (vacío hoy)
-pnpm test:e2e          # Playwright (Next en :3100, vacío hoy)
+pnpm test:integration  # Sólo integration
+pnpm test:e2e          # Playwright (Next en :3100, requiere chromium instalado)
 pnpm exec tsc --noEmit
 pnpm exec eslint .
 pnpm build
@@ -84,16 +80,16 @@ en `ROADMAP.md`.
 
 | Fase | Tema | Sprints | Estado |
 |-|-|-|-|
-| 1 | Mundo (mapa + render) | 5 | sprint 1.1-1.2 ✅, resto pendiente |
-| 2 | NPCs + recursos + fog-of-war | 6 | pendiente |
-| 3 | Movimiento + pathfinding | 4 | pendiente |
-| 4 | Economía (necesidades + crafting + grafo) | 7 | pendiente |
-| 5 | Bendiciones y rasgos | 5 | pendiente |
-| 6 | Monumento + bendición de aldea + transición | 4 | pendiente |
+| 1 | Mundo (mapa + render) | 5 | ✅ |
+| 2 | NPCs + recursos + fog-of-war | 6 | ✅ |
+| 3 | Movimiento + pathfinding | 4 | ✅ |
+| 4 | Economía (necesidades + crafting + grafo) | 7 | ✅ |
+| 5 | Bendiciones y rasgos | 4 | ✅ |
+| 6 | Monumento + bendición de aldea + transición | 4 | ✅ |
 
-Total: **31 sprints** antes de cerrar primigenia. Fase 7 (migrantes
-externos + dios rival) queda diferida; abre la puerta a la edad
-tribal completa.
+Total: **30 sprints** de primigenia cerrados. Fase 7 (migrantes
+externos + dios rival) queda diferida por diseño; abre la puerta a la
+edad tribal completa.
 
 ## Documentación
 
