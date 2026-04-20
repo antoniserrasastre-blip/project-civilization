@@ -138,6 +138,7 @@ export function MapView({ npcs = [] }: MapViewProps = {}) {
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
+    // Effect de mount-only: resize usa refs/state functional updates, no necesita deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
