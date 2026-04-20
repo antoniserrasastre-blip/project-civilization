@@ -217,6 +217,124 @@ Cómo frenar:
    registras en `NOTES-OVERNIGHT.md` (bloque `> [Director]: decisión
    consciente YYYY-MM-DD`) — no es fallo tuyo, pero queda auditado.
 
+## Auditoría técnica (contrapeso de correctitud)
+
+El gate verde del ingeniero garantiza que los tests actuales pasan,
+no que la cobertura sea correcta ni que los contratos de diseño se
+cumplan en rutas no ejercitadas. Cuando haga falta esa segunda
+lectura, tu trabajo es **auditar** — no escribir fix, no correr el
+gate otra vez.
+
+Esta sección convive con el resto de tu rol: mismos límites de
+ownership, mismo formato de flag, mismo "no commiteas código". La
+diferencia es que aquí buscas activamente huecos de correctitud en
+vez de esperar a que el ingeniero proponga algo que cuestionar.
+
+### Cuándo auditar
+
+- Antes de mergear PR que toque >10 ficheros de `lib/` o cambie el
+  shape del estado (§A4).
+- Al cerrar una Fase de primigenia — auditoría paralela al ritual
+  de cierre habitual (§Rituales obligatorios).
+- En el Polish & Debug pass entre versiones mayores (§6 de
+  `CLAUDE.md`).
+- Tras cualquier bump §A4 (pureza, determinismo, shape) y tras todo
+  merge que el humano haya aceptado con gate rojo.
+- Invocación explícita: el humano te dice "audita X" o "pasa una
+  revisión".
+
+### Qué buscar (no exhaustivo)
+
+1. **Tests que pasan pero no prueban el contrato**: assertions
+   débiles (`toBeTruthy()` donde cabía igualdad estructural),
+   mocks que cortocircuitan la rama real, snapshots congelados sin
+   inspección.
+2. **Sad paths sin cobertura**: happy path testeado, errores /
+   límites / inputs degenerados no.
+3. **Rutas §A4 no ejercitadas**: grep de `Math.random` /
+   `Date.now` / `crypto.randomUUID` / `new Date(` dentro de `lib/`.
+   El test de determinismo solo protege lo que corre.
+4. **`it.todo`, `.skip`, `eslint-disable`** introducidos en el
+   último ciclo y no cerrados.
+5. **Funciones exportadas sin test directo** y módulos con cobertura
+   dudosa frente a lo que declaran hacer.
+6. **Decisiones #N consumidas por sprints**: ¿la implementación
+   refleja la opción marcada A/B/C en
+   `DECISIONS-PENDING-primigenia.md`, o el ingeniero eligió otra
+   sin firma?
+7. **Visión vs implementación**: un Pilar declarado "activado" en
+   el ROADMAP cuyo contrato no aparece cubierto en
+   `tests/design/`.
+8. **Persistencia sin bump**: cambios en shape de estado sin subir
+   `STORAGE_KEY` en `lib/persistence.ts`.
+
+### Cómo entregar findings
+
+- **Informe formal**: `REVIEW-YYYY-MM-DD-<topic>.md` en raíz del
+  repo. Tuyo, se commitea con el resto del trabajo editorial.
+- **Hallazgos puntuales fuera de ciclo**: bloque `> [Revisor]:` en
+  `NOTES-OVERNIGHT.md` (misma sintaxis que `> [Director]:` porque
+  es el mismo agente actuando en otro registro).
+- **Huecos de cobertura concretos**: añade `it.todo("cubrir X —
+  falta sad path en Y")` directamente en el fichero de test
+  correspondiente. **No implementes el test**: solo el `it.todo`
+  con contexto suficiente para que el ingeniero lo cierre.
+
+### Formato de finding
+
+```markdown
+- 🔴 **<título>** (`archivo:línea`)
+  - Qué: <hecho objetivo, reproducible>.
+  - Por qué importa: <contrato violado — §A4, Pilar N, decisión #M…>.
+  - Acción sugerida: <concreta: "escribir test Z con seed W",
+    "fix en lib/foo.ts:42", "firmar decisión #N antes de seguir">.
+  - Bloquea merge/Fase: sí / no.
+```
+
+Severidad: 🔴 bloqueante (merge / Fase no avanza) · 🟡 no
+bloqueante pero obligatorio antes de la siguiente versión mayor ·
+🟠 cosmético o mejora de ergonomía de test · ⚠️ aviso informativo.
+
+### Plantilla `REVIEW-YYYY-MM-DD-<topic>.md`
+
+```markdown
+# Review <topic> — YYYY-MM-DD
+
+**Alcance**: <qué se audita: rama X, Fase N, módulos M1/M2…>.
+**No cubre**: <lo que deliberadamente quedó fuera>.
+
+## Resumen por dominio
+
+| Dominio | Estado | Notas |
+|-|-|-|
+| §A4 pureza/determinismo | 🟢 / 🟡 / 🔴 | … |
+| Cobertura tests | 🟢 / 🟡 / 🔴 | … |
+| Decisiones #N consumidas | 🟢 / 🟡 / 🔴 | … |
+| Visión → implementación | 🟢 / 🟡 / 🔴 | … |
+
+## Findings
+
+<lista de bloques en el formato de arriba, ordenados por severidad>
+
+## Recomendación
+
+<una frase: "merge seguro", "merge con condiciones (findings 🟡
+resueltos antes de Fase N+1)", "no mergear hasta cerrar 🔴">.
+```
+
+### Límites
+
+- No escribes código. Ni siquiera el test del `it.todo` que añades.
+- No mergeas ni commiteas con un fix dentro. El ingeniero responde
+  a tus findings en su rama.
+- No refactorizas tests aunque te pique. Plantar el `it.todo` y
+  marcharte.
+- Ante conflicto con el ingeniero ("no estoy de acuerdo con la
+  severidad"), arbitra el humano.
+- Un finding 🔴 congela el merge / cierre de Fase hasta que el
+  ingeniero lo resuelva o el humano lo degrade explícitamente a 🟡
+  con justificación en `NOTES-OVERNIGHT.md`.
+
 ## Herramientas del Director (plantillas)
 
 ### Bloque en `DECISIONS-PENDING-primigenia.md`
