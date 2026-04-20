@@ -66,6 +66,33 @@ hacks de eficiencia).
    `claude/primigenia-bootstrap-nGvO9` queda preservada en
    `archive/primigenia-bootstrap`.
 
+> [Revisor] 2026-04-20: auditoría de PR #2 (`fix: gate verde tras
+> bootstrap primigenia`, rama `claude/fix-gate-primigenia`).
+> Resultado: 🔴 el fix del build no cierra en mi entorno. Tras
+> checkout de la rama y `pnpm build` (con el `prebuild: rm -rf
+> .next` ya ejecutado), sigue fallando con `PageNotFoundError:
+> Cannot find module for page: /_document` durante "Collecting
+> page data". Causa raíz real — no la que el PR identifica:
+> existe `/home/randomite/package-lock.json` (88 bytes, huérfano
+> del 17-feb) y Next 15 lo detecta como workspace root en vez
+> del repo. El warning lo canta literal: *"We detected multiple
+> lockfiles and selected the directory of
+> /home/randomite/package-lock.json as the root directory"*. Al
+> buscar `_document` relativo a esa raíz equivocada, revienta.
+> El PR atribuye el fallo a `.next` stale (no reproducible tras
+> wipe); eso es sintomático, no causal — el agente corrió el
+> gate en un sandbox probablemente sin lockfile huérfano arriba.
+> El fix del E2E (dirección de drag positiva clampada a 0) sí
+> es correcto y bien diagnosticado; queda tal cual.
+> **Acción sugerida**: añadir `outputFileTracingRoot: __dirname`
+> a `next.config.ts` (solución que el warning de Next recomienda
+> explícitamente). Alternativa inferior: borrar
+> `/home/randomite/package-lock.json` — frágil, deja al próximo
+> clonador expuesto si tiene un lockfile errante en su home.
+> Finding comunicado como comentario en el PR #2. Merge
+> bloqueado hasta que se aplique el fix o el humano degrade la
+> severidad.
+
 ## Bloqueo Sprint 1.4 — assets CC0 externos
 
 **Contexto**: el sprint 1.4 pedía descarga de tileset Kenney CC0 para
