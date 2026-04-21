@@ -269,7 +269,17 @@ resetea — tribal introducirá su propia economía de Fe
 planificación**: sin firma, el ingeniero no puede escribir el
 primer test de tribal sin asumir un default no autorizado.
 
-**Marca**: [A / B / C] · Comentario:
+**Marca**: **B** · Comentario: firmado por el Director humano
+2026-04-21 sobre default sugerido. Reset selectivo por naturaleza
+del dato — preservar identidad y legado (NPCs vivos con traits,
+linajes, bendición de aldea, crónica archivada como memoria, fog
+revelado como conocimiento) y resetear lo volátil (gratitud a 0,
+`activeMessage` null, `messageHistory` archivada a
+`state.history.primigenia.messages`, `monument.progress` fijado
+como reliquia visible en el mapa). Queda activado el sub-bloque
+**#33.a** para que el Director detalle el mapa campo-a-campo del
+GameState antes de que el ingeniero escriba el primer test de
+tribal.
 
 **Notas editoriales del Director Creativo** (provisionales,
 revalidables por el humano):
