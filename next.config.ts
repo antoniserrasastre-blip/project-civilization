@@ -1,7 +1,13 @@
 import type {NextConfig} from 'next';
+import path from 'node:path';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Pin explícito del workspace root al repo. Silencia el warning
+  // de Next 15 ante lockfiles huérfanos en niveles superiores:
+  // "We detected multiple lockfiles and selected the directory of
+  // /home/randomite/package-lock.json as the root directory".
+  outputFileTracingRoot: path.resolve(__dirname),
   eslint: {
     ignoreDuringBuilds: true,
   },

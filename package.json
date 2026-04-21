@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 4747",
+    "prebuild": "rm -rf .next",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "clean": "next clean",
+    "clean": "rm -rf .next",
     "test": "vitest run",
     "test:unit": "vitest run tests/unit",
     "test:integration": "vitest run tests/integration",
