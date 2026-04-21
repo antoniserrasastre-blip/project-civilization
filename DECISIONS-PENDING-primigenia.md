@@ -218,6 +218,82 @@ real tras Fase 4.
   trabajando. Durante la obra el clan sigue operativo (no se
   congela).
 
+## Abiertas
+
+### 33. 🟡 Política de migración de estado primigenia → tribal
+
+**Hoy**: `transitionToTribal` en `lib/game-state.ts` cambia
+`state.era` a `'tribal'` pero **preserva todo el resto** del
+state: `monument.phase='built'`, `village.gratitude`,
+`village.messageHistory`, `village.blessings`, todos los NPCs
+con sus traits, inventarios, relaciones, fog revelado. Comentario
+literal en el código: *"tribal reconstruye sobre primigenia"*.
+No hay diseño cerrado sobre qué elementos sobreviven tal cual,
+qué se transforma, y qué se resetea al cruzar eras.
+
+**Opciones**:
+
+- **A. Preservación integral** — tribal arranca con todo el
+  state de primigenia sin tocar. Continuidad máxima.
+  **Tradeoff**: tribal hereda "regalos" no diseñados (gratitud
+  acumulada al cambiar, monumento hecho, messageHistory infinita)
+  que pueden romper el balance de la nueva era. También implica
+  que cualquier bug de primigenia se arrastra.
+- **B. Reset selectivo por naturaleza del dato** — preservar
+  **identidad y legado** (NPCs vivos con sus traits, linajes,
+  bendición de aldea elegida, crónica como memoria, fog revelado
+  como conocimiento) + **resetear lo volátil** (gratitud a 0,
+  `activeMessage` a null, `messageHistory` archivada a
+  `state.history.primigenia.messages`, `monument.progress`
+  fijado como "reliquia visible"). **Tradeoff**: requiere
+  decisión explícita campo a campo; más trabajo de diseño ahora
+  pero balance de tribal limpio.
+- **C. Reset completo con semilla de identidad mínima** —
+  tribal es "v1.0 con pasado": solo heredan rasgos hereditarios
+  de los NPCs vivos (+ su linaje), la bendición de aldea, y un
+  monumento ancestral como landmark en el mapa. Gratitud,
+  mensajes, relaciones, fog — todo se reconstruye desde cero.
+  **Tradeoff**: máxima limpieza de balance pero **pérdida de
+  textura** — el jugador siente que "su partida" se perdió.
+
+**Default sugerido**: **B**. Es la única lectura consistente con
+`vision-primigenia.md §6` "bendición de aldea con compounding al
+cambiar": compounding implica **transformación**, no copia ni
+borrado. El campo "messageHistory" se preserva como memoria
+narrativa archivada (acceso de solo lectura para la crónica
+tribal) pero no alimenta la nueva economía de fe. La gratitud se
+resetea — tribal introducirá su propia economía de Fe
+(probablemente con rival reactivado en Pilar 4).
+
+**Consume**: Sprint de apertura de Fase 7 / era tribal. **Bloquea
+planificación**: sin firma, el ingeniero no puede escribir el
+primer test de tribal sin asumir un default no autorizado.
+
+**Marca**: **B** · Comentario: firmado por el Director humano
+2026-04-21 sobre default sugerido. Reset selectivo por naturaleza
+del dato — preservar identidad y legado (NPCs vivos con traits,
+linajes, bendición de aldea, crónica archivada como memoria, fog
+revelado como conocimiento) y resetear lo volátil (gratitud a 0,
+`activeMessage` null, `messageHistory` archivada a
+`state.history.primigenia.messages`, `monument.progress` fijado
+como reliquia visible en el mapa). Queda activado el sub-bloque
+**#33.a** para que el Director detalle el mapa campo-a-campo del
+GameState antes de que el ingeniero escriba el primer test de
+tribal.
+
+**Notas editoriales del Director Creativo** (provisionales,
+revalidables por el humano):
+
+- Si firma **B**: necesito un sub-bloque #33.a listando campo a
+  campo del GameState qué va a cada categoría. Lo preparo yo y
+  te lo muestro tras la firma.
+- Si firma **A**: flag 🟠 ámbar obligatorio en
+  `VERSION-LOG-fase-7-apertura.md` advirtiendo que el balance de
+  tribal se calibra sobre state heredado, no sobre state neutro.
+- Si firma **C**: decisión derivada #33.b sobre qué hacer con la
+  crónica primigenia — ¿se pierde o se archiva como preámbulo
+  del libro tribal? Mi voto editorial: archivarla.
+
 ## Formato de decisiones futuras
 
 Cuando aparezcan nuevas preguntas de diseño primigenia se añade un
