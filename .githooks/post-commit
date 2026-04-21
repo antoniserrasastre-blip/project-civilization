@@ -1,0 +1,29 @@
+#!/bin/sh
+# Auto-push a GitHub tras cada commit en este repo.
+# Instalado 2026-04-21 a petición del Director humano: "todo lo que
+# haga en esta sesión y con este repo se va directo a github".
+#
+# Saltos intencionales:
+#   - Rebase / cherry-pick / merge en curso: evita ráfagas de push
+#     intermedios por commit. El push final manual cierra el proceso.
+#   - Fallos de push: no bloquean el commit local (se reintenta en el
+#     siguiente commit o con `git push` manual).
+
+GIT_DIR=$(git rev-parse --git-dir)
+
+if [ -d "$GIT_DIR/rebase-merge" ] || \
+   [ -d "$GIT_DIR/rebase-apply" ] || \
+   [ -f "$GIT_DIR/CHERRY_PICK_HEAD" ] || \
+   [ -f "$GIT_DIR/MERGE_HEAD" ]; then
+    exit 0
+fi
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$branch" = "HEAD" ]; then
+    # detached HEAD — sin rama donde pushear
+    exit 0
+fi
+
+echo "[post-commit] push → origin/$branch"
+git push origin "$branch" 2>&1 || echo "[post-commit] push falló; commit local intacto"
