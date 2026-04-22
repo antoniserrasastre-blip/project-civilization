@@ -21,6 +21,7 @@ import { MapView } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
 import { HUD } from '@/components/era/HUD';
 import { ChronicleFeed } from '@/components/era/ChronicleFeed';
+import { NpcSheet } from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
@@ -29,6 +30,7 @@ import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { tick as tickSim } from '@/lib/simulation';
 import { summarizeClanState } from '@/lib/clan-context';
+import { grantMiracle, type MiracleId } from '@/lib/miracles';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -46,6 +48,7 @@ export interface GameShellProps {
 export function GameShell({ seed }: GameShellProps) {
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
 
   const day = useMemo(
     () => Math.floor(state.tick / TICKS_PER_DAY) + 1,
@@ -81,6 +84,25 @@ export function GameShell({ seed }: GameShellProps) {
     setSelectorOpen(false);
   };
 
+  const selectedNpc = useMemo(
+    () =>
+      selectedNpcId
+        ? state.npcs.find((n) => n.id === selectedNpcId) ?? null
+        : null,
+    [selectedNpcId, state.npcs],
+  );
+
+  const onGrantMiracle = (miracleId: MiracleId) => {
+    if (!selectedNpcId) return;
+    setState((prev) => {
+      try {
+        return grantMiracle(prev, selectedNpcId, miracleId);
+      } catch {
+        return prev;
+      }
+    });
+  };
+
   if (state.era === 'tribal') return <TribalPlaceholder />;
 
   return (
@@ -89,7 +111,10 @@ export function GameShell({ seed }: GameShellProps) {
       data-seed={seed}
       style={{ margin: 0, padding: 0, height: '100vh', overflow: 'hidden' }}
     >
-      <MapView npcs={state.npcs} />
+      <MapView
+        npcs={state.npcs}
+        onNpcClick={(id) => setSelectedNpcId(id)}
+      />
       <HUD
         day={day}
         gratitude={state.village.gratitude}
@@ -113,6 +138,14 @@ export function GameShell({ seed }: GameShellProps) {
           clan={clanSummary}
           onChoose={onChoose}
           onClose={() => setSelectorOpen(false)}
+        />
+      )}
+      {selectedNpc && (
+        <NpcSheet
+          npc={selectedNpc}
+          village={state.village}
+          onClose={() => setSelectedNpcId(null)}
+          onGrantMiracle={onGrantMiracle}
         />
       )}
     </main>
