@@ -12,6 +12,7 @@
  */
 
 import { seedState, next, nextChoice, nextInt, type PRNGState } from './prng';
+import { pickUniqueName } from './names';
 import {
   ARCHETYPE,
   CASTA,
@@ -140,8 +141,13 @@ function archetypeBaseSkills(arch: Archetype): {
   }
 }
 
-/** Valida todas las invariantes de Bloque A y produce 4 NPCs. */
-export function finalizeBlockA(draft: DraftState): NPC[] {
+/** Valida todas las invariantes de Bloque A y produce 4 NPCs.
+ *  `excludeNames` permite al caller coordinar unicidad de nombres
+ *  entre Bloque A y Bloque B (Sprint #4 Fase 5). */
+export function finalizeBlockA(
+  draft: DraftState,
+  excludeNames: ReadonlySet<string> = new Set(),
+): NPC[] {
   if (draft.budgetRemaining < 0) {
     throw new Error(`presupuesto excedido (${-draft.budgetRemaining})`);
   }
@@ -161,6 +167,14 @@ export function finalizeBlockA(draft: DraftState): NPC[] {
 
   // Genera NPCs deterministamente a partir del seed.
   let prng: PRNGState = seedState(draft.seed);
+  const usedNames = new Set<string>(excludeNames);
+  // Cursores separados por sexo para que nombres masculinos y
+  // femeninos recorran su pool independientemente. El seed del
+  // naming deriva del seed del draft sesgado para no colisionar
+  // con el cursor de stats.
+  const nameSeed = (draft.seed ^ 0x4e41) | 0; // "NA" en ASCII
+  let nameCursorM = 0;
+  let nameCursorF = 0;
   const npcs: NPC[] = draft.slots.map((slot, i) => {
     const arch = slot.archetype as Archetype;
     const sex = slot.sex as Sex;
@@ -173,8 +187,18 @@ export function finalizeBlockA(draft: DraftState): NPC[] {
     // da estabilidad al cursor para ticks siguientes.
     const jitter = nextInt(prng, 0, 10);
     prng = jitter.next;
+    const pick = pickUniqueName(
+      nameSeed,
+      sex,
+      sex === SEX.M ? nameCursorM : nameCursorF,
+      usedNames,
+    );
+    if (sex === SEX.M) nameCursorM = pick.nextCursor;
+    else nameCursorF = pick.nextCursor;
+    usedNames.add(pick.name);
     return {
       id,
+      name: pick.name,
       sex,
       casta: CASTA.ELEGIDO,
       linaje: LINAJE.TRAMUNTANA,
@@ -339,28 +363,50 @@ export function pickFollower(
   return { ...state, picks: [...state.picks, candidate] };
 }
 
-export function finalizeBlockB(state: FollowerDraftState): NPC[] {
+export function finalizeBlockB(
+  state: FollowerDraftState,
+  excludeNames: ReadonlySet<string> = new Set(),
+): NPC[] {
   if (state.picks.length !== 10) {
     throw new Error(
       `bloque B incompleto: esperados 10 picks, hay ${state.picks.length}`,
     );
   }
+  const usedNames = new Set<string>(excludeNames);
+  // Namespace de naming distinto del Bloque A para que los dos
+  // bloques puedan correr independientes si hace falta, sin
+  // producir colisiones determinísticas idénticas entre corridas.
+  const nameSeed = (state.seed ^ 0x5242) | 0; // "RB" en ASCII
+  let nameCursorM = 0;
+  let nameCursorF = 0;
   return state.picks.map(
-    (c, i): NPC => ({
-      id: c.id,
-      sex: c.sex,
-      casta: CASTA.CIUDADANO,
-      linaje: c.linaje,
-      archetype: null,
-      stats: c.stats,
-      skills: c.skills,
-      position: { x: 0, y: 0 }, // Colocado al spawn del clan en Sprint 2.5+.
-      visionRadius: 6,
-      parents: null,
-      traits: [],
-      birthTick: 0,
-      alive: true,
-      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
-    }),
+    (c): NPC => {
+      const pick = pickUniqueName(
+        nameSeed,
+        c.sex,
+        c.sex === SEX.M ? nameCursorM : nameCursorF,
+        usedNames,
+      );
+      if (c.sex === SEX.M) nameCursorM = pick.nextCursor;
+      else nameCursorF = pick.nextCursor;
+      usedNames.add(pick.name);
+      return {
+        id: c.id,
+        name: pick.name,
+        sex: c.sex,
+        casta: CASTA.CIUDADANO,
+        linaje: c.linaje,
+        archetype: null,
+        stats: c.stats,
+        skills: c.skills,
+        position: { x: 0, y: 0 }, // Colocado al spawn del clan en Sprint 2.5+.
+        visionRadius: 6,
+        parents: null,
+        traits: [],
+        birthTick: 0,
+        alive: true,
+        inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+      };
+    },
   );
 }

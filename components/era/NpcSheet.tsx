@@ -84,7 +84,7 @@ export function NpcSheet({
           data-testid="npc-sheet-title"
           style={{ margin: 0, fontSize: '1rem' }}
         >
-          {npc.id}
+          {npc.name}
         </h2>
         <button
           type="button"

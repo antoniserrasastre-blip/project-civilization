@@ -234,7 +234,7 @@ function appendDeathsToChronicle(
       tick,
       text: narrate({
         type: 'death',
-        npcName: n.id,
+        npcName: n.name,
         cause: 'hambre',
         tick: Math.floor(tick / TICKS_PER_DAY),
       }),
