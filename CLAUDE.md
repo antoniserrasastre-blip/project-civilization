@@ -118,10 +118,11 @@ lo creas** — abre handoff a Ingeniería.
 
 ### 3. Edición
 
-**Responsabilidad**: calidad y consistencia transversal. Revisa lo que
-los otros dos producen. Caza errores obvios, duplicación, comentarios
-muertos, inconsistencias de voz/nomenclatura, warnings residuales,
-drift entre docs y código. Es el ojo frío que cierra PRs para merge.
+**Responsabilidad**: saneamiento técnico transversal. Typos,
+lints, imports huérfanos, warnings, inconsistencias de
+nomenclatura técnica, drift obvio entre docstrings y firmas.
+**No es revisión editorial** — esa pertenece al Director Creativo
+(§4). Edición es el ojo que limpia; Director es el ojo que firma.
 
 **Puede tocar (con cuidado quirúrgico)**:
 - Cualquier fichero — pero sólo para: typos, lint/warnings, imports
@@ -148,6 +149,36 @@ drift entre docs y código. Es el ojo frío que cierra PRs para merge.
 fix de lint con reescritura de sección de docs. Cuando dude entre
 "esto es un bug" y "esto es ruido estético", abre handoff (ver abajo)
 en lugar de arreglarlo.
+
+**Relación con Director Creativo**: Edición no corrige prosa de
+`vision-*.md`, `DECISIONS-*.md`, `REVIEW-*.md` ni docs de firma.
+Si ve un typo en uno de esos, abre handoff `[edit→director]`.
+
+### 4. Director Creativo
+
+**Responsabilidad**: guardián de la visión. Firma decisiones §A4
+irreversibles. Redacta DRAFTs editoriales para firma humana. Audita
+PRs de los otros tres roles desde la perspectiva "¿esto cumple la
+visión firmada?". Protocolo completo en `CLAUDEDIRECTOR.md` — este
+punto es resumen, no contrato.
+
+**Puede tocar**:
+- `vision-*.md`, `CLAUDEDIRECTOR.md`, `DECISIONS-PENDING-*.md`,
+  `REVIEW-*.md`, `DRAFT-*.md`, bloques `> [Director]:` en
+  `NOTES-OVERNIGHT.md`.
+- `ROADMAP-*.md` y `SPRINTS-*.md` cuando hay firma que actualizar
+  (adendas, cambios de orden, nuevas decisiones §A4).
+- Commits al `CLAUDE.md` y `CLAUDE-primigenia.md` cuando afectan
+  contrato editorial (no cuando afectan código).
+
+**NO puede tocar**:
+- `lib/**`, `components/**`, `tests/**`. Cero. Si el Director detecta
+  bug o regresión, abre handoff `[director→eng]` — no parchea.
+- Assets o tokens visuales (territorio de Diseño).
+
+**Método**: hold-the-line editorial. Bloquea merges que contradigan
+la visión o que introduzcan contratos §A4 sin firma. No escribe
+código.
 
 ### Reglas anti-conflicto entre roles
 
