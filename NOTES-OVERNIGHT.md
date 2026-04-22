@@ -205,3 +205,29 @@ sandbox (vía `PLAYWRIGHT_CHROMIUM_PATH` override soportado por
   pnpm exec tsc --noEmit ✅ limpio
   pnpm exec eslint .     ✅ limpio
   pnpm build             ✅ prebuild + build OK
+
+## Sprint #1 REFACTOR-SUSURRO-FE — finding al arrancar
+
+**Fecha**: 2026-04-22. Rama `claude/refactor-susurro-fe`.
+
+**Finding**: el briefing del sprint pide *"Bump `STORAGE_KEY` `.v2` →
+`.v3`"* sobre `lib/world-state.ts`, pero el repo actual **no tiene
+persistencia del `GameState`**. El único `STORAGE_KEY` vivo es
+`DISCLAIMER_STORAGE_KEY` (`lib/disclaimer.ts`). El módulo
+`lib/persistence.ts` se borró en el wipe v1.0.1 → primigenia y
+`GameShell.tsx:18` lo confirma literal (*"Sin persistencia"*).
+
+**Decisión operativa**: el bump de storage es **no-op en este
+sprint** — no hay saves viejos que invalidar. Se omite del scope.
+Deuda documental stale (2 referencias) queda pendiente de limpiar
+en polish pass:
+
+- `lib/world-gen.ts:38` — comentario referencia `lib/persistence.ts`.
+- `scripts/compile-world.ts:13` — comentario referencia `STORAGE_KEY`.
+
+Cuando vuelva a haber persistencia del GameState (Fase 7 o cuando
+el Director lo pida), `village.faith` y
+`village.silenceGraceDaysRemaining` serán los primeros campos que
+fuercen el primer bump real post-wipe.
+
+No requiere firma — es hecho descubierto, no decisión §A4 nueva.
