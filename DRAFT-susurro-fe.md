@@ -14,10 +14,15 @@ base: vision-primigenia.md (commit 064f4ca)
 Corrige lo que no cuadre antes de firmar:
 
 - **Fórmula de Fe**: `Fe/día = sqrt(seguidores vivos)`.
-- **Coste de cambio de susurro**: `80 Fe`.
-- **Cap de Fe**: `160` (2× coste, anti-banking).
+- **Coste de cambiar a susurro activo**: `80 Fe`.
+- **Coste de silenciar deliberadamente**: `40 Fe` (mitad — es pausa
+  táctica / emergency-stop, no pivote estratégico).
+- **Cap de Fe**: `160` (2× coste de cambio, anti-banking).
+- **Fe inicial**: `30` (colchón de arranque; no alcanza para cambiar
+  de susurro, pero sí acorta el primer cambio a ~13 días).
 - **Primer susurro**: gratis (un "estrenar la voz" sin coste).
-- **Estado inicial**: Silencio con **gracia de 3 días** sin penalización.
+- **Estado inicial**: Silencio con **gracia de 7 días** (una semana
+  in-game) sin penalización.
 - **Gratitud bajo susurro persistente**: emerge diariamente *solo*
   cuando el susurro activo beneficia a NPCs reales ese día.
 
@@ -44,12 +49,12 @@ lecturas más relevantes de la jornada.
 susurro explícito del jugador es **gratuito** — no consume Fe. Se
 concede como "estrenar la voz".
 
-**Gracia inicial del Silencio**: durante los **primeros 3 días** sin
-haber susurrado, el Silencio no penaliza — el clan está en bivouac,
-orientándose. A partir del cuarto día sin susurro elegido, el Silencio
-activa sus efectos: gratitud pasiva disminuye, probabilidad de semilla
-de herejía aumenta (semántica del §3.7 original aplicada al acumulado
-de días sin voz, no al día concreto).
+**Gracia inicial del Silencio**: durante los **primeros 7 días** (una
+semana in-game) sin haber susurrado, el Silencio no penaliza — el clan
+está en bivouac, orientándose. A partir del octavo día sin susurro
+elegido, el Silencio activa sus efectos: gratitud pasiva disminuye,
+probabilidad de semilla de herejía aumenta (semántica del §3.7 original
+aplicada al acumulado de días sin voz, no al día concreto).
 
 **Volver a Silencio explícitamente** (tras haber susurrado algo) es
 una elección que **cuesta Fe como cualquier otro cambio** (§3.7b).
@@ -87,15 +92,18 @@ Fe/día = sqrt(seguidores vivos)
 Seguidores vivos = NPCs con `alive === true`. Elegidos y Ciudadanos
 cuentan igual.
 
-Ritmo derivado (con coste 80):
+Ritmo sostenido (desde Fe=0 tras gastar, sin contar Fe inicial):
 
-| Seguidores vivos | Fe/día | Días por cambio |
-|-|-|-|
-| 5 | 2.24 | ~36 (~5 semanas, punitivo, clan en crisis) |
-| 14 (arranque) | 3.74 | ~21 (≈ 3 semanas) |
-| 20 | 4.47 | ~18 |
-| 50 | 7.07 | ~11 |
-| 100 | 10 | 8 |
+| Seguidores vivos | Fe/día | Días a 80 (cambio) | Días a 40 (silencio) |
+|-|-|-|-|
+| 5 | 2.24 | ~36 (punitivo) | ~18 |
+| 14 (arranque) | 3.74 | ~21 (≈ 3 semanas) | ~11 |
+| 20 | 4.47 | ~18 | ~9 |
+| 50 | 7.07 | ~11 | ~6 |
+| 100 | 10 | 8 | 4 |
+
+**Primer cambio tras arranque** (con Fe=30 inicial): `(80 − 30) / Fe_día`.
+A 14 vivos → ~13 días (casi 2 semanas). A 50 vivos → ~7 días.
 
 Curva intencional: clan pequeño se compromete; clan grande se ha
 ganado flexibilidad. El crecimiento demográfico le da más voz al
@@ -103,8 +111,19 @@ dios, literalmente.
 
 ### Coste y cap
 
-- **Coste de cambio**: `80 Fe` fijo (no escala con nº de cambios previos).
-- **Cap de acumulación**: `160 Fe` (exactamente 2× coste).
+- **Coste de cambiar a susurro activo** (Auxilio ↔ Coraje ↔ Paciencia
+  ↔ …): `80 Fe` fijo, no escala con cambios previos.
+- **Coste de silenciar deliberadamente** (susurro activo → Silencio
+  elegido): `40 Fe`. La asimetría refleja función: silenciar es
+  **emergency-stop** o pausa táctica, no pivote. Útil cuando tu susurro
+  actual hace daño y no tienes 80 para pivotar directamente a otro.
+  Nota: silenciar y luego volver a hablar (40 + 80 = 120 Fe) sigue
+  siendo más caro que un cambio directo (80 Fe), así que no se puede
+  explotar como atajo.
+- **Cap de acumulación**: `160 Fe` (2× coste de cambio).
+- **Fe inicial**: el clan nace con **`Fe = 30`** — colchón de arranque
+  que evita el "HUD seco" pero no alcanza para un cambio (ni para
+  silencio). Con 14 vivos, acorta el primer cambio de 21 a ~13 días.
 
 Cap anti-banking: el jugador no puede almacenar diez cambios pendientes
 para soltarlos en una crisis. Excedente sobre el cap se pierde —
@@ -115,10 +134,12 @@ incentivo suave a gastar cuando estás lleno.
 Punto fino — el Silencio puede estar activo por dos vías:
 
 1. **Silencio por default** (desde nacimiento del clan, antes del
-   primer susurro): sin penalización durante gracia de 3 días, luego
-   empieza a drenar.
-2. **Silencio elegido** (jugador paga 80 Fe para silenciar tras
-   haber susurrado): activa efectos inmediatamente, sin gracia.
+   primer susurro): sin penalización durante gracia de **7 días**,
+   luego empieza a drenar.
+2. **Silencio elegido** (jugador paga **40 Fe** para silenciar tras
+   haber susurrado): activa efectos inmediatamente, sin gracia. Coste
+   reducido respecto al cambio (80) porque funciona como emergency-stop,
+   no como pivote.
 
 Preserva la semántica del §3.7 original (silenciar *deliberadamente*
 tiene consecuencias) sin imponerla sobre el arranque natural.
@@ -196,31 +217,46 @@ Tracks independientes que siguen en paralelo sin esperar a éste:
 
 ## Preguntas abiertas (vaciar antes de firma)
 
-Respóndelas y yo las integro al commit final:
+### Respondidas por el humano (2026-04-22)
 
-1. **Estado inicial exacto**: ¿empiezas con Fe=0 o con pool inicial
-   (p.ej. Fe=40 = medio cambio) para suavizar? *Mi default: Fe=0,
-   el primer susurro gratis basta como onboarding.*
+1. ✅ **Fe inicial = 30** (colchón suave, se desmarca del default Fe=0).
+4. ✅ **Silencio elegido = 40 Fe** (se desmarca del default 80 Fe —
+   silenciar es pausa táctica, no pivote).
 
-2. **¿El cap de 160 también gatea la gracia inicial?** Es decir:
-   durante los 3 días de gracia sin susurrar, ¿Fe acumula normalmente
-   aunque el jugador no haya hablado? *Mi default: sí, Fe acumula
-   desde Día 1 — no bloquear por no-interacción.*
+Ajuste adicional fuera de la lista original:
+- ✅ **Gracia del Silencio = 7 días** (antes 3). Alinea con la
+  sensación pedida de *"al principio solo observas"*.
 
-3. **¿Eventos narrativos que regeneren Fe excepcionalmente?** Muerte
-   de un Elegido, nacimiento importante, completar monumento. *Mi
-   default: no, Fe solo por generación pasiva. Simple y legible. Si
-   quieres picos, abrimos como mecánica post-primigenia.*
+### Abiertas (defaults asumidos salvo que marques otro)
 
-4. **¿Silencio elegido cuesta 80 Fe igual que los demás susurros, o
-   es gratis "dejar de hablar"?** *Mi default: cuesta 80 Fe.
-   Silenciar deliberadamente es acto con peso.*
+2. **¿El cap de 160 también gatea la gracia inicial?** ¿Fe acumula
+   durante los 7 días de gracia sin susurrar? *Default: sí, acumula
+   desde Día 1 — no bloquear por no-interacción. Combinado con Fe
+   inicial=30 y 14 vivos, al final de la semana de gracia tendrías
+   ~56 Fe. No alcanza para cambiar (80), cerca de alcanzar silencio
+   elegido (40) — coherente con la función de orientación.*
 
-5. **Feedback visual de Fe**: ¿barra en HUD, número puro, icono
-   pulsante al llegar al coste? *Mi default: número + barra con marca
-   en 80. Pero esto es territorio de Claude Design realmente — lo
-   delegamos al handoff de diseño.*
+3. **¿Eventos narrativos que regeneren Fe excepcionalmente?**
+   Nacimiento de niño, completar estructura, muerte de rival. *Default:
+   no, Fe solo por generación pasiva. Simple y legible. Si quieres
+   picos, abrimos como mecánica post-primigenia.*
 
-Responde las cinco (o confirma que los defaults valen) y redacto el
-commit que aplica el merge a `vision-primigenia.md`.
+5. **Feedback visual de Fe**: barra en HUD, número puro, icono
+   pulsante al llegar al coste. *Default: número + barra con marca
+   en 80 (coste cambio) y 40 (coste silencio). Pero esto es territorio
+   de Claude Design — lo delegamos al handoff de diseño.*
+
+### Además se merge al mismo commit
+
+- La **narrativa del humano sobre "cómo se siente jugar"** entra como
+  `vision-primigenia.md §4.0 — Cómo se siente jugar`, antes del
+  desglose por minuto existente del §4. Texto del humano con mínima
+  edición editorial.
+
+Confirma defaults de Q2/Q3/Q5 (o marca cambios) y redacto el commit
+que:
+1. Funde este draft a `vision-primigenia.md §3.7' / §3.7b / §3.8`.
+2. Añade `§4.0` con la narrativa del humano.
+3. Archiva `DRAFT-susurro-fe.md` (queda en historial git, ya no en
+   el árbol).
 
