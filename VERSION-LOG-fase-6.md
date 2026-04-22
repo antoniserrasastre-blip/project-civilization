@@ -236,3 +236,23 @@ pero sí firma editorial):
 
 Hecho eso, este log pasa de **borrador** a **firmado** y Fase 7
 (diferida: migrantes + rival) queda habilitada para planificación.
+
+## Triado de flags — 2026-04-22 (Director Creativo)
+
+> Barrido editorial de los 6 flags 🚩 de arriba. Uno ya está **cerrado
+> por firma** del Director humano; el resto mantiene su carácter de
+> deuda hasta el playtest o hasta que Playwright se desbloquee.
+
+| # | Flag | Estado | Próxima acción / cierre |
+|-|-|-|-|
+| 1 | 🟠 Ruina irreversible por caída puntual a < 3 vivos | 🕐 vivo | Revalidar en playtest humano. Si se percibe arbitrario, introducir buffer de 24 ticks antes de declarar `phase='ruin'` (opción a del flag original) o reforzar el signaling UI ("quedan 2 vivos — el monumento no sobrevive", opción b). Decisión de diseño menor — no bloquea nada. |
+| 2 | 🟠 Fase 'building' sin UI de progreso confirmada | 🕐 vivo | Se resuelve naturalmente con el trabajo de HUD que acompañe al Sprint **#2 LEGIBILIDAD-MVP** o en un sprint posterior de `<MonumentProgressBar />` dedicado. Requiere `data-testid="monument-progress"` y cobertura E2E cuando Playwright esté operativo. |
+| 3 | 🟡 4 bendiciones sin signaling del compounding tribal | 🕐 vivo | Deuda UI pequeña: tooltip *"en la era tribal esta bendición se convertirá en X"* sobre las 4 opciones. Cabe en el mismo sprint de HUD de #2, o en un `BLESSING-TOOLTIPS` independiente. Refuerza Pilar 5. |
+| 4 | 🟠 Transición preserva todo el state sin limpiar | ✅ cerrado | **Decisión #33 firmada por el Director humano 2026-04-21**: reset selectivo por naturaleza del dato (opción B). Queda pendiente el sub-bloque **#33.a** (mapa campo a campo del GameState) antes de que el ingeniero escriba el primer test de tribal — **no bloquea primigenia**, solo el arranque de Fase 7. |
+| 5 | 🟠 Cero E2E del loop de cierre | 🕐 vivo | Bloqueado por sandbox (sin red a CDN de Playwright). Tres specs pendientes cuando el Director humano tenga entorno con red: selector de bendición, cinemática de transición, `TribalPlaceholder`. **Antes de abrir Fase 7**, estos 3 E2E deben correr en verde. |
+| 6 | ⚠️ `payBuildCost` ordena por id string | 🕐 vivo (rebajado a ⚠️) | Funcionalmente irrelevante (mismos recursos salen del clan). Solo importa si una futura UI expone *"¿quién donó al monumento?"*. Se rebaja a ⚠️ aviso informativo. Si la UI lo expone, recablear a *proporcional al inventario* o *por linaje*. |
+
+**Resumen**: 1 cerrado por firma del humano (#33), 4 vivos en deuda
+razonable, 1 rebajado a ⚠️. Ninguno bloquea el Sprint #1.
+El flag #5 (E2E del loop) sí bloquea el **cierre editorial de
+primigenia** (criterio 3 del `ROADMAP-primigenia.md`).

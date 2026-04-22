@@ -183,3 +183,22 @@ está editorialmente cerrada** hasta que:
    aceptado como deuda consciente documentada.
 
 Con eso, este log pasa de **borrador** a **firmado**.
+
+## Triado de flags — 2026-04-22 (Director Creativo)
+
+> Barrido editorial de los 6 flags 🚩 de arriba. Tres de ellos ya
+> tienen sprint programado en `SPRINTS-primigenia.md` o están siendo
+> superseded por la firma #30-32 + §3.7b.
+
+| # | Flag | Estado | Próxima acción / cierre |
+|-|-|-|-|
+| 1 | 🟠 Velocidad de acumulación de gratitud sospechosa | 🔧 programado | Sprint **#1 REFACTOR-SUSURRO-FE** incluye el sub-ajuste obligatorio: bajar `GRATITUDE_RATES.perThrivingNpcWithMessage` de `1` a ~`0.25` con test extendido en `tests/unit/gratitude.test.ts`. Número final calibrado en Sprint **#1.5 PLAYTEST-SUSURRO**. |
+| 2 | 🟡 Cap de 3 rasgos sin signaling al jugador | 🔧 programado | Se atiende en Sprint **#3 FICHA-AVENTURERO**: el botón de milagro se habilita/deshabilita con `canGrantMiracle(npc, village)` y la ficha mostrará warning si sobrescribirá rasgo antiguo. |
+| 3 | 🟡 6 intenciones pueden leerse como "todas iguales" | 🔧 programado | Sprint **#2 LEGIBILIDAD-MVP** (tooltips por intención con texto §3.7 + `ClanContext` + `ChronicleFeed`). Cierre cuando el playtest responda *"¿por qué elegí Coraje?"* sin abrir la visión. |
+| 4 | 🟠 `elegidoDeathPenalty = 20` puede sentirse suave | 🕐 vivo | Revalidar en playtest tras la primera muerte de Elegido. Si el jugador no se siente castigado, subir a `50` en commit de balance puntual. |
+| 5 | 🟠 Interacción gratitud + silencio no testeada end-to-end | ✅ superseded | La firma **#30-32** (pivot manga) + **§3.7b** (Fe como moneda, silencio elegido NO drena) reconfiguran la mecánica del silencio. Sprint **#1 REFACTOR-SUSURRO-FE** reescribe el test end-to-end distinguiendo silencio-por-default vs silencio-elegido. Flag histórico cerrado por la reescritura; el nuevo test cubre la mecánica correcta. |
+| 6 | 🟠 Sin E2E del modal | 🕐 vivo | Sprint **#1** sustituye el modal forzado por selector en HUD; el E2E objetivo pasa a ser `tests/e2e/susurro.spec.ts`. Cierre cuando el entorno con red ejecute Playwright. No bloquea Sprint #1.5 (ese gate es de playtest humano). |
+
+**Resumen**: 1 superseded por firma, 3 programados (en Sprints #1,
+#2, #3), 2 vivos (balance de muerte + E2E). Ninguno bloquea el
+arranque del Sprint #1.
