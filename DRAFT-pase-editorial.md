@@ -91,7 +91,7 @@ Ajuste menor para reflejar que Silencio es un estado (no una elección diaria pu
 > - Primer conflicto social: un Ciudadano de skill baja empieza a no producir; su socialización baja; los demás cuchichean. El jugador tiene dos opciones: pedir **Paciencia** en el mensaje del día, o — si ya tiene 60 puntos de gratitud — gastar un **milagro de Manos que recuerdan** para que ese Ciudadano se vuelva útil.
 
 **Después**:
-> - Primer conflicto social: un Ciudadano de skill baja empieza a no producir; su socialización baja; los demás cuchichean. El jugador tiene dos opciones: si ha acumulado **80 Fe** y el susurro activo no era Paciencia, pagar el cambio a **Paciencia** (§3.7b); si tiene **60 puntos de gratitud** y prefiere una solución directa sobre ese Ciudadano concreto, gastar un **milagro de Manos que recuerdan** (§3.8). Dos monedas, dos verbos — cambiar susurro empuja al clan entero, el milagro interviene sobre un individuo.
+> - Primer conflicto social: un Ciudadano de skill baja empieza a no producir; su socialización baja; los demás cuchichean. El jugador tiene dos opciones: cambiar el susurro activo a **Paciencia** si tiene **80 Fe**, o — si tiene **60 puntos de gratitud** y prefiere una solución directa sobre ese Ciudadano concreto — gastar un **milagro de Manos que recuerdan** (§3.8). Dos monedas, dos verbos — cambiar susurro empuja al clan entero, el milagro interviene sobre un individuo.
 
 **Razón**: la versión antigua mezcla "pedir en el mensaje del día" (gratis) con "milagro" (60 gratitud). La nueva hace explícita la dualidad monetaria y el contraste de alcance (clan entero vs NPC concreto) — que es uno de los puntos fuertes del diseño nuevo.
 
@@ -127,7 +127,7 @@ Verbo del jugador implementado completo:
 **Después**:
 
 ```
-### Fase 5 — Susurro persistente, Fe, gratitud y milagros
+### Fase 5 — Susurro, Fe y gratitud
 
 Verbo del jugador implementado completo:
 - Botón **Hablar al clan** siempre disponible en el HUD; selector
