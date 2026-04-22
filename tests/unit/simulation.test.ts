@@ -120,6 +120,90 @@ describe('tick — movimiento hacia comida', () => {
   });
 });
 
+describe('tick — Fe diaria y gracia (§3.7b)', () => {
+  const TICKS_PER_DAY = 24;
+
+  function makeClanGameState(aliveNpcs: number) {
+    const world = mkFlatWorld();
+    // Agua continua para mantenerlos vivos durante los tests.
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 10,
+      y: 10,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npcs: NPC[] = [];
+    for (let i = 0; i < aliveNpcs; i++) {
+      npcs.push(
+        makeTestNPC({
+          id: `n-${i}`,
+          position: { x: 10, y: 10 },
+          stats: { supervivencia: 90, socializacion: 90 },
+        }),
+      );
+    }
+    return initialGameState(7, npcs, world);
+  }
+
+  it('tras 24 ticks, faith ≈ faith_inicial + sqrt(vivos)', () => {
+    let s = makeClanGameState(14);
+    const initialFaith = s.village.faith;
+    for (let i = 0; i < TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.faith).toBeCloseTo(initialFaith + Math.sqrt(14), 3);
+  });
+
+  it('grace baja 1 al amanecer', () => {
+    let s = makeClanGameState(14);
+    expect(s.village.silenceGraceDaysRemaining).toBe(7);
+    for (let i = 0; i < TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.silenceGraceDaysRemaining).toBe(6);
+  });
+
+  it('tras 7 días, gracia agotada (0)', () => {
+    let s = makeClanGameState(14);
+    for (let i = 0; i < 7 * TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.silenceGraceDaysRemaining).toBe(0);
+  });
+
+  it('tras 8 días sin susurro, gracia sigue en 0 y messageHistory vacío', () => {
+    let s = makeClanGameState(14);
+    for (let i = 0; i < 8 * TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.silenceGraceDaysRemaining).toBe(0);
+    expect(s.village.messageHistory).toEqual([]);
+    expect(s.village.activeMessage).toBeNull();
+  });
+
+  it('faith se satura en FAITH_CAP (160)', () => {
+    let s = makeClanGameState(14);
+    // Ejecutamos ~50 días — más que suficiente para saturar con
+    // sqrt(14) ≈ 3.74/día desde 30.
+    for (let i = 0; i < 50 * TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.faith).toBeLessThanOrEqual(160);
+    expect(s.village.faith).toBeGreaterThan(30);
+  });
+
+  it('sin vivos, faith no acumula', () => {
+    let s = makeClanGameState(1);
+    // Matamos al único NPC antes de avanzar.
+    s = { ...s, npcs: s.npcs.map((n) => ({ ...n, alive: false })) };
+    const initialFaith = s.village.faith;
+    for (let i = 0; i < TICKS_PER_DAY; i++) s = tick(s);
+    expect(s.village.faith).toBe(initialFaith);
+  });
+
+  it('tick intermedio no toca faith ni grace', () => {
+    let s = makeClanGameState(14);
+    const initialFaith = s.village.faith;
+    const initialGrace = s.village.silenceGraceDaysRemaining;
+    s = tick(s);
+    expect(s.village.faith).toBe(initialFaith);
+    expect(s.village.silenceGraceDaysRemaining).toBe(initialGrace);
+  });
+});
+
 describe('tick — fog', () => {
   it('posición del NPC y alrededores quedan descubiertos', () => {
     const npc = makeTestNPC({

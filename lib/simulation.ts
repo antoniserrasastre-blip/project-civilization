@@ -23,6 +23,8 @@ import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
+import { accumulateFaithDaily, tickSilenceGraceDay } from './faith';
+import { isDawn } from './messages';
 import { firstStructureOfKind } from './structures';
 import {
   canBuild,
@@ -149,7 +151,7 @@ export function tick(state: GameState): GameState {
     prng,
   });
 
-  const nextVillage = isNightCheckTick(afterBuild.tick)
+  let nextVillage = isNightCheckTick(afterBuild.tick)
     ? {
         ...state.village,
         consecutiveNightsAtFire: evaluateNight(
@@ -163,6 +165,15 @@ export function tick(state: GameState): GameState {
   // §3.7 Sprint #1: el susurro persiste entre ticks; no se archiva
   // por paso del tiempo. El archivado sucede en selectIntent cuando
   // el jugador cambia explícitamente (lib/messages.ts).
+
+  // §3.7b Sprint #1: al cruzar un amanecer (tick > 0 múltiplo de
+  // TICKS_PER_DAY) acumulamos Fe según vivos y descontamos un día
+  // de gracia de silencio.
+  if (afterBuild.tick > 0 && isDawn(afterBuild.tick)) {
+    const aliveCount = afterBuild.npcs.filter((n) => n.alive).length;
+    nextVillage = accumulateFaithDaily(nextVillage, aliveCount);
+    nextVillage = tickSilenceGraceDay(nextVillage);
+  }
 
   return {
     ...afterBuild,

@@ -32,6 +32,21 @@ describe('Constantes', () => {
   it('threshold supervivencia 50', () => {
     expect(GRATITUDE_RATES.thrivingThreshold).toBe(50);
   });
+
+  it('perThrivingNpcWithMessage = 0.25 (ajuste Sprint #1 post-playtest)', () => {
+    expect(GRATITUDE_RATES.perThrivingNpcWithMessage).toBe(0.25);
+  });
+
+  it('ritmo jugable: 10 NPCs thriving × 24 ticks × rate < CEILING en 1 día', () => {
+    // Con 10 NPCs thriving y mensaje activo:
+    //   delta/día = 10 × 24 × 0.25 = 60.
+    // Llegar al CEILING (200) requiere ~3.3 días — tiempo
+    // suficiente para que la decisión del milagro pese.
+    const dailyDelta = 10 * 24 * GRATITUDE_RATES.perThrivingNpcWithMessage;
+    expect(dailyDelta).toBe(60);
+    expect(dailyDelta).toBeLessThan(GRATITUDE_CEILING);
+    expect(GRATITUDE_CEILING / dailyDelta).toBeGreaterThan(3);
+  });
 });
 
 describe('computeGratitudeTickDelta — con y sin mensaje', () => {

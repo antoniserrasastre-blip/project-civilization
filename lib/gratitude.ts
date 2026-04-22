@@ -13,15 +13,26 @@ import type { VillageState } from './village';
 
 export const GRATITUDE_CEILING = 200;
 
-/** Constantes de balance (decisión #31, revalidar en playtest
- *  Fase 5). */
+/** Constantes de balance (decisión #31, revalidado Sprint #1 tras
+ *  flag 🚩 del VERSION-LOG Fase 5: rate 1 → 0.25 para evitar que el
+ *  pool sature en < 1 día con 10 NPCs thriving). */
 export const GRATITUDE_RATES = {
   /** Incremento por tick por cada NPC con supervivencia ≥ 50 y
-   *  mensaje activo (no SILENCE). Modela "mi mensaje encaja". */
-  perThrivingNpcWithMessage: 1,
+   *  mensaje activo (no SILENCE). Fraccional por diseño: con 10
+   *  NPCs thriving, 24 ticks/día × 0.25 = 60 gratitud/día →
+   *  CEILING (200) en ~3.3 días de juego. Los milagros baratos
+   *  (30) siguen alcanzables en <1 día. */
+  perThrivingNpcWithMessage: 0.25,
   /** Penalty por Elegido muerto (aplicado una vez cuando muere). */
   elegidoDeathPenalty: 20,
-  /** Drenaje por día de silencio acumulado. */
+  /** Drenaje por día de silencio acumulado — §3.8 nota "pérdida
+   *  parcial al silenciar días seguidos". Sprint #1 aclaratoria
+   *  (firma Director Creativo 2026-04-22): aplica SOLO a silencio
+   *  elegido deliberadamente (activeMessage === SILENCE) tras
+   *  agotar `silenceGraceDaysRemaining`. Silencio por default
+   *  (activeMessage === null) NO drena — eso es observar, no
+   *  desairar. Cableo pendiente — la constante existe como gancho
+   *  hasta que un sprint posterior la conecte al tick. */
   silenceDailyDrain: 2,
   /** Umbral de supervivencia que califica a un NPC como "vivo
    *  bien" — contribuye a gratitud si hay mensaje. */
