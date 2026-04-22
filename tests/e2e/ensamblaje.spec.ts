@@ -1,17 +1,14 @@
 /**
  * E2E del ensamblaje — juego jugable extremo a extremo.
  *
- * ESTADO: ready-for-future. No se ejecuta en el sandbox actual
- * (chromium no descargable — ver NOTES-OVERNIGHT.md § Bloqueo
- * Sprint 1.5 E2E). Entra automáticamente al gate cuando
- * `pnpm exec playwright install chromium` tenga red.
+ * Flujo cubierto: carga → `daily-modal` visible → HUD "Día 1" →
+ * elegir `daily-option-coraje` → día avanza a 2 → modal reabre →
+ * repetir con `daily-option-paciencia` → día 3.
  *
- * Cobertura esperada (criterio de cierre Sprint ENSAMBLAJE-UI):
- *   1. Carga → modal diario visible (`daily-modal`).
- *   2. HUD muestra "Día 1" al arrancar.
- *   3. Elegir intención (`daily-option-coraje`) cierra el modal.
- *   4. Tras auto-avanzar el día, HUD indica "Día 2" y el modal
- *      reaparece con las 7 opciones.
+ * Corre en el gate cuando playwright tiene chromium (instalación
+ * normal o override `PLAYWRIGHT_CHROMIUM_PATH`). Si no hay chromium
+ * accesible, playwright falla en el bootstrap del browser — no es
+ * un skip: quien ejecute el gate debe arrancarlo con chromium.
  */
 
 import { test, expect } from '@playwright/test';
