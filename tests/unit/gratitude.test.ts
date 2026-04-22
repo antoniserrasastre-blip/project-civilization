@@ -38,7 +38,7 @@ describe('computeGratitudeTickDelta — con y sin mensaje', () => {
   it('mensaje activo → delta positivo proporcional a NPCs thriving', () => {
     const clan = thrivingClan(10);
     const d = computeGratitudeTickDelta(clan, MESSAGE_INTENTS.CORAJE);
-    expect(d).toBe(10 * GRATITUDE_RATES.perThrivingNpcWithMessage);
+    expect(d).toBeCloseTo(10 * GRATITUDE_RATES.perThrivingNpcWithMessage, 5);
   });
 
   it('SILENCE → delta 0', () => {
@@ -72,9 +72,104 @@ describe('computeGratitudeTickDelta — con y sin mensaje', () => {
         stats: { supervivencia: 90, socializacion: 50 },
       }),
     ];
-    expect(computeGratitudeTickDelta(npcs, MESSAGE_INTENTS.CORAJE)).toBe(
+    expect(computeGratitudeTickDelta(npcs, MESSAGE_INTENTS.CORAJE)).toBeCloseTo(
       5 * GRATITUDE_RATES.perThrivingNpcWithMessage,
+      5,
     );
+  });
+});
+
+describe('Rate ajustado — Sprint Fase 5 #1 (sub-ajuste obligatorio)', () => {
+  // El rate previo (1) saturaba el cap (200) en < 1 día con 10
+  // NPCs thriving. El target jugable es: primer milagro barato
+  // (~30) alcanzable en 2-3 días de susurro alineado.
+  it('perThrivingNpcWithMessage es bajo (< 0.5) para no saturar rápido', () => {
+    expect(GRATITUDE_RATES.perThrivingNpcWithMessage).toBeLessThan(0.5);
+    expect(GRATITUDE_RATES.perThrivingNpcWithMessage).toBeGreaterThan(0);
+  });
+
+  it('10 NPCs thriving × 1 día (24 ticks) no satura el cap 200', () => {
+    const clan = thrivingClan(10);
+    const perTick = computeGratitudeTickDelta(
+      clan,
+      MESSAGE_INTENTS.CORAJE,
+    );
+    const perDay = perTick * 24;
+    expect(perDay).toBeLessThan(GRATITUDE_CEILING);
+  });
+
+  it('cap (200) requiere ≥ 3 días con 10 NPCs thriving — no instantáneo', () => {
+    const clan = thrivingClan(10);
+    const perTick = computeGratitudeTickDelta(
+      clan,
+      MESSAGE_INTENTS.CORAJE,
+    );
+    const perDay = perTick * 24;
+    const daysToCap = GRATITUDE_CEILING / perDay;
+    expect(daysToCap).toBeGreaterThanOrEqual(3);
+  });
+
+  it('primer milagro (~30) reachable sin ser grind con 14 NPCs thriving', () => {
+    const clan = thrivingClan(14);
+    const perTick = computeGratitudeTickDelta(
+      clan,
+      MESSAGE_INTENTS.CORAJE,
+    );
+    const perDay = perTick * 24;
+    const daysTo30 = 30 / perDay;
+    // Rango amplio: el playtest calibra el número exacto; aquí el
+    // contrato es "ni < 1 tick (trivial) ni > 7 días (grind)".
+    expect(daysTo30).toBeGreaterThan(0);
+    expect(daysTo30).toBeLessThanOrEqual(7);
+  });
+});
+
+describe('Drain del silencio — distinción elegido vs default (§3.7b)', () => {
+  it('silencio por default tras 7 días de gracia: drain aplica', async () => {
+    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+    // Village con activeMessage null (default), history vacío,
+    // gracia agotada.
+    const v = {
+      ...initialVillageState(),
+      activeMessage: null,
+      messageHistory: [],
+      silenceGraceDaysRemaining: 0,
+    };
+    expect(computeSilenceDrainPerDay(v)).toBe(
+      GRATITUDE_RATES.silenceDailyDrain,
+    );
+  });
+
+  it('silencio por default dentro de gracia: drain NO aplica', async () => {
+    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+    const v = {
+      ...initialVillageState(),
+      activeMessage: null,
+      messageHistory: [],
+      silenceGraceDaysRemaining: 3,
+    };
+    expect(computeSilenceDrainPerDay(v)).toBe(0);
+  });
+
+  it('silencio elegido (SILENCE): drain NO aplica (pagó 40 Fe)', async () => {
+    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+    const v = {
+      ...initialVillageState(),
+      activeMessage: SILENCE,
+      messageHistory: [{ day: 0, intent: MESSAGE_INTENTS.CORAJE }],
+      silenceGraceDaysRemaining: 0,
+    };
+    expect(computeSilenceDrainPerDay(v)).toBe(0);
+  });
+
+  it('susurro activo (no silencio): drain NO aplica', async () => {
+    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+    const v = {
+      ...initialVillageState(),
+      activeMessage: MESSAGE_INTENTS.CORAJE,
+      silenceGraceDaysRemaining: 0,
+    };
+    expect(computeSilenceDrainPerDay(v)).toBe(0);
   });
 });
 

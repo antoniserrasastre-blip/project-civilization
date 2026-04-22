@@ -3,45 +3,35 @@
 /**
  * GameShell — shell React que mantiene el GameState vivo.
  *
- * Recibe el seed resuelto desde la página (server component lee
- * `searchParams.seed`). Bootea el clan determinista de una vez en
- * el useState inicial y corre el loop diario:
- *
- *   1. Amanecer (tick % TICKS_PER_DAY === 0 && activeMessage null)
- *      → `awaitsMessage` → modal visible.
- *   2. Jugador elige intención → `selectIntent` setea activeMessage.
- *   3. Se corren 24 ticks (1 día). El 24º cruza el siguiente
- *      amanecer y `archiveAtDawn` mete la intención en el
- *      messageHistory y resetea activeMessage a null.
- *   4. Modal reaparece automáticamente en el siguiente dawn.
- *
- * Sin autoplay — el jugador controla el ritmo. Sin persistencia,
- * atajos, sonido, animaciones: eso es polish posterior.
+ * Sprint Fase 5 #1: sustituye el pulso diario forzoso por el susurro
+ * persistente (§3.7). El tick ahora corre **automáticamente** (un
+ * tick cada `TICK_INTERVAL_MS` reales) y el jugador decide cuándo
+ * abrir el selector de susurro desde el HUD. El susurro activo
+ * persiste entre ticks; sólo se archiva al cambiar.
  *
  * §A4 intacto — ninguna aleatoriedad sale del PRNG seedable; el
  * tick() sigue siendo puro y el state se pasa inmutable a React.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { MapView } from '@/components/map/MapView';
-import { DailyModal } from '@/components/era/DailyModal';
+import { WhisperSelector } from '@/components/era/WhisperSelector';
 import { HUD } from '@/components/era/HUD';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
 import { makeDefaultClan } from '@/lib/default-clan';
-import { awaitsMessage, selectIntent, type MessageChoice } from '@/lib/messages';
+import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { tick as tickSim } from '@/lib/simulation';
 
+/** Milisegundos reales entre ticks simulados. A 250ms un día
+ *  in-game (24 ticks) dura ~6s reales — suficientemente lento
+ *  para observar y rápido para no aburrir en playtest. */
+const TICK_INTERVAL_MS = 250;
+
 function bootstrap(seed: number): GameState {
   return initialGameState(seed, makeDefaultClan(seed));
-}
-
-function runTicks(state: GameState, count: number): GameState {
-  let s = state;
-  for (let i = 0; i < count; i++) s = tickSim(s);
-  return s;
 }
 
 export interface GameShellProps {
@@ -50,28 +40,39 @@ export interface GameShellProps {
 
 export function GameShell({ seed }: GameShellProps) {
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
+  const [selectorOpen, setSelectorOpen] = useState(false);
 
   const day = useMemo(
     () => Math.floor(state.tick / TICKS_PER_DAY) + 1,
     [state.tick],
-  );
-  const showModal = useMemo(
-    () => awaitsMessage(state.village, state.tick),
-    [state.village, state.tick],
   );
   const aliveCount = useMemo(
     () => state.npcs.filter((n) => n.alive).length,
     [state.npcs],
   );
 
+  // Tick automático — el mundo corre solo, el jugador sólo susurra.
+  useEffect(() => {
+    if (state.era !== 'primigenia') return;
+    const id = setInterval(() => {
+      setState((prev) =>
+        prev.era === 'primigenia' ? tickSim(prev) : prev,
+      );
+    }, TICK_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [state.era]);
+
   const onChoose = (choice: MessageChoice) => {
     setState((prev) => {
-      const withChoice: GameState = {
-        ...prev,
-        village: selectIntent(prev.village, choice),
-      };
-      return runTicks(withChoice, TICKS_PER_DAY);
+      try {
+        return { ...prev, village: applyPlayerIntent(prev.village, choice, prev.tick) };
+      } catch {
+        // Fe insuficiente: no cambia el state; el selector marca
+        // el botón como disabled preventivamente.
+        return prev;
+      }
     });
+    setSelectorOpen(false);
   };
 
   if (state.era === 'tribal') return <TribalPlaceholder />;
@@ -86,12 +87,22 @@ export function GameShell({ seed }: GameShellProps) {
       <HUD
         day={day}
         gratitude={state.village.gratitude}
+        faith={state.village.faith}
+        activeMessage={state.village.activeMessage}
         aliveCount={aliveCount}
         totalCount={state.npcs.length}
         monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress}
+        onOpenWhisper={() => setSelectorOpen(true)}
       />
-      {showModal && <DailyModal day={day} onChoose={onChoose} />}
+      {selectorOpen && (
+        <WhisperSelector
+          activeMessage={state.village.activeMessage}
+          faith={state.village.faith}
+          onChoose={onChoose}
+          onClose={() => setSelectorOpen(false)}
+        />
+      )}
     </main>
   );
 }

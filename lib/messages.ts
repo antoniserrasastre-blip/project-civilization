@@ -1,18 +1,27 @@
 /**
- * Mensaje diario del dios — Sprint 5.1.
+ * Susurro persistente — Sprint #1 Fase 5 (§3.7 / §3.7b).
  *
- * Decisiones #30, #30.a/b (CLAUDE-primigenia §3). Plantilla fija
- * de 6 intenciones + "silence". El verbo del jugador primario.
+ * El jugador tiene **un único verbo continuo**: un susurro global al
+ * clan que permanece activo hasta que decide cambiarlo (§3.7). Pocas
+ * decisiones con mucho peso; cada cambio cuesta Fe (§3.7b).
  *
  * Reglas §A4:
- *   - activeMessage: MessageIntent | 'silence' | null persiste.
- *   - Al cruzar un amanecer, el tick archiva activeMessage en
- *     messageHistory (orden canónico ascendente por day).
+ *   - `activeMessage` PERSISTE entre ticks (no se resetea al amanecer).
+ *   - Se archiva en `messageHistory` **al cambiar** (archiveOnChange),
+ *     no por rotación diaria.
  *   - La elección no consume PRNG; la hace el jugador.
+ *   - Los costes de Fe se aplican en `applyPlayerIntent` — la API
+ *     transaccional que combina archive + coste + transición.
  */
 
 import { TICKS_PER_DAY } from './resources';
 import type { VillageState } from './village';
+import {
+  FAITH_COST_CHANGE,
+  FAITH_COST_SILENCE,
+  canAfford,
+  spendFaith,
+} from './faith';
 
 export const MESSAGE_INTENTS = {
   AUXILIO: 'auxilio',
@@ -28,7 +37,7 @@ export type MessageIntent = (typeof MESSAGE_INTENTS)[keyof typeof MESSAGE_INTENT
 export const SILENCE = 'silence' as const;
 export type MessageChoice = MessageIntent | typeof SILENCE;
 
-/** Una elección válida del jugador para el modal diario. */
+/** Una elección válida del jugador para el selector de susurro. */
 export const VALID_CHOICES: readonly MessageChoice[] = [
   MESSAGE_INTENTS.AUXILIO,
   MESSAGE_INTENTS.CORAJE,
@@ -44,14 +53,16 @@ export function isDawn(tick: number): boolean {
   return tick % TICKS_PER_DAY === 0;
 }
 
-/** El jugador debería pronunciarse: estamos en amanecer y no hay
- *  intención activa. El UI llama aquí para decidir si mostrar el
- *  modal. */
+/** Deprecado tras §3.7 (susurro persistente). Ya no se fuerza modal
+ *  al amanecer; el jugador decide cuándo hablar. Se mantiene como
+ *  helper residual — su retorno no rige el UI. */
 export function awaitsMessage(village: VillageState, tick: number): boolean {
   return isDawn(tick) && village.activeMessage === null;
 }
 
-/** Registra la elección del jugador. Puro. No consume PRNG. */
+/** Registra la elección del jugador sin tocar Fe ni history.
+ *  Usado por código de bajo nivel (tests, edición). Para el flujo
+ *  del jugador usar `applyPlayerIntent`. Puro. */
 export function selectIntent(
   village: VillageState,
   choice: MessageChoice,
@@ -62,21 +73,63 @@ export function selectIntent(
   return { ...village, activeMessage: choice };
 }
 
-/** Archiva activeMessage cuando el día termina (al cruzar el
- *  amanecer del siguiente). Puro. Si no hay mensaje activo, no-op. */
-export function archiveAtDawn(
+/** Archiva el susurro activo previo en history y setea el nuevo.
+ *  No-op si `choice` coincide con `activeMessage`. No descuenta Fe —
+ *  eso es responsabilidad de `applyPlayerIntent`. Puro. */
+export function archiveOnChange(
   village: VillageState,
-  newTick: number,
+  choice: MessageChoice,
+  tick: number,
 ): VillageState {
-  if (!isDawn(newTick) || newTick === 0) return village;
-  if (village.activeMessage === null) return village;
-  const day = newTick / TICKS_PER_DAY - 1;
+  if (!VALID_CHOICES.includes(choice)) {
+    throw new Error(`intent inválido: ${choice}`);
+  }
+  if (village.activeMessage === choice) return village;
+  const day = Math.floor(tick / TICKS_PER_DAY);
+  const history =
+    village.activeMessage === null
+      ? village.messageHistory
+      : [
+          ...village.messageHistory,
+          { day, intent: village.activeMessage },
+        ];
   return {
     ...village,
-    messageHistory: [
-      ...village.messageHistory,
-      { day, intent: village.activeMessage },
-    ],
-    activeMessage: null,
+    messageHistory: history,
+    activeMessage: choice,
   };
+}
+
+/** Aplica la elección del jugador con su coste en Fe.
+ *
+ *   - Primer susurro (activeMessage === null): gratis, sin archivo.
+ *   - Mismo intent que el activo: no-op (sin coste ni archivo).
+ *   - Silencio elegido (activeMessage != null → SILENCE):
+ *     descuenta FAITH_COST_SILENCE y archiva el previo.
+ *   - Cambio a intent distinto: descuenta FAITH_COST_CHANGE y archiva.
+ *
+ *  Tira si la Fe es insuficiente. Nunca muta el input. */
+export function applyPlayerIntent(
+  village: VillageState,
+  choice: MessageChoice,
+  tick: number,
+): VillageState {
+  if (!VALID_CHOICES.includes(choice)) {
+    throw new Error(`intent inválido: ${choice}`);
+  }
+  // Primer susurro gratis (nunca ha habido intención activa).
+  if (village.activeMessage === null) {
+    return { ...village, activeMessage: choice };
+  }
+  // Mismo intent → no-op.
+  if (village.activeMessage === choice) return village;
+
+  const cost = choice === SILENCE ? FAITH_COST_SILENCE : FAITH_COST_CHANGE;
+  if (!canAfford(village, cost)) {
+    throw new Error(
+      `fe insuficiente: tienes ${village.faith}, necesitas ${cost}`,
+    );
+  }
+  const paid = spendFaith(village, cost);
+  return archiveOnChange(paid, choice, tick);
 }

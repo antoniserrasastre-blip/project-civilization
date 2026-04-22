@@ -23,7 +23,13 @@ import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
-import { archiveAtDawn } from './messages';
+import { isDawn } from './messages';
+import { applyFaithDelta, faithPerTick } from './faith';
+import {
+  applyGratitudeDelta,
+  computeSilenceDrainPerDay,
+} from './gratitude';
+import type { VillageState } from './village';
 import { firstStructureOfKind } from './structures';
 import {
   canBuild,
@@ -150,7 +156,7 @@ export function tick(state: GameState): GameState {
     prng,
   });
 
-  let nextVillage = isNightCheckTick(afterBuild.tick)
+  let nextVillage: VillageState = isNightCheckTick(afterBuild.tick)
     ? {
         ...state.village,
         consecutiveNightsAtFire: evaluateNight(
@@ -161,8 +167,33 @@ export function tick(state: GameState): GameState {
       }
     : state.village;
 
-  // Archivar mensaje al cruzar amanecer (CLAUDE-primigenia §3).
-  nextVillage = archiveAtDawn(nextVillage, afterBuild.tick);
+  // Fe pasiva (§3.7b) — sqrt(vivos) por día, distribuido por tick.
+  const aliveCount = afterBuild.npcs.reduce(
+    (n, npc) => n + (npc.alive ? 1 : 0),
+    0,
+  );
+  nextVillage = applyFaithDelta(nextVillage, faithPerTick(aliveCount));
+
+  // Transiciones diarias al cruzar un amanecer (no tick 0).
+  if (isDawn(afterBuild.tick) && afterBuild.tick > 0) {
+    // Gracia del silencio por default — decrece 1/día mientras no se
+    // haya susurrado (§3.7).
+    if (
+      nextVillage.activeMessage === null &&
+      nextVillage.silenceGraceDaysRemaining > 0
+    ) {
+      nextVillage = {
+        ...nextVillage,
+        silenceGraceDaysRemaining:
+          nextVillage.silenceGraceDaysRemaining - 1,
+      };
+    }
+    // Drain de gratitud por silencio por default fuera de gracia.
+    const drain = computeSilenceDrainPerDay(nextVillage);
+    if (drain > 0) {
+      nextVillage = applyGratitudeDelta(nextVillage, -drain);
+    }
+  }
 
   return {
     ...afterBuild,
