@@ -1,40 +1,44 @@
 /**
  * E2E del ensamblaje — juego jugable extremo a extremo.
  *
- * Flujo cubierto: carga → `daily-modal` visible → HUD "Día 1" →
- * elegir `daily-option-coraje` → día avanza a 2 → modal reabre →
- * repetir con `daily-option-paciencia` → día 3.
+ * Sprint #1 REFACTOR-SUSURRO-FE: el modal forzoso desaparece. El
+ * jugador abre el selector con el botón "Hablar al clan" del HUD.
  *
- * Corre en el gate cuando playwright tiene chromium (instalación
- * normal o override `PLAYWRIGHT_CHROMIUM_PATH`). Si no hay chromium
- * accesible, playwright falla en el bootstrap del browser — no es
- * un skip: quien ejecute el gate debe arrancarlo con chromium.
+ * Flujo cubierto: carga → HUD visible con "Día 1" → click botón
+ * "Hablar al clan" → selector visible → elegir Coraje (gratis por
+ * ser primer susurro) → selector cierra → día avanza a 2 → el
+ * susurro persiste (no se reabre automáticamente).
+ *
+ * Corre en el gate cuando playwright tiene chromium.
  */
 
 import { test, expect } from '@playwright/test';
 
-test.describe('Ensamblaje UI — loop diario jugable', () => {
-  test('modal aparece, elegir intención avanza el día y reabre', async ({
+test.describe('Ensamblaje UI — botón hablar + selector persistente', () => {
+  test('HUD visible; selector se abre por botón; el día avanza al elegir', async ({
     page,
   }) => {
     await page.goto('/?seed=42');
     await page.waitForLoadState('networkidle');
 
-    const modal = page.getByTestId('daily-modal');
-    await expect(modal).toBeVisible();
+    const hudDay = page.getByTestId('hud-day');
+    await expect(hudDay).toHaveText(/Día\s*1/);
 
-    const hud = page.getByTestId('hud-day');
-    await expect(hud).toHaveText(/Día\s*1/);
+    // Selector no aparece por sí solo — el jugador decide cuándo hablar.
+    await expect(page.getByTestId('whisper-selector')).toHaveCount(0);
 
-    await page.getByTestId('daily-option-coraje').click();
+    // Abre con el botón del HUD.
+    await page.getByTestId('talk-button').click();
+    const selector = page.getByTestId('whisper-selector');
+    await expect(selector).toBeVisible();
 
-    // Modal reaparece al cruzar el amanecer siguiente.
-    await expect(modal).toBeVisible();
-    await expect(hud).toHaveText(/Día\s*2/);
+    // Primer susurro gratis — elige Coraje.
+    await page.getByTestId('whisper-option-coraje').click();
 
-    // Y seguimos: elige otra distinta.
-    await page.getByTestId('daily-option-paciencia').click();
-    await expect(modal).toBeVisible();
-    await expect(hud).toHaveText(/Día\s*3/);
+    // Selector cierra tras elegir.
+    await expect(page.getByTestId('whisper-selector')).toHaveCount(0);
+
+    // Día avanzó (elegir consume 24 ticks).
+    await expect(hudDay).toHaveText(/Día\s*2/);
   });
 });
