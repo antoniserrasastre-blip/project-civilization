@@ -367,3 +367,85 @@ describe('tick — gracia de silencio (§3.7 · 7 días) · Sprint Fase 5 #1', (
       .toBeGreaterThan(0);
   });
 });
+
+describe('tick — gratitud acumula con susurro activo · Fix playtest PR #12', () => {
+  it('susurro activo + NPCs thriving → gratitud sube tras 1 día', async () => {
+    const { applyPlayerIntent } = await import('@/lib/messages');
+    const world = mkFlatWorld(32, 32);
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 10,
+      y: 10,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npcs: NPC[] = Array.from({ length: 10 }, (_, i) =>
+      makeTestNPC({
+        id: `n${i}`,
+        position: { x: 10, y: 10 },
+        stats: { supervivencia: 85, socializacion: 85 },
+      }),
+    );
+    let s = initialGameState(11, npcs, world);
+    s = { ...s, village: applyPlayerIntent(s.village, 'coraje', 0) };
+    const g0 = s.village.gratitude;
+    for (let i = 0; i < 24; i++) s = tick(s);
+    expect(s.village.gratitude).toBeGreaterThan(g0);
+  });
+
+  it('silencio por default NO genera gratitud (aunque haya NPCs thriving)', () => {
+    const world = mkFlatWorld(32, 32);
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 10,
+      y: 10,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npcs: NPC[] = Array.from({ length: 10 }, (_, i) =>
+      makeTestNPC({
+        id: `n${i}`,
+        position: { x: 10, y: 10 },
+        stats: { supervivencia: 85, socializacion: 85 },
+      }),
+    );
+    let s = initialGameState(3, npcs, world);
+    // Sin tocar village.activeMessage: null por default.
+    for (let i = 0; i < 24; i++) s = tick(s);
+    expect(s.village.gratitude).toBe(0);
+  });
+
+  it('silencio elegido NO genera gratitud', async () => {
+    const { applyPlayerIntent, SILENCE } = await import('@/lib/messages');
+    const world = mkFlatWorld(32, 32);
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 10,
+      y: 10,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npcs: NPC[] = Array.from({ length: 10 }, (_, i) =>
+      makeTestNPC({
+        id: `n${i}`,
+        position: { x: 10, y: 10 },
+        stats: { supervivencia: 85, socializacion: 85 },
+      }),
+    );
+    let s = initialGameState(5, npcs, world);
+    // Primer susurro gratis: coraje. Luego, silencio elegido cuesta
+    // 40 Fe — damos Fe suficiente para pagarlo.
+    s = { ...s, village: applyPlayerIntent(s.village, 'coraje', 0) };
+    s = { ...s, village: { ...s.village, faith: 50 } };
+    s = { ...s, village: applyPlayerIntent(s.village, SILENCE, s.tick) };
+    const g0 = s.village.gratitude;
+    for (let i = 0; i < 24; i++) s = tick(s);
+    expect(s.village.gratitude).toBe(g0);
+  });
+});
