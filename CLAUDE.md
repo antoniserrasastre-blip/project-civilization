@@ -814,6 +814,14 @@ fantasmas.
 6. **Todos los agentes viven en este repo** (bajo `agents/`) para
    compartir contexto y que ningún cambio rompa a otro sin quedar
    registrado en el historial común.
+7. **Política de branches: un único nivel de ramas**. Todo PR tiene
+   `main` como base y toda rama de trabajo sale directamente de
+   `main`. **No se permiten ramas intermedias de integración** (tipo
+   `phase-N-xxx`, `integration-...`, `release-train-...`, o
+   cualquier rama que sirva de base a otros PRs). Si un trabajo
+   depende de cambios aún no mergeados, se espera al merge en `main`
+   o se cherry-pickea el commit concreto sobre la rama del PR. Todo
+   sale de `main` y se mergea directamente a `main`.
 
 ### Relación con reglas existentes
 
