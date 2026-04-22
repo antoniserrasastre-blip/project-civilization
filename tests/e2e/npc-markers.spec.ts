@@ -10,8 +10,8 @@
  *      mundo sin NPCs (screenshot diff tras hover no es trivial;
  *      basta con la presencia del tooltip y el contador).
  *
- * El daily-modal inicial bloquea parte del viewport; lo cerramos
- * antes de buscar marcadores (igual que el jugador real).
+ * Tras Sprint Fase 5 #1 (susurro persistente) ya no hay daily-modal
+ * forzoso al amanecer — el canvas está limpio desde el load.
  */
 
 import { test, expect } from '@playwright/test';
@@ -22,11 +22,6 @@ test.describe('NPC markers — visibilidad en mapa', () => {
   }) => {
     await page.goto('/?seed=42');
     await page.waitForLoadState('networkidle');
-
-    // Cerrar el daily-modal inicial para despejar el mapa.
-    const modal = page.getByTestId('daily-modal');
-    await expect(modal).toBeVisible();
-    await page.getByTestId('daily-option-coraje').click();
 
     const canvas = page.getByTestId('map-view-canvas');
     await expect(canvas).toBeVisible();
@@ -39,22 +34,25 @@ test.describe('NPC markers — visibilidad en mapa', () => {
       })
       .toBeGreaterThanOrEqual(14);
 
-    // Hover sobre el cuadrante donde caen los NPCs (origen del
-    // mapa + offset inicial). Barremos unos cuantos puntos cerca
-    // del origen hasta que un tooltip aparezca.
+    // Hover sobre el canvas buscando los 14 marcadores. Sampleamos
+    // con rejilla densa pero poco costosa (sin await por move) y
+    // chequeamos el tooltip periódicamente.
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas sin bounding box');
     const tooltip = page.getByTestId('npc-tooltip');
     let found = false;
-    // Los NPCs arrancan cerca de tile (0, 0) con offset 0 y zoom
-    // inicial. Rastreamos una rejilla pequeña.
-    for (let dx = 0; dx < 60 && !found; dx += 4) {
-      for (let dy = 0; dy < 60 && !found; dy += 4) {
-        await page.mouse.move(box.x + dx, box.y + dy);
-        // Breve settle para que React propague el hover.
-        if (await tooltip.isVisible().catch(() => false)) {
-          found = true;
-        }
+    const step = 24;
+    const points: Array<[number, number]> = [];
+    for (let dy = step / 2; dy < box.height; dy += step) {
+      for (let dx = step / 2; dx < box.width; dx += step) {
+        points.push([dx, dy]);
+      }
+    }
+    for (const [dx, dy] of points) {
+      await page.mouse.move(box.x + dx, box.y + dy);
+      if (await tooltip.isVisible().catch(() => false)) {
+        found = true;
+        break;
       }
     }
     expect(found).toBe(true);

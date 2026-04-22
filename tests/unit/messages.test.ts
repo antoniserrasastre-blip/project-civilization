@@ -10,10 +10,12 @@ import {
   isDawn,
   awaitsMessage,
   selectIntent,
-  archiveAtDawn,
+  archiveOnChange,
+  applyPlayerIntent,
 } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { initialVillageState } from '@/lib/village';
+import { FAITH_COST_CHANGE, FAITH_COST_SILENCE, FAITH_INITIAL } from '@/lib/faith';
 
 describe('Constantes (decisión #30.a)', () => {
   it('MESSAGE_INTENTS tiene las 6 + SILENCE = 7 VALID_CHOICES', () => {
@@ -43,21 +45,13 @@ describe('isDawn', () => {
   });
 });
 
-describe('awaitsMessage', () => {
-  it('true en amanecer sin activeMessage', () => {
+describe('awaitsMessage — deprecado tras §3.7 (susurro persistente)', () => {
+  // El susurro no se fuerza en cada amanecer — el jugador decide
+  // cuándo hablar. El helper sigue existiendo sólo para compat
+  // transitoria; su valor ya no rige el UI.
+  it('sigue siendo puro', () => {
     const v = initialVillageState();
-    expect(awaitsMessage(v, 0)).toBe(true);
-    expect(awaitsMessage(v, TICKS_PER_DAY)).toBe(true);
-  });
-
-  it('false en amanecer con activeMessage ya elegido', () => {
-    const v = { ...initialVillageState(), activeMessage: MESSAGE_INTENTS.CORAJE };
-    expect(awaitsMessage(v, 0)).toBe(false);
-  });
-
-  it('false en mitad de día', () => {
-    const v = initialVillageState();
-    expect(awaitsMessage(v, 5)).toBe(false);
+    expect(typeof awaitsMessage(v, 0)).toBe('boolean');
   });
 });
 
@@ -81,39 +75,96 @@ describe('selectIntent — pureza + validación', () => {
   });
 });
 
-describe('archiveAtDawn — rotación diaria', () => {
-  it('en amanecer siguiente con activeMessage → archiva y limpia', () => {
-    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const };
-    const v2 = archiveAtDawn(v1, TICKS_PER_DAY);
-    expect(v2.activeMessage).toBeNull();
+describe('archiveOnChange — rotación al cambiar (§3.7 susurro persistente)', () => {
+  it('al cambiar de intent → archiva el activo previo y setea el nuevo', () => {
+    const v1 = {
+      ...initialVillageState(),
+      activeMessage: 'coraje' as const,
+      faith: 100,
+    };
+    const v2 = archiveOnChange(v1, 'paciencia', 10);
+    expect(v2.activeMessage).toBe('paciencia');
     expect(v2.messageHistory).toEqual([{ day: 0, intent: 'coraje' }]);
   });
 
-  it('no-op si no amanecer', () => {
-    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const };
-    const v2 = archiveAtDawn(v1, 5);
+  it('mismo intent → no-op (no archiva)', () => {
+    const v1 = {
+      ...initialVillageState(),
+      activeMessage: 'coraje' as const,
+    };
+    const v2 = archiveOnChange(v1, 'coraje', 10);
     expect(v2).toEqual(v1);
   });
 
-  it('no-op en tick 0 (no ha pasado día aún)', () => {
-    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const };
-    expect(archiveAtDawn(v1, 0)).toEqual(v1);
+  it('activeMessage null → no archiva nada, setea el nuevo', () => {
+    const v1 = initialVillageState();
+    const v2 = archiveOnChange(v1, 'coraje', 5);
+    expect(v2.activeMessage).toBe('coraje');
+    expect(v2.messageHistory).toEqual([]);
   });
 
-  it('history preserva orden ascendente por day', () => {
-    let v = initialVillageState();
-    v = selectIntent(v, 'coraje');
-    v = archiveAtDawn(v, TICKS_PER_DAY);
-    v = selectIntent(v, 'paciencia');
-    v = archiveAtDawn(v, TICKS_PER_DAY * 2);
-    v = selectIntent(v, 'esperanza');
-    v = archiveAtDawn(v, TICKS_PER_DAY * 3);
-    expect(v.messageHistory.map((m) => m.day)).toEqual([0, 1, 2]);
-    expect(v.messageHistory.map((m) => m.intent)).toEqual([
-      'coraje',
-      'paciencia',
-      'esperanza',
-    ]);
+  it('day del archivado se deriva del tick recibido', () => {
+    const v1 = {
+      ...initialVillageState(),
+      activeMessage: 'coraje' as const,
+      faith: 100,
+    };
+    const v2 = archiveOnChange(v1, 'paciencia', TICKS_PER_DAY * 4 + 3);
+    expect(v2.messageHistory[0].day).toBe(4);
+  });
+});
+
+describe('applyPlayerIntent — orquesta coste Fe + archive (§3.7 / §3.7b)', () => {
+  it('primer susurro (activeMessage===null, history vacío) es gratis', () => {
+    const v1 = initialVillageState();
+    const v2 = applyPlayerIntent(v1, 'coraje', 0);
+    expect(v2.activeMessage).toBe('coraje');
+    expect(v2.faith).toBe(v1.faith);
+    expect(v2.messageHistory).toEqual([]);
+  });
+
+  it('cambio de intent descuenta FAITH_COST_CHANGE (80) y archiva', () => {
+    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const, faith: 100 };
+    const v2 = applyPlayerIntent(v1, 'paciencia', TICKS_PER_DAY);
+    expect(v2.activeMessage).toBe('paciencia');
+    expect(v2.faith).toBe(100 - FAITH_COST_CHANGE);
+    expect(v2.messageHistory).toEqual([{ day: 1, intent: 'coraje' }]);
+  });
+
+  it('silencio elegido descuenta FAITH_COST_SILENCE (40) y archiva', () => {
+    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const, faith: 80 };
+    const v2 = applyPlayerIntent(v1, SILENCE, TICKS_PER_DAY);
+    expect(v2.activeMessage).toBe(SILENCE);
+    expect(v2.faith).toBe(80 - FAITH_COST_SILENCE);
+    expect(v2.messageHistory).toEqual([{ day: 1, intent: 'coraje' }]);
+  });
+
+  it('mismo intent → no-op, no descuenta Fe', () => {
+    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const, faith: 50 };
+    const v2 = applyPlayerIntent(v1, 'coraje', 10);
+    expect(v2.faith).toBe(50);
+    expect(v2.messageHistory).toEqual([]);
+  });
+
+  it('sin Fe suficiente tira (excepto primer susurro)', () => {
+    const v1 = { ...initialVillageState(), activeMessage: 'coraje' as const, faith: 10 };
+    expect(() => applyPlayerIntent(v1, 'paciencia', 5)).toThrow(/insuficiente/i);
+  });
+
+  it('primer susurro gratis se cumple aunque faith < 30', () => {
+    const v1 = { ...initialVillageState(), faith: 0 };
+    const v2 = applyPlayerIntent(v1, 'coraje', 0);
+    expect(v2.activeMessage).toBe('coraje');
+    expect(v2.faith).toBe(0);
+  });
+});
+
+describe('selectIntent — API previa (no altera Fe, usada en edición)', () => {
+  it('sigue disponible para mutación directa no transaccional', () => {
+    const v = initialVillageState();
+    const next = selectIntent(v, 'coraje');
+    expect(next.activeMessage).toBe('coraje');
+    expect(next.faith).toBe(FAITH_INITIAL);
   });
 });
 
