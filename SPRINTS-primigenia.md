@@ -323,6 +323,29 @@ el ingeniero tiene bandwidth, vigilando conflicto en
 ambos bumpean `STORAGE_KEY` y colisionarían; #4 arranca solo tras
 merge de #1.
 
+### Matriz de compatibilidad concurrente
+
+Cuando hay múltiples agentes activos, esta tabla define qué sprints
+pueden correr en paralelo y cuáles no. Pares no listados son ✅
+(territorios disjuntos).
+
+| Par | Status | Razón |
+|-|-|-|
+| #1 ↔ #4 | ❌ serial | Ambos bumpean `STORAGE_KEY`. Uno a la vez. #4 arranca tras merge de #1. |
+| #1 ↔ #6 | ❌ | #6 bloqueado por firma decisión #34. No aplica. |
+| #1 ↔ #7 | ❌ | #7 depende de #6. |
+| #5 ↔ #6 | ❌ | Ídem #6 bloqueado. |
+| #6 ↔ #7 | ❌ | #7 depende de #6. |
+| #1 ↔ #2 | ⚠️ coordinar | Ambos tocan `components/era/WhisperSelector.tsx` (#1 lo renombra, #2 añade tooltips). #2 arranca idealmente tras #1. |
+| #1 ↔ #3 | ⚠️ coordinar | Ambos tocan `components/era/GameShell.tsx` y `HUD.tsx`. Rebases frecuentes o serializar. |
+| #2 ↔ #3 | ⚠️ coordinar | Comparten `GameShell.tsx`. |
+| #4 ↔ #5 | ⚠️ coordinar | Comparten `components/map/MapView.tsx`. |
+
+**Regla derivada**: dos ❌ no arrancan al mismo tiempo bajo ningún
+concepto. Dos ⚠️ pueden arrancar en paralelo si los agentes acuerdan
+explícitamente (comentario en NOTES-OVERNIGHT.md bajo bloque
+`> [Coordinación N↔M]:`). Cualquier par ✅ corre libre.
+
 **Playtest humano obligatorio** entre #1 y #2 (sprint 1.5 lo
 formaliza), y al cierre de cada sprint downstream. Gate de tests
 solo certifica que no rompiste nada; playtest certifica que lo
