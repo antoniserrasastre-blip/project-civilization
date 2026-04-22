@@ -789,12 +789,14 @@ fantasmas.
    sólo recibe commits vía Pull Request mergeado.
 2. **Toda rama de trabajo es temporal** y sigue el patrón
    `feature/<rol>-<descripción-corta>`, donde `<rol>` es uno de los
-   tres agentes definidos en la sección "Agentes especializados":
-   - `feature/eng-sprint-legibilidad`  (Ingeniería / Producción)
-   - `feature/eng-tune-fe-passive`     (balance numérico en `lib/`)
-   - `feature/design-dashboard-halo`   (Diseño)
-   - `feature/design-tokens-paleta`    (Diseño)
-   - `feature/edit-typos-chronicle`    (Edición)
+   cuatro roles definidos en la sección "Agentes especializados":
+   - `feature/eng-sprint-legibilidad`     (Ingeniería / Producción)
+   - `feature/eng-tune-fe-passive`        (balance numérico en `lib/`)
+   - `feature/design-dashboard-halo`      (Diseño)
+   - `feature/design-tokens-paleta`       (Diseño)
+   - `feature/edit-typos-chronicle`       (Edición)
+   - `feature/director-firma-decision-34` (Director Creativo)
+   - `feature/director-review-sprint-1`   (Director Creativo)
    Ramas de agente iniciadas por el harness (`claude/...`) son
    equivalentes y válidas; el patrón `feature/...` aplica a ramas
    creadas manualmente. El prefijo de rol **debe** corresponder al
