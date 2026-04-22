@@ -56,8 +56,8 @@ export function GameShell({ seed }: GameShellProps) {
     [state.tick],
   );
   const showModal = useMemo(
-    () => awaitsMessage(state.village, state.tick),
-    [state.village, state.tick],
+    () => awaitsMessage(state.village),
+    [state.village],
   );
   const aliveCount = useMemo(
     () => state.npcs.filter((n) => n.alive).length,
@@ -68,7 +68,7 @@ export function GameShell({ seed }: GameShellProps) {
     setState((prev) => {
       const withChoice: GameState = {
         ...prev,
-        village: selectIntent(prev.village, choice),
+        village: selectIntent(prev.village, choice, prev.tick),
       };
       return runTicks(withChoice, TICKS_PER_DAY);
     });

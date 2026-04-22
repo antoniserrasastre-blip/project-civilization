@@ -1,18 +1,30 @@
 /**
- * Mensaje diario del dios — Sprint 5.1.
+ * Susurro persistente del dios — Sprint #1 REFACTOR-SUSURRO-FE
+ * (vision-primigenia §3.7, §3.7b).
  *
- * Decisiones #30, #30.a/b (CLAUDE-primigenia §3). Plantilla fija
- * de 6 intenciones + "silence". El verbo del jugador primario.
+ * El susurro activo **persiste** entre ticks hasta que el jugador
+ * lo cambia. Archivado y cobro de Fe se resuelven dentro de
+ * `selectIntent` — el tick() no toca `activeMessage` sin intención
+ * explícita.
  *
  * Reglas §A4:
- *   - activeMessage: MessageIntent | 'silence' | null persiste.
- *   - Al cruzar un amanecer, el tick archiva activeMessage en
- *     messageHistory (orden canónico ascendente por day).
- *   - La elección no consume PRNG; la hace el jugador.
+ *   - activeMessage: MessageChoice | null persiste. `null` = silencio
+ *     por defecto / gracia inicial. `SILENCE` = silencio elegido
+ *     deliberadamente (cuesta 40 Fe).
+ *   - Al cambiar el jugador el susurro, el previous se archiva en
+ *     messageHistory con `day = floor(currentTick / TICKS_PER_DAY)`.
+ *   - La elección no consume PRNG.
  */
 
 import { TICKS_PER_DAY } from './resources';
 import type { VillageState } from './village';
+import {
+  FAITH_COST_CHANGE,
+  FAITH_COST_SILENCE,
+  isFirstWhisper,
+  spendFaithForChange,
+  spendFaithForSilence,
+} from './faith';
 
 export const MESSAGE_INTENTS = {
   AUXILIO: 'auxilio',
@@ -28,7 +40,6 @@ export type MessageIntent = (typeof MESSAGE_INTENTS)[keyof typeof MESSAGE_INTENT
 export const SILENCE = 'silence' as const;
 export type MessageChoice = MessageIntent | typeof SILENCE;
 
-/** Una elección válida del jugador para el modal diario. */
 export const VALID_CHOICES: readonly MessageChoice[] = [
   MESSAGE_INTENTS.AUXILIO,
   MESSAGE_INTENTS.CORAJE,
@@ -39,38 +50,42 @@ export const VALID_CHOICES: readonly MessageChoice[] = [
   SILENCE,
 ];
 
-/** tick es dawn (amanecer de un día): múltiplo de TICKS_PER_DAY. */
 export function isDawn(tick: number): boolean {
   return tick % TICKS_PER_DAY === 0;
 }
 
-/** El jugador debería pronunciarse: estamos en amanecer y no hay
- *  intención activa. El UI llama aquí para decidir si mostrar el
- *  modal. */
-export function awaitsMessage(village: VillageState, tick: number): boolean {
-  return isDawn(tick) && village.activeMessage === null;
+/** El UI debe ofrecer el selector: no hay susurro activo. El botón
+ *  "Hablar al clan" siempre está disponible — esto solo indica si
+ *  el estado actual es "sin voz". */
+export function awaitsMessage(village: VillageState): boolean {
+  return village.activeMessage === null;
 }
 
-/** Registra la elección del jugador. Puro. No consume PRNG. */
-export function selectIntent(
+/** Coste en Fe de cambiar el susurro activo a `choice`. Devuelve
+ *  0 si es primer susurro, 0 si choice coincide con el activo,
+ *  40 si se silencia deliberadamente tras intent, 80 en otro caso. */
+export function changeCost(
   village: VillageState,
   choice: MessageChoice,
-): VillageState {
-  if (!VALID_CHOICES.includes(choice)) {
-    throw new Error(`intent inválido: ${choice}`);
-  }
-  return { ...village, activeMessage: choice };
+): number {
+  if (village.activeMessage === choice) return 0;
+  const firstFree =
+    village.activeMessage === null && isFirstWhisper(village.messageHistory);
+  if (firstFree) return 0;
+  if (choice === SILENCE) return FAITH_COST_SILENCE;
+  return FAITH_COST_CHANGE;
 }
 
-/** Archiva activeMessage cuando el día termina (al cruzar el
- *  amanecer del siguiente). Puro. Si no hay mensaje activo, no-op. */
-export function archiveAtDawn(
+/** Archiva activeMessage (si lo hay) como entrada del historial con
+ *  el día actual. Puro. Usado internamente por `selectIntent`; el
+ *  caller externo no debería llamarlo sin haber detectado un cambio
+ *  real. No-op si activeMessage es null. */
+export function archiveOnChange(
   village: VillageState,
-  newTick: number,
+  currentTick: number,
 ): VillageState {
-  if (!isDawn(newTick) || newTick === 0) return village;
   if (village.activeMessage === null) return village;
-  const day = newTick / TICKS_PER_DAY - 1;
+  const day = Math.floor(currentTick / TICKS_PER_DAY);
   return {
     ...village,
     messageHistory: [
@@ -79,4 +94,34 @@ export function archiveAtDawn(
     ],
     activeMessage: null,
   };
+}
+
+/** Registra el nuevo susurro aplicando cobro de Fe y archivando el
+ *  previous si cambia. Tira si el intent es inválido o la Fe no
+ *  alcanza. No consume PRNG. */
+export function selectIntent(
+  village: VillageState,
+  choice: MessageChoice,
+  currentTick: number,
+): VillageState {
+  if (!VALID_CHOICES.includes(choice)) {
+    throw new Error(`intent inválido: ${choice}`);
+  }
+  if (village.activeMessage === choice) {
+    return village;
+  }
+
+  const cost = changeCost(village, choice);
+  let next = village;
+  if (cost === FAITH_COST_CHANGE) {
+    next = spendFaithForChange(next);
+  } else if (cost === FAITH_COST_SILENCE) {
+    next = spendFaithForSilence(next);
+  }
+
+  if (next.activeMessage !== null) {
+    next = archiveOnChange(next, currentTick);
+  }
+
+  return { ...next, activeMessage: choice };
 }

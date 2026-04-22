@@ -23,7 +23,6 @@ import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
-import { archiveAtDawn } from './messages';
 import { firstStructureOfKind } from './structures';
 import {
   canBuild,
@@ -150,7 +149,7 @@ export function tick(state: GameState): GameState {
     prng,
   });
 
-  let nextVillage = isNightCheckTick(afterBuild.tick)
+  const nextVillage = isNightCheckTick(afterBuild.tick)
     ? {
         ...state.village,
         consecutiveNightsAtFire: evaluateNight(
@@ -161,8 +160,9 @@ export function tick(state: GameState): GameState {
       }
     : state.village;
 
-  // Archivar mensaje al cruzar amanecer (CLAUDE-primigenia §3).
-  nextVillage = archiveAtDawn(nextVillage, afterBuild.tick);
+  // §3.7 Sprint #1: el susurro persiste entre ticks; no se archiva
+  // por paso del tiempo. El archivado sucede en selectIntent cuando
+  // el jugador cambia explícitamente (lib/messages.ts).
 
   return {
     ...afterBuild,
