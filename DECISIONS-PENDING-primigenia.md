@@ -294,6 +294,65 @@ revalidables por el humano):
   crónica primigenia — ¿se pierde o se archiva como preámbulo
   del libro tribal? Mi voto editorial: archivarla.
 
+### 34. 🟡 Política de licencia de assets externos + tileset primigenia
+
+**Hoy**: la decisión firmada **#9** fija *"Kenney/OpenGameArt (CC0)
+primero, IA como relleno"*. El Sprint **#6 ASSETS-IMPORT** de
+`SPRINTS-primigenia.md` propone importar el tileset **Ancient Greeks**
+(terrain_32px + subset de units) bajo **CC BY 4.0**, distinto de CC0:
+exige atribución visible. El mismo sprint pre-filtra los units
+excluyendo heavy/light infantry + cavalry "por scope creep Pilar 4".
+Sin firma, el sprint está en pausa y el render sigue con los
+placeholders SVG procedurales generados en el bloqueo del Sprint 1.4
+(ver `NOTES-OVERNIGHT.md`).
+
+**Opciones**:
+
+- **A. Mantener #9 estricta — CC0 only**. Se rechaza CC BY, se
+  descarta Ancient Greeks, se busca set CC0 alternativo (Kenney
+  Micro Roguelike, Pixelized TopDown Medieval). **Tradeoff**: sin
+  obligación legal de atribución, limpieza máxima, pero pool de
+  assets mucho más reducido y estilo menos coherente con el registro
+  arcaico que pide §3 de la visión. El Sprint #6 se replantea con
+  otro pool.
+- **B. Relajar a CC BY 4.0 con atribución obligatoria in-game**. Se
+  admiten assets CC BY 4.0 siempre que exista panel de créditos
+  accesible desde la UI. **Tradeoff**: abre Ancient Greeks y el pool
+  amplio de OpenGameArt CC BY; la atribución exige un test E2E que
+  verifique que los créditos se renderizan (si un refactor los rompe,
+  violación de licencia). Compatible con uso comercial futuro.
+- **C. Híbrido — CC0 para tiles, CC BY para units/props secundarios**.
+  Política mixta: el terreno permanece CC0; units, animales, carros,
+  props decorativos pueden ser CC BY con atribución. **Tradeoff**:
+  pragmatismo + complejidad — cada import se clasifica antes;
+  `lint-assets.mjs` se complica (whitelist por categoría); puede
+  generar dudas sobre "qué es secundario".
+
+**Default sugerido**: **B**. CC BY 4.0 es estándar reconocido en
+pixel art indie, la atribución es mecánica conocida (panel de
+créditos), y desbloquea Ancient Greeks — el único tileset ambientado
+explícitamente en culturas pre-modernas disponible en calidad
+suficiente dentro del pool CC considerado. Bajar a A si apareciera
+razón de endurecimiento sigue siendo reversible.
+
+**Subdecisiones derivadas** (si firma B):
+
+- **#34.a — Tileset concreto**. Ancient Greeks (marceles, cimeto en
+  OpenGameArt) vs alternativas. Default: **Ancient Greeks**.
+- **#34.b — Filtro de units**. Excluir heavy/light infantry +
+  cavalry (primigenia no tiene guerra intergrupo; Pilar 4 diferido
+  a Fase 7). Incluir farmers, workers, animals, boats, carts.
+  Default: **excluir como describe el sprint**.
+- **#34.c — Superficie de atribución**. Panel de créditos accesible
+  desde menú principal + referencia corta ("Créditos") en footer
+  del HUD. Default: **ambos**.
+
+**Consume**: Sprint **#6 ASSETS-IMPORT** de `SPRINTS-primigenia.md`.
+Sin firma, el ingeniero no arranca #6. Los sprints #1-#5 del queue
+son independientes y pueden avanzar en paralelo a la firma.
+
+**Marca**: [A / B / C] · Comentario:
+
 ## Formato de decisiones futuras
 
 Cuando aparezcan nuevas preguntas de diseño primigenia se añade un
