@@ -50,6 +50,19 @@ const FOLLOWER_PICKS: Array<{
   { tier: 'malo', count: 2 },
 ];
 
+/**
+ * Spawn del clan en la isla visible del fixture `world-map.v1.json`.
+ * Verificado con el fixture actual: grid 5×3 alrededor de (85, 73)
+ * cae íntegramente en grass/mountain (no agua). Placeholder hasta
+ * que llegue Sprint SPAWN-COSTERO con selección automática de costa.
+ */
+export const SPAWN_CENTER = { x: 85, y: 73 } as const;
+
+/** Grid 5×3 para repartir 14 NPCs sin superposición. Determinista. */
+function spawnOffset(i: number): { x: number; y: number } {
+  return { x: (i % 5) - 2, y: Math.floor(i / 5) - 1 };
+}
+
 export function makeDefaultClan(seed: number): NPC[] {
   let draftA = startDraft(seed);
   BLOCK_A_PICKS.forEach((p, i) => {
@@ -67,5 +80,14 @@ export function makeDefaultClan(seed: number): NPC[] {
   }
   const ciudadanos = finalizeBlockB(draftB);
 
-  return [...elegidos, ...ciudadanos];
+  return [...elegidos, ...ciudadanos].map((npc, i) => {
+    const off = spawnOffset(i);
+    return {
+      ...npc,
+      position: {
+        x: SPAWN_CENTER.x + off.x,
+        y: SPAWN_CENTER.y + off.y,
+      },
+    };
+  });
 }

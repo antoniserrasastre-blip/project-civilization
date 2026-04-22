@@ -224,8 +224,12 @@ export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
   });
   const [viewport, setViewport] = useState<ViewportState>({
     zoom: 0.3,
-    offsetX: 0,
-    offsetY: 0,
+    // Viewport centrado sobre el spawn del clan (tile ~85,73 en el
+    // fixture actual). Con zoom 0.3 cada tile = 9.6px; offset negativo
+    // desplaza el mapa para que la isla del spawn quede en la mitad
+    // superior del canvas, por encima del DailyModal inferior.
+    offsetX: -300,
+    offsetY: -300,
   });
   const [hover, setHover] = useState<HoverState | null>(null);
 
