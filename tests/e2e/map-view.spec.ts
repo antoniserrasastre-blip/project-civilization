@@ -51,6 +51,7 @@ test.describe('MapView — pan + zoom', () => {
 
   test('scroll aplica zoom', async ({ page }) => {
     await page.goto('/');
+    await page.waitForLoadState('networkidle');
     const canvas = page.getByTestId('map-view-canvas');
     const box = await canvas.boundingBox();
     if (!box) throw new Error('canvas no tiene bounding box');
