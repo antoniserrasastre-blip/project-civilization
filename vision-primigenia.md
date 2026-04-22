@@ -359,6 +359,13 @@ cuentan igual.
   pausa táctica, no pivote. Silenciar y volver a hablar (40 + 80 =
   120) sigue siendo más caro que un cambio directo (80), así que no
   se puede explotar.
+  - **Silencio elegido NO dispara el drain de gratitud** del §3.7.
+    La Fe pagada ES la penalidad de silenciar — añadir drain encima
+    sería doble castigo y rompería la función de emergency-stop.
+    El drain solo aplica al **silencio por default** (clan antes de
+    su primer susurro, tras los 7 días de gracia). Implicación de
+    estado: el tick debe distinguir *silencio-por-default* de
+    *silencio-elegido* al decidir si drena.
 - **Cap de acumulación**: **160 Fe** (2× coste de cambio). Anti-banking.
   Excedente sobre el cap se pierde.
 - **Fe inicial**: **30**. Colchón de arranque que evita el "HUD seco"

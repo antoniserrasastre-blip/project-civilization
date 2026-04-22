@@ -38,12 +38,32 @@ forzoso por susurro persistente + moneda Fe.
 - `components/era/HUD.tsx` — barra Fe con marcas visuales en 40 y 80.
 - `components/era/GameShell.tsx` — tick automático (no forzado por
   click); flujo: botón → selector → susurro activo persistente.
+- `lib/gratitude.ts` — **sub-ajuste obligatorio**: bajar
+  `GRATITUDE_RATES.perThrivingNpcWithMessage` del `1` actual a algo
+  del orden de `0.25` (o el rate que el ingeniero calibre). Con el
+  rate actual, 10 NPCs thriving × 20 ticks = cap de 200 **en menos
+  de un día in-game** — el playtest #1.5 se ensuciaría con findings
+  sobre gratitud en vez de Fe. Target jugable: primer milagro barato
+  (~30) alcanzable en 2-3 días de susurro alineado. El número final
+  lo calibra #1.5; aquí pones uno razonable.
+- **Distinción silencio-por-default vs silencio-elegido**: la lógica
+  de drain de gratitud (§3.7 original) **solo aplica al primero**,
+  no al segundo. El silencio elegido ya paga 40 Fe; añadir drain
+  encima es doble castigo. Implementación sugerida: flag
+  `village.silenceWasChosen: boolean` o análogo, consultado por el
+  tick antes de drenar. Firma del Director en `vision-primigenia.md
+  §3.7b` (bloque "Silencio elegido NO dispara el drain").
 
 **Tests Red primero**:
 - `tests/unit/faith.test.ts` — fórmula, cap, monotonic, aliveCount=0.
 - `tests/unit/simulation.test.ts` (extensión) — Fe acumula en ticks,
   descuenta 80 al cambiar, 40 al silenciar, primer susurro gratis,
   gracia 7 días aplica solo con `messageHistory.length === 0`.
+- `tests/unit/gratitude.test.ts` (extensión) — con el rate ajustado,
+  cap de 200 se alcanza en ≥ N ticks (N dimensionado para 2-3 días
+  in-game de susurro alineado, no 20 ticks); drain NO dispara con
+  silencio elegido; drain SÍ dispara con silencio por default tras
+  7 días de gracia.
 - `tests/unit/messages.test.ts` (actualizar) — `activeMessage`
   persiste sin reset; `archiveOnChange` archiva al cambiar.
 - `tests/e2e/susurro.spec.ts` — botón "Hablar al clan" siempre
@@ -191,7 +211,7 @@ compromiso honesto de RENDER-NPCS (tooltip cayó a `npc.id`).
 
 ---
 
-## 5. SPAWN-COSTERO proper (2 días) · reabre Fase 2 · reemplaza patch quick
+## 5. SPAWN-COSTERO proper (2–3 días) · reabre Fase 2 · reemplaza patch quick
 
 **Meta**: spawn de NPCs en tile de costa elegido automáticamente por
 seed, respetando principio "una civ = una isla" hacia Fase 7. Sustituye
@@ -297,9 +317,11 @@ sobre #1.5.
 Legibilidad antes que ficha porque el jugador entiende el verbo
 global (susurro) antes de usar el verbo individual (milagro).
 
-**Paralelizable** tras cerrar #1 y #1.5: #2, #3, #4 pueden solaparse
-si el ingeniero tiene bandwidth, vigilando conflicto en
-`components/era/GameShell.tsx` entre #2 y #3.
+**Paralelizable** tras cerrar #1 y #1.5: #2 y #3 pueden solaparse si
+el ingeniero tiene bandwidth, vigilando conflicto en
+`components/era/GameShell.tsx`. **#4 NO se paraleliza** con #1 —
+ambos bumpean `STORAGE_KEY` y colisionarían; #4 arranca solo tras
+merge de #1.
 
 **Playtest humano obligatorio** entre #1 y #2 (sprint 1.5 lo
 formaliza), y al cierre de cada sprint downstream. Gate de tests
