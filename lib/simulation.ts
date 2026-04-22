@@ -28,6 +28,7 @@ import { isDawn } from './messages';
 import { applyFaithDelta, faithPerTick } from './faith';
 import {
   applyGratitudeDelta,
+  computeGratitudeTickDelta,
   computeSilenceDrainPerDay,
 } from './gratitude';
 import type { VillageState } from './village';
@@ -175,6 +176,18 @@ export function tick(state: GameState): GameState {
     0,
   );
   nextVillage = applyFaithDelta(nextVillage, faithPerTick(aliveCount));
+
+  // Gratitud pasiva (§3.8) — acumula cuando el susurro activo
+  // beneficia a NPCs thriving. Sin susurro (null/SILENCE) el delta
+  // es 0; por eso activeMessage rige ambas economías: Fe crece
+  // siempre con vivos, gratitud sólo con intención real.
+  const gratitudeDelta = computeGratitudeTickDelta(
+    afterBuild.npcs,
+    nextVillage.activeMessage,
+  );
+  if (gratitudeDelta !== 0) {
+    nextVillage = applyGratitudeDelta(nextVillage, gratitudeDelta);
+  }
 
   // Transiciones diarias al cruzar un amanecer (no tick 0).
   if (isDawn(afterBuild.tick) && afterBuild.tick > 0) {
