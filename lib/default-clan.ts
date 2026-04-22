@@ -7,17 +7,11 @@
  * interactivo por UI llegará en un sprint dedicado.
  *
  * Picks canónicos:
- *   - Bloque A: Lider M (4) + Cazador F (3) + Curandero F (3) =
- *     10 puntos, 4 slots, 2M + 2F. Cuarto slot: Artesano M (pero
- *     excedería budget 4+3+3+3=13 >10). Reajuste: Lider M +
- *     Cazador F + Recolector F + Scout M = 4+3+2+2=11 >10 también.
- *     Budget 10: Lider(4) + Cazador(3) + Recolector(2) + Scout(2)
- *     = 11 — excede. Usamos: Cazador M + Cazador F + Recolector M
- *     + Recolector F = 3+3+2+2 = 10. 2M+2F exacto. Equilibrado y
- *     barato; deja margen para futuros pivots de balance.
- *   - Bloque B: 10 Ciudadanos generados con `generateCandidates`
- *     por tier (3-3-2-2) — los mejores 3 del tier 'excelente',
- *     los 3 primeros de 'bueno', 2 de 'regular', 2 de 'malo'.
+ *   - Bloque A: 2 Cazadores + 2 Recolectores (3+3+2+2 = 10,
+ *     cumple budget exacto y 2M+2F). Equilibrado y barato; deja
+ *     margen para rebalance futuro sin comerse el cap.
+ *   - Bloque B: picks top de cada tier — 3 'excelente', 3 'bueno',
+ *     2 'regular', 2 'malo' (decisión #3).
  *
  * Pura: mismo seed → mismos 14 NPCs.
  */
