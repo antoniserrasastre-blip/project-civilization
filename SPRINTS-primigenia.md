@@ -58,41 +58,51 @@ forzoso por susurro persistente + moneda Fe.
 
 ---
 
-## 2. FICHA-AVENTURERO (2–3 días) · cross-fase UI · cierra UX milagro
+## 1.5 PLAYTEST-SUSURRO (0.5 día + posible ajuste) · gate humano post-refactor
 
-**Meta**: card al clicar NPC con stats + milagros + heridas + linaje.
-Sin esto el jugador no puede conceder milagros (son sobre un NPC
-concreto).
+**Meta**: validar que la mecánica firmada del susurro persistente +
+Fe se siente como la visión describe (*"pocas decisiones con mucho
+peso"*, §3.7) antes de construir LEGIBILIDAD y FICHA encima. Sin
+esto, los sprints siguientes se asientan sobre balance no verificado.
 
-**Archivos**:
-- `components/era/NpcSheet.tsx` **nuevo** — modal lateral con ficha.
-  Props: `npc: NPC`, `village: VillageState`, `onClose()`,
-  `onGrantMiracle(miracleId)`.
-- `components/era/GameShell.tsx` — cablear `onNpcClick` de MapView
-  (prop ya existe por RENDER-NPCS) → abrir NpcSheet.
-- `components/era/HUD.tsx` o `MiracleCatalog.tsx` — dentro de la
-  ficha, sección "milagros disponibles" con los 5 de §3.8; coste en
-  gratitud; botón habilitado solo si `village.gratitude >= cost` y
-  NPC tiene < 3 rasgos.
+**Sin archivos que tocar, sin tests Red**. Es un gate de playtest
+humano, no un sprint de coding. Los ajustes que surjan son commits
+de constantes sobre `lib/faith.ts` o similar.
 
-**Tests Red primero**:
-- `tests/unit/miracles.test.ts` (extensión) — aplicar milagro a NPC
-  descuenta gratitud, añade rasgo, respeta max 3.
-- `tests/e2e/ficha.spec.ts` — click NPC → ficha visible → intentar
-  milagro sin gratitud = deshabilitado → con gratitud suficiente =
-  se aplica y rasgo persiste.
+**Protocolo del Director humano**:
+- Arranca `pnpm dev` sobre el commit de cierre de #1.
+- Juega 30+ minutos reales. Observa específicamente:
+  - Fe crece a ritmo razonable (no saturación rápida ni goteo seco).
+  - Coste 80 para cambiar se siente pesado pero no punitivo.
+  - Silencio deliberado (40 Fe) tiene uso táctico real — no solo es
+    "cambio más barato".
+  - Primer susurro gratis se explica solo sin tooltip.
+  - Gracia de 7 días se nota (no hay presión al segundo día) pero no
+    se estira (al octavo, la penalty se empieza a notar).
+- Produce `PLAYTEST-susurro-fe.md` con formato:
+  - ✅ Se siente bien: [list]
+  - 🟡 Menor: [list con propuesta de ajuste numérico]
+  - 🔴 Major: [list que bloquea avance a #2]
 
 **Cierre**:
-- Gate verde.
-- Playtest: clicar un NPC, ver stats, conceder "Ojo de halcón",
-  verificar que el rasgo persiste en su ficha tras recargar.
+- Cero 🔴 findings en el playtest.
+- 🟡 findings convertidos en commits de ajuste (constantes de
+  `lib/faith.ts` o similar) antes de arrancar #2.
+- Firma explícita del humano: *"la mecánica se siente como la visión
+  describe"*.
+
+**Si hay 🔴**: bucle de ajuste sobre #1 antes de seguir. El objetivo
+del gate es no descubrir bugs de sensación con LEGIBILIDAD-MVP o
+FICHA-AVENTURERO ya encima — son caros de rebobinar.
 
 ---
 
-## 3. LEGIBILIDAD-MVP (2–3 días) · cross-fase UI · sin esto el juego no se explica
+## 2. LEGIBILIDAD-MVP (2–3 días) · cross-fase UI · sin esto el juego no se explica
 
 **Meta**: el jugador entiende qué susurro elegir y por qué. Hoy son
-7 palabras abstractas sin contexto.
+7 palabras abstractas sin contexto. Va antes que FICHA-AVENTURERO
+porque el jugador necesita entender el verbo global antes de usar el
+verbo individual (milagros).
 
 **Archivos**:
 - `components/era/WhisperSelector.tsx` — añadir tooltip en cada
@@ -116,8 +126,40 @@ concreto).
 
 **Cierre**:
 - Gate verde.
-- Playtest: el jugador puede responder "¿por qué elegí Coraje?" sin
-  abrir la visión.
+- Playtest: el jugador puede responder *"¿por qué elegí Coraje?"*
+  sin abrir la visión.
+
+---
+
+## 3. FICHA-AVENTURERO (2–3 días) · cross-fase UI · cierra UX milagro
+
+**Meta**: card al clicar NPC con stats + milagros + heridas + linaje.
+Sin esto el jugador no puede conceder milagros (son sobre un NPC
+concreto). Va tras LEGIBILIDAD porque depende de que el jugador ya
+entienda la mecánica global de susurros y gratitud.
+
+**Archivos**:
+- `components/era/NpcSheet.tsx` **nuevo** — modal lateral con ficha.
+  Props: `npc: NPC`, `village: VillageState`, `onClose()`,
+  `onGrantMiracle(miracleId)`.
+- `components/era/GameShell.tsx` — cablear `onNpcClick` de MapView
+  (prop ya existe por RENDER-NPCS) → abrir NpcSheet.
+- `components/era/HUD.tsx` o `MiracleCatalog.tsx` — dentro de la
+  ficha, sección "milagros disponibles" con los 5 de §3.8; coste en
+  gratitud; botón habilitado solo si `village.gratitude >= cost` y
+  NPC tiene < 3 rasgos.
+
+**Tests Red primero**:
+- `tests/unit/miracles.test.ts` (extensión) — aplicar milagro a NPC
+  descuenta gratitud, añade rasgo, respeta max 3.
+- `tests/e2e/ficha.spec.ts` — click NPC → ficha visible → intentar
+  milagro sin gratitud = deshabilitado → con gratitud suficiente =
+  se aplica y rasgo persiste.
+
+**Cierre**:
+- Gate verde.
+- Playtest: clicar un NPC, ver stats, conceder "Ojo de halcón",
+  verificar que el rasgo persiste en su ficha tras recargar.
 
 ---
 
@@ -247,12 +289,19 @@ invisible.
 
 ## Totales
 
-**7 sprints**, ~15–20 días ingeniería full-time bajo TDD.
-**Orden propuesto**: 1 → 2 → 3 → 4 → 5 → (firmar #34) → 6 → 7.
+**8 sprints** (7 de ingeniería + 1 gate humano), ~15–20 días
+ingeniería full-time bajo TDD + ~0.5–1.5 días de playtest del humano
+sobre #1.5.
 
-**Paralelizable**: #2, #3, #4 pueden solaparse si el ingeniero tiene
-bandwidth, no tocan `lib/world-state.ts` al mismo tiempo que #1.
+**Orden propuesto**: 1 → 1.5 → 2 → 3 → 4 → 5 → (firmar #34) → 6 → 7.
+Legibilidad antes que ficha porque el jugador entiende el verbo
+global (susurro) antes de usar el verbo individual (milagro).
 
-**Playtest humano obligatorio** entre cada sprint — ese es el gate
-real. Gate de tests solo certifica que no rompiste nada;
-playtest certifica que lo nuevo funciona.
+**Paralelizable** tras cerrar #1 y #1.5: #2, #3, #4 pueden solaparse
+si el ingeniero tiene bandwidth, vigilando conflicto en
+`components/era/GameShell.tsx` entre #2 y #3.
+
+**Playtest humano obligatorio** entre #1 y #2 (sprint 1.5 lo
+formaliza), y al cierre de cada sprint downstream. Gate de tests
+solo certifica que no rompiste nada; playtest certifica que lo
+nuevo funciona.

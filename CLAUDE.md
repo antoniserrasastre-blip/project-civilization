@@ -88,17 +88,35 @@ Todos verdes. Cualquier fallo → NO commit. Arréglalo primero.
 
 ## Reglas de ejecución de sprints
 
-1. **Lee `ROADMAP.md` primero** para saber qué sprint toca y cuáles son
-   sus entregables testeables.
-2. **Lee las secciones relevantes de `../vision-godgame.md`**. Los
-   sprints del roadmap referencian Pillars 1-5 y anexos A1-A5.
-3. **NO adelantes sprints**. Si el sprint 2 trata muerte/nacimiento, no
-   añadas dones (sprint 3) aunque "quede bien". El scope creep mata
-   este proyecto — está advertido explícitamente en el roadmap.
-4. **NO inviertas el orden canónico** (v0.3 antes de v0.4, etc.). Hay
-   restricciones escritas en el roadmap con su "why".
-5. **Al terminar un sprint**: actualizar la marca ✅ en `ROADMAP.md`,
-   commitear con mensaje `sprint N: <entregable>`.
+1. **Lee `SPRINTS-primigenia.md` primero** (durante la edad primigenia)
+   para saber qué sprint toca y seguir su queue: meta, archivos a
+   tocar, tests Red primero, criterio de cierre. `ROADMAP-primigenia.md`
+   es el mapa estratégico (fases + criterios globales de cierre); la
+   queue táctica vive en `SPRINTS-primigenia.md`. Ambos son fuente de
+   verdad; ninguno contradice al otro. Para eras posteriores (tribal
+   en adelante), la fuente de verdad vuelve a ser `ROADMAP.md` genérico
+   hasta que se redacte una queue SPRINTS específica para esa era.
+2. **Lee las secciones relevantes de `../vision-godgame.md` y de
+   `vision-primigenia.md`**. Los sprints referencian Pillars 1-5,
+   anexos A1-A5 y §3.X de la visión primigenia (p.ej. §3.7 susurro
+   persistente, §3.7b Fe como moneda, §3.8 gratitud y milagros).
+3. **NO adelantes sprints**. Si el sprint activo trata susurro y Fe,
+   no añadas ficha de aventurero (sprint siguiente) aunque "quede
+   bien". El scope creep mata este proyecto — está advertido
+   explícitamente en la queue.
+4. **NO inviertas el orden canónico** de SPRINTS-primigenia.md sin
+   justificación técnica documentada en `NOTES-OVERNIGHT.md`. El orden
+   está calibrado por dependencias y por feel de jugador (p.ej.
+   LEGIBILIDAD antes que FICHA porque el jugador entiende el verbo
+   global antes de usar el verbo individual).
+5. **Al terminar un sprint**: actualizar la marca de estado en
+   `SPRINTS-primigenia.md` (si aplica), commitear con mensaje
+   `sprint NOMBRE: <entregable>`, y abrir PR — no auto-merge durante
+   primigenia salvo instrucción explícita del Director humano.
+6. **Gate humano tras sprints críticos**: cuando SPRINTS-primigenia.md
+   marca un sprint como gate de playtest (p.ej. #1.5 PLAYTEST-SUSURRO),
+   no arrancar el siguiente sprint sin que el humano firme. El gate
+   no es opcional; es parte del camino crítico.
 
 ## Convenciones de código
 
