@@ -176,8 +176,8 @@ El autor de la rama `claude/setup-monorepo-workflow-aSzkl`:
    - `docs(SPRINTS): matriz de compatibilidad concurrente`
    - `docs: borrar placeholders agents/ shared/ docs/ y reemplazar por mención diferida`
 5. Push + reabrir PR contra main.
-6. Borrar este DRAFT (`DRAFT-ajustes-monorepo.md`) en el mismo PR —
-   deja de ser necesario una vez integrado.
+6. Borrar este DRAFT (`drafts/DRAFT-ajustes-monorepo.md`) en el mismo
+   PR — deja de ser necesario una vez integrado.
 
 Director audita el PR resultante. Si los 3 ajustes están fielmente
 integrados, firma. Si hay desviación, nuevo round de review.

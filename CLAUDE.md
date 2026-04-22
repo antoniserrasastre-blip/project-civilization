@@ -231,6 +231,11 @@ components/*     Componentes de features. Vacío tras archivar
 tests/unit/      Un fichero por módulo de lib/.
 tests/integration/  Flujos multi-módulo.
 tests/e2e/       Playwright. Un spec por flujo de usuario.
+drafts/          DRAFTs editoriales activos (pendientes de firma o
+                 integración). Se borran al mergear su contenido. Las
+                 reviews cerradas quedan en la raíz como `REVIEW-*.md`
+                 porque son registros históricos, no artefactos a
+                 integrar.
 ```
 
 ## Qué NO hacer
