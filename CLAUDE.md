@@ -219,6 +219,20 @@ código.
    agente. Cualquier cambio de Edición con diff mayor entra por el
    flujo normal de revisión cruzada.
 
+### Extensión multi-agente — slots diferidos
+
+Cuando aparezca un segundo agente con scope persistente distinto
+(p.ej. `balancer` tuneando constantes, `narrador` curando crónica
+LLM-generada), se crea `agents/<nombre>/` con su propio `CLAUDE.md`
+hijo del raíz. Hasta que exista el primero, esas carpetas **no**
+se pre-crean. Código común entre agentes vive en `shared/` cuando
+haya al menos dos consumidores — mientras tanto, no existe.
+Docs transversales de workflow van a `docs/` cuando haya al menos
+uno — mientras, viven en la raíz.
+
+Este repo sigue siendo **monorepo**; lo que cambia con agentes
+nuevos es dónde cuelgan los subárboles, no la raíz.
+
 ## Metodología: TDD estricto
 
 Todo sprint del roadmap se ejecuta así:
@@ -756,20 +770,13 @@ ahí se corre cuando haga falta, con el modelo que toque.
 
 ## Workflow de monorepo (reglas globales)
 
-Este repo es un **monorepo** con la siguiente estructura obligatoria:
-
-```
-project-civilization/
-├── CLAUDE.md        reglas globales del proyecto y de TODOS los agentes
-├── agents/          un subdirectorio por agente (ver agents/README.md)
-├── shared/          código común entre agentes (ver shared/README.md)
-├── docs/            documentación transversal (ver docs/README.md)
-└── (resto)          código de la app GODGAME: lib/, app/, components/, tests/, ...
-```
-
-Las carpetas `agents/`, `shared/` y `docs/` son **contratos de
-organización**; sus README explican qué va y qué no va en cada una. No
-se borran aunque estén vacías.
+Este repo es un **monorepo** con raíz igual al código de la app GODGAME
+(`lib/`, `app/`, `components/`, `tests/`, ...). Los subárboles
+`agents/`, `shared/` y `docs/` son **slots diferidos** — se crean sólo
+cuando aparece el primer consumidor real (ver §Agentes especializados
+→ "Extensión multi-agente — slots diferidos"). Mientras no exista ese
+consumidor, esos directorios no existen; no hay placeholders ni README
+fantasmas.
 
 ### Reglas de git (no negociables)
 
