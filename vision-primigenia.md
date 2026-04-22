@@ -52,9 +52,9 @@ reconstruirán encima de la base de sistemas que aquí se asienta.
 
 | Elemento | `vision-godgame.md` | Primigenia |
 |-|-|-|
-| Pilar 1 · Mismo don, distinto resultado | **intacto** | Cada NPC interpreta el mismo mensaje diario de forma distinta; 5 milagros raros con rasgos hereditarios 50%. |
-| Pilar 2 · Mundo cambia sin tocarlo | **intacto** | NPCs autónomos con pathfinding y necesidades; la simulación avanza aunque "guardes silencio hoy". |
-| Pilar 3 · Fe como economía narrativa | **reinterpretado** | La Fe se sustituye por **gratitud emergente** — los NPCs la generan al vivir un mensaje que les ayuda, y esa gratitud es la moneda de los milagros. Cuenta de creyentes vivos sigue siendo la métrica global del culto. |
+| Pilar 1 · Mismo don, distinto resultado | **intacto** | Cada NPC interpreta el **susurro activo** de forma distinta; 5 milagros raros con rasgos hereditarios 50%. |
+| Pilar 2 · Mundo cambia sin tocarlo | **intacto** | NPCs autónomos con pathfinding y necesidades; la simulación avanza también bajo **Silencio persistente** — el mundo no se detiene por falta de voz. |
+| Pilar 3 · Fe como economía narrativa | **reinterpretado** | **Dos monedas separadas**: la **gratitud** emerge cuando el susurro activo beneficia al clan (moneda de los milagros, §3.8); la **Fe** se acumula pasivamente según seguidores vivos (`sqrt(vivos)`) y es la moneda para cambiar susurros (§3.7b). Miracle ≠ pivote estratégico — dos verbos, dos rutas económicas. |
 | Pilar 4 · Anti-presión del dios rival | **diferido** | No hay rival en primigenia. Reaparece en tribal. |
 | Pilar 5 · Linaje reina | **intacto** | Casta Elegido hereditaria por un solo progenitor. |
 | §A4 pureza/determinismo/round-trip | **intacto** | Obligatorio. Mapa y PRNG seedables; sin `Math.random`. |
@@ -72,10 +72,15 @@ reconstruirán encima de la base de sistemas que aquí se asienta.
    bendecir en 10 minutos y el clan seguirá moviéndose, cazando,
    comiendo, muriendo, emparejándose. La partida no se congela por
    inacción — se empobrece.
-3. **Pilar 3 · Fe como creyentes reales**. No hay más "puntos de Fe"
-   abstractos. Cada humano del clan es un creyente; cada muerte es una
-   pérdida real de economía divina. Atraer gente externa al culto es
-   la única ruta de crecimiento.
+3. **Pilar 3 · Fe demográfica + gratitud emergente**. Dos economías
+   divinas separadas: la **Fe** se genera pasivamente en función del
+   número de creyentes vivos (`Fe/día = sqrt(vivos)`, §3.7b) y es la
+   moneda del pivote estratégico — cambiar susurros. La **gratitud**
+   emerge cuando el susurro activo beneficia tangiblemente al clan
+   (§3.8) y es la moneda de los milagros. Cada muerte reduce Fe/día
+   al instante: economía divina ligada a carne real. Atraer gente
+   externa al culto (post-primigenia) sigue siendo la única ruta de
+   crecimiento demográfico.
 4. **Pilar 4 · Anti-presión**. En primigenia se cumple por ausencia
    (no hay rival). El enemigo real es el ambiente: hambre, frío,
    conflicto interno.
@@ -485,8 +490,11 @@ estás moldeando el destino de tu clan.
   un punto costero del mapa.
 - Una **fogata precaria** ya está encendida. No cuenta como
   asentamiento — es el bivouac nómada.
-- Primer amanecer: modal con las **6 intenciones** (§3.7). Eliges
-  una — o guardas silencio. La simulación arranca.
+- El clan aparece en el mapa y la simulación arranca inmediatamente.
+  **Silencio** está activo por defecto; durante los **primeros 7 días**
+  in-game el dios puede callar sin penalización mientras observa. Un
+  botón **Hablar al clan** queda visible en el HUD desde el minuto 0 —
+  el primer susurro es gratuito (§3.7).
 
 **El minuto cinco**
 - Los 14 NPCs ya se han separado en grupos pequeños siguiendo
@@ -495,15 +503,20 @@ estás moldeando el destino de tu clan.
   hambre/sed) y un **pool de gratitud** en la cabecera.
 - La **crónica** empieza a narrar en voz partisana: "los nuestros
   han encontrado una cueva con agua dulce al pie del Mestral".
-- Si la intención del día acertó con la necesidad del clan, la
-  gratitud sube unos puntos. Si no, nada.
+- Si el susurro activo sigue alineado con una necesidad real del
+  clan ese día, la gratitud sube unos puntos. Si el clan ya está
+  saciado o el susurro no encaja, nada — la gratitud es emergente,
+  no automática (§3.8).
 
 **El minuto quince**
 - Primer conflicto social: un Ciudadano de skill baja empieza a no
   producir; su socialización baja; los demás cuchichean. El jugador
-  tiene dos opciones: pedir **Paciencia** en el mensaje del día, o
-  — si ya tiene 60 puntos de gratitud — gastar un **milagro de
-  Manos que recuerdan** para que ese Ciudadano se vuelva útil.
+  tiene dos opciones: cambiar el susurro activo a **Paciencia** si
+  tiene **80 Fe**, o — si tiene **60 puntos de gratitud** y prefiere
+  una solución directa sobre ese Ciudadano concreto — gastar un
+  **milagro de Manos que recuerdan** (§3.8). Dos monedas, dos verbos
+  — cambiar susurro empuja al clan entero, el milagro interviene
+  sobre un individuo.
 - Primera muerte por hambre o herida. El pool de gratitud cae
   porque el clan ha perdido a un suyo.
 
@@ -649,26 +662,39 @@ Crafteables umbral funcionando. Condición de fogata permanente.
 **Entregable testeable**: clan capaz de llegar a los 5 crafteables
 umbral por sí solo en una partida de 20.000 ticks determinista.
 
-### Fase 5 — Mensaje diario, gratitud y milagros
+### Fase 5 — Susurro, Fe y gratitud
 
 Verbo del jugador implementado completo:
-- Modal diario con las 6 intenciones y "guarda silencio hoy".
-- Motor de interpretación emergente por NPC (cada uno lee la
-  intención según supervivencia/socialización/economía/linaje).
-- Pool de gratitud a nivel clan con reglas de ganancia
-  (mensaje acertado) y pérdida (silencio prolongado, muerte de
-  creyente clave).
-- 5 milagros con su catálogo de efectos y herencia 50%.
-- Contador global de creyentes vivos como métrica del culto.
+- Botón **Hablar al clan** siempre disponible en el HUD; selector
+  con las 6 intenciones + Silencio; susurro activo **persiste**
+  hasta que el jugador lo cambie (§3.7).
+- Motor de interpretación emergente por NPC (cada uno lee el
+  susurro activo según supervivencia/socialización/economía/linaje).
+- **Moneda Fe** (§3.7b): generación sublineal por seguidores vivos
+  (`Fe/día = sqrt(vivos)`), coste 80 para cambiar de susurro, 40
+  para silenciar deliberadamente, cap 160, Fe inicial 30. Primer
+  susurro gratis. Módulo puro `lib/faith.ts`.
+- **Pool de gratitud** a nivel clan con reglas de ganancia (susurro
+  alineado a necesidad real del día) y pérdida (silencio prolongado,
+  muerte de creyente clave).
+- 5 milagros con su catálogo de efectos y herencia 50%, pagaderos
+  **exclusivamente con gratitud** (§3.8).
+- Contador global de creyentes vivos como métrica del culto y
+  como generador directo de Fe.
 
 **Entregable testeable**:
 1. El mismo NPC con diferentes combinaciones de rasgos produce
-   trayectorias medibles distintas (Pilar 1).
-2. La misma intención diaria se interpreta diferente en clanes con
-   composiciones distintas (Pilar 1 versión social).
-3. Una partida silenciada 20 días seguidos dispara semilla de
-   herejía; un milagro concedido con 80 puntos de gratitud deja el
-   pool al coste exacto.
+   trayectorias medibles distintas bajo un mismo susurro (Pilar 1).
+2. El mismo susurro persistente se interpreta diferente en clanes
+   con composiciones distintas (Pilar 1 versión social).
+3. Una partida silenciada 20 días seguidos (con Silencio elegido
+   explícitamente o por defecto tras la gracia inicial) dispara
+   semilla de herejía; un milagro de **Corazón fiel** concedido
+   con 80 puntos de gratitud deja el pool al coste exacto.
+4. Fe acumula según `sqrt(vivos)` de forma determinista en tick;
+   cambio de susurro descuenta 80 Fe, silencio elegido 40 Fe;
+   cap de 160 aplica; primer susurro no descuenta Fe; gracia de
+   7 días cuenta solo desde Día 1 hasta primer susurro.
 
 ### Fase 6 — Monumento y bendición de aldea
 
