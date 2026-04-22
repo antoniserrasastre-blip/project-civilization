@@ -17,7 +17,8 @@ Tu autoridad es editorial, no técnica. Tu firma queda en:
 - `DECISIONS-PENDING-primigenia.md` (preguntas abiertas con opciones).
 - `NOTES-OVERNIGHT.md` (bitácora técnica del ingeniero — solo lectura
   y notas editoriales como bloques `> [Director]: ...`).
-- Comentarios sobre diseño en `ROADMAP.md` (canónico de primigenia).
+- Comentarios sobre diseño en `ROADMAP-primigenia.md` (estratégico,
+  canónico de primigenia) y `SPRINTS-primigenia.md` (táctico).
 - `VERSION-LOG-vX.Y.md` cuando se cierre la primera versión post-bootstrap
   (perspectiva del jugador + balance + flags).
 
@@ -55,10 +56,12 @@ en `main`):
   `CLAUDEDIRECTOR.md`, `VERSION-LOG-*.md` cuando existan, bloques
   `> [Director]:` dentro de `NOTES-OVERNIGHT.md`.
 - **Del ingeniero**: `lib/`, `app/`, `components/`, `tests/`, `hooks/`,
-  `package.json`, marcas ✅ en `ROADMAP.md` al cerrar sprint.
+  `package.json`, marcas ✅ en `ROADMAP-primigenia.md` (y tachado de
+  sprints cerrados en `SPRINTS-primigenia.md`).
 - **Compartidos con coordinación**: `README.md`, `CLAUDE.md`,
-  contenido editorial nuevo en `ROADMAP.md`. Antes de tocar uno,
-  comprueba `git status` y avisa al humano si el ingeniero está activo.
+  contenido editorial nuevo en `ROADMAP-primigenia.md` o
+  `SPRINTS-primigenia.md`. Antes de tocar uno, comprueba `git status`
+  y avisa al humano si el ingeniero está activo.
 
 **Convivencia**: el ingeniero avanza el ROADMAP bajo TDD estricto; tú
 decides qué sprint/Fase es el siguiente, validas que el anterior ha
@@ -77,8 +80,10 @@ Por orden de autoridad (la de arriba gana ante contradicciones):
 2. **`vision-primigenia.md`** — anexo que refina la primera edad. Manda
    sobre `vision-godgame.md` solo para mecánicas de primigenia; los
    Pilares 1-5 y §A4 siguen siendo fuente global.
-3. **`ROADMAP.md`** — plan canónico de primigenia (Fases 1-6). Marcado
-   ✅ lo cerrado.
+3. **`ROADMAP-primigenia.md`** (estratégico, Fases 1-7 + criterio de
+   cierre) + **`SPRINTS-primigenia.md`** (queue táctica, sprints
+   accionables con archivos y tests Red). El `ROADMAP.md` del repo es
+   un puntero a estos dos — durante primigenia no se lee directamente.
 4. **`DECISIONS-PENDING-primigenia.md`** — preguntas abiertas. Tu
    bandeja.
 5. **`NOTES-OVERNIGHT.md`** — bitácora técnica del ingeniero.
@@ -121,8 +126,10 @@ sprints. Tus rituales viven a nivel de Fase, no de sprint.
 
 ### Al cerrar una Fase
 
-1. **Actualiza `ROADMAP.md`**: marca ✅ los sprints completados.
-   Anota en una línea cuál fue el commit que cerró la Fase.
+1. **Actualiza `ROADMAP-primigenia.md`**: marca ✅ los sprints
+   completados en el estado por fase. Tacha el sprint cerrado en
+   `SPRINTS-primigenia.md`. Anota en una línea cuál fue el commit
+   que cerró la Fase.
 2. **Escribe `VERSION-LOG-fase-N.md`** (o `VERSION-LOG-vX.Y.md` si
    la Fase coincide con un cierre de versión menor). Formato
    obligatorio (heredado de `CLAUDE.md` sección overnight):
@@ -500,8 +507,8 @@ propuesta exactamente.
 - Cambios de balance numéricos visibles al jugador (cantidad de
   fundadores, puntos de drafting, ratios de hambre/sed, etc.).
 - Añadir/quitar Pilares o redefinir victoria.
-- Introducir mecánica nueva no prevista en `ROADMAP.md` o
-  `vision-primigenia.md`.
+- Introducir mecánica nueva no prevista en `ROADMAP-primigenia.md` /
+  `SPRINTS-primigenia.md` o en `vision-primigenia.md`.
 - Saltar un sprint del ROADMAP o reordenar Fases.
 - Mergear a `main` tras un cambio de alcance.
 - Reactivar Pilar 4 (rival) antes de Fase 7.

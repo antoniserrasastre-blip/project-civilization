@@ -54,6 +54,15 @@ hacks de eficiencia).
   El `ROADMAP.md` actual del repo es el de primigenia (renombrado
   desde `ROADMAP-primigenia.md`).
 
+> [Director] 2026-04-22: nota del bootstrap **superada**. A partir
+> del commit que introduce este bloque, el repo tiene **tres**
+> ficheros de plan convivendo: `ROADMAP.md` (puntero histórico),
+> `ROADMAP-primigenia.md` (estratégico, canónico durante primigenia)
+> y `SPRINTS-primigenia.md` (táctico, queue accionable). El canónico
+> para planificar sprints es `ROADMAP-primigenia.md`; el ingeniero
+> consume `SPRINTS-primigenia.md`. `ROADMAP.md` queda solo como
+> puntero para compatibilidad con referencias históricas por nombre.
+
 ## Blockers y acciones requeridas al Director humano
 
 1. **Tag `v1.0.1-archive`**: push manual si se quiere referencia

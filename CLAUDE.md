@@ -1,10 +1,12 @@
 # CLAUDE.md
 
-Instrucciones para los **tres agentes especializados** que trabajan sobre
-este repo (Ingeniería/Producción, Diseño, Edición — ver sección
-"Agentes especializados" más abajo). Ejecutan el `ROADMAP.md` bajo TDD
-estricto y respetando los contratos del núcleo. Este fichero manda sobre
-todos los roles; si un agente tiene un `CLAUDE.md` propio dentro de
+Instrucciones para los **cuatro roles especializados** que trabajan sobre
+este repo (Ingeniería/Producción, Diseño, Edición, Director Creativo —
+ver sección "Agentes especializados" más abajo). Ejecutan
+`SPRINTS-primigenia.md` (queue táctica, durante la edad primigenia) +
+`ROADMAP-primigenia.md` (mapa estratégico) bajo TDD estricto y
+respetando los contratos del núcleo. Este fichero manda sobre todos los
+roles; si un agente tiene un `CLAUDE.md` propio dentro de
 `agents/<rol>/`, se interpreta como **hijo** de éste, no como alternativa.
 
 ## Identidad del proyecto
@@ -16,7 +18,10 @@ balear-ficticio.
 
 Fuentes de verdad, por orden de prioridad:
 
-1. **`ROADMAP.md`** — qué sprint toca y en qué orden.
+1. **`SPRINTS-primigenia.md`** (táctico) + **`ROADMAP-primigenia.md`**
+   (estratégico) — qué sprint toca y en qué orden. El `ROADMAP.md` del
+   repo es un puntero a estos dos; durante primigenia no se lee
+   directamente.
 2. **`../vision-godgame.md`** (fuera del repo, en `GODGAME/`) — contrato
    de diseño. Los comentarios del código referencian secciones como §A1,
    §A4, §A5, o Pilares 1-5. Cuando veas una de esas referencias, asume
@@ -699,9 +704,9 @@ UI o flakes E2E que no dependen de la visión.
 
 Aplicado al flujo overnight (ver sección "Sesiones autónomas"):
 
-- **No abrir sesión** sin leer `ROADMAP.md` y identificar el sprint
-  activo *antes* del primer prompt. Quema 500-1000 tokens menos que
-  preguntar al agente "¿qué toca?".
+- **No abrir sesión** sin leer `SPRINTS-primigenia.md` y identificar
+  el sprint activo *antes* del primer prompt. Quema 500-1000 tokens
+  menos que preguntar al agente "¿qué toca?".
 - **Concentra los sprints pesados** (muchos módulos tocados, E2E
   nuevos, refactors §A4) en la primera mitad de la ventana de tu
   sesión. Cuando llevas 3-4 sprints encadenados, el contexto
