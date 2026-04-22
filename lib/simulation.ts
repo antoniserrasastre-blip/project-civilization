@@ -16,7 +16,8 @@
 
 import { decideDestination, tickNeeds } from './needs';
 import { findPath } from './pathfinding';
-import type { GameState } from './game-state';
+import type { ChronicleEntry, GameState } from './game-state';
+import { CHRONICLE_MAX } from './game-state';
 import type { NPC } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickHarvests } from './harvest';
@@ -30,6 +31,7 @@ import {
   computeSilenceDrainPerDay,
 } from './gratitude';
 import type { VillageState } from './village';
+import { narrate } from './chronicle';
 import { firstStructureOfKind } from './structures';
 import {
   canBuild,
@@ -195,9 +197,53 @@ export function tick(state: GameState): GameState {
     }
   }
 
+  // Crónica — detecta muertes este tick (alive true→false) y
+  // persiste la narración en el state (§A4 intacto: determinista,
+  // sin side effects, round-trip JSON). Sprint #2 Fase 5: cableado
+  // mínimo. Nacimientos / migraciones entran cuando las mecánicas
+  // pertinentes se implementen.
+  const nextChronicle = appendDeathsToChronicle(
+    state.chronicle,
+    state.npcs,
+    afterBuild.npcs,
+    afterBuild.tick,
+  );
+
   return {
     ...afterBuild,
     relations: state.relations,
     village: nextVillage,
+    chronicle: nextChronicle,
   };
+}
+
+function appendDeathsToChronicle(
+  prev: readonly ChronicleEntry[],
+  before: readonly NPC[],
+  after: readonly NPC[],
+  tick: number,
+): ChronicleEntry[] {
+  const aliveBefore = new Map<string, boolean>();
+  for (const n of before) aliveBefore.set(n.id, n.alive);
+  const deaths: ChronicleEntry[] = [];
+  for (const n of after) {
+    if (!aliveBefore.get(n.id)) continue; // ya muerto o ausente
+    if (n.alive) continue;
+    deaths.push({
+      day: Math.floor(tick / TICKS_PER_DAY),
+      tick,
+      text: narrate({
+        type: 'death',
+        npcName: n.id,
+        cause: 'hambre',
+        tick: Math.floor(tick / TICKS_PER_DAY),
+      }),
+    });
+  }
+  if (deaths.length === 0) return prev as ChronicleEntry[];
+  const merged = [...prev, ...deaths];
+  if (merged.length > CHRONICLE_MAX) {
+    return merged.slice(merged.length - CHRONICLE_MAX);
+  }
+  return merged;
 }

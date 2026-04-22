@@ -4,10 +4,13 @@
  * GameShell — shell React que mantiene el GameState vivo.
  *
  * Sprint Fase 5 #1: sustituye el pulso diario forzoso por el susurro
- * persistente (§3.7). El tick ahora corre **automáticamente** (un
- * tick cada `TICK_INTERVAL_MS` reales) y el jugador decide cuándo
- * abrir el selector de susurro desde el HUD. El susurro activo
- * persiste entre ticks; sólo se archiva al cambiar.
+ * persistente (§3.7). El tick corre automáticamente (un tick cada
+ * `TICK_INTERVAL_MS` reales) y el jugador decide cuándo abrir el
+ * selector de susurro desde el HUD.
+ *
+ * Sprint Fase 5 #2 (LEGIBILIDAD-MVP): pasa `ClanSummary` al selector
+ * y `chronicle` al feed lateral para que el jugador pueda responder
+ * *"¿por qué elegí Coraje?"* sin abrir la visión.
  *
  * §A4 intacto — ninguna aleatoriedad sale del PRNG seedable; el
  * tick() sigue siendo puro y el state se pasa inmutable a React.
@@ -17,6 +20,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapView } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
 import { HUD } from '@/components/era/HUD';
+import { ChronicleFeed } from '@/components/era/ChronicleFeed';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
@@ -24,6 +28,7 @@ import { makeDefaultClan } from '@/lib/default-clan';
 import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { tick as tickSim } from '@/lib/simulation';
+import { summarizeClanState } from '@/lib/clan-context';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -50,8 +55,11 @@ export function GameShell({ seed }: GameShellProps) {
     () => state.npcs.filter((n) => n.alive).length,
     [state.npcs],
   );
+  const clanSummary = useMemo(
+    () => summarizeClanState(state.npcs, state.tick),
+    [state.npcs, state.tick],
+  );
 
-  // Tick automático — el mundo corre solo, el jugador sólo susurra.
   useEffect(() => {
     if (state.era !== 'primigenia') return;
     const id = setInterval(() => {
@@ -67,8 +75,6 @@ export function GameShell({ seed }: GameShellProps) {
       try {
         return { ...prev, village: applyPlayerIntent(prev.village, choice, prev.tick) };
       } catch {
-        // Fe insuficiente: no cambia el state; el selector marca
-        // el botón como disabled preventivamente.
         return prev;
       }
     });
@@ -95,10 +101,16 @@ export function GameShell({ seed }: GameShellProps) {
         monumentProgress={state.monument.progress}
         onOpenWhisper={() => setSelectorOpen(true)}
       />
+      <ChronicleFeed
+        activeMessage={state.village.activeMessage}
+        messageHistory={state.village.messageHistory}
+        chronicle={state.chronicle}
+      />
       {selectorOpen && (
         <WhisperSelector
           activeMessage={state.village.activeMessage}
           faith={state.village.faith}
+          clan={clanSummary}
           onChoose={onChoose}
           onClose={() => setSelectorOpen(false)}
         />
