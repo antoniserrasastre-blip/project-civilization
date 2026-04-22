@@ -572,6 +572,57 @@ asíncrono por defecto.
 **NO aplica**: fixes bloqueantes (main roto, E2E en CI fallando) —
 ahí se corre cuando haga falta, con el modelo que toque.
 
+## Workflow de monorepo (reglas globales)
+
+Este repo es un **monorepo** con la siguiente estructura obligatoria:
+
+```
+project-civilization/
+├── CLAUDE.md        reglas globales del proyecto y de TODOS los agentes
+├── agents/          un subdirectorio por agente (ver agents/README.md)
+├── shared/          código común entre agentes (ver shared/README.md)
+├── docs/            documentación transversal (ver docs/README.md)
+└── (resto)          código de la app GODGAME: lib/, app/, components/, tests/, ...
+```
+
+Las carpetas `agents/`, `shared/` y `docs/` son **contratos de
+organización**; sus README explican qué va y qué no va en cada una. No
+se borran aunque estén vacías.
+
+### Reglas de git (no negociables)
+
+1. **Nunca push directo a `main`**. Ni siquiera con gate verde. `main`
+   sólo recibe commits vía Pull Request mergeado.
+2. **Toda rama de trabajo es temporal** y sigue el patrón
+   `feature/<agente>-<descripción-corta>`. Ejemplos:
+   - `feature/civilization-sprint-legibilidad`
+   - `feature/balancer-tune-fe-passive`
+   - `feature/shared-logging-adapter`
+   Ramas de agente iniciadas por el harness (`claude/...`) son
+   equivalentes y válidas; el patrón `feature/...` aplica a ramas
+   creadas manualmente.
+3. **Todo cambio abre un Pull Request contra `main`**. Sin PR no hay
+   merge, aunque sea un typo.
+4. **Un PR sólo mergea con**:
+   - Gate completo en verde: `pnpm test`, `pnpm test:e2e` (si tocó
+     UI/persistencia), `pnpm exec tsc --noEmit`, `pnpm exec eslint .`,
+     `pnpm build`.
+   - Revisión aprobada (humano o agente reviewer designado).
+5. **Si cambian reglas de comportamiento de un agente**, se actualiza
+   el `CLAUDE.md` correspondiente en el mismo PR que introduce el
+   cambio. Nunca en un PR posterior "de limpieza".
+6. **Todos los agentes viven en este repo** (bajo `agents/`) para
+   compartir contexto y que ningún cambio rompa a otro sin quedar
+   registrado en el historial común.
+
+### Relación con reglas existentes
+
+Esta sección **refuerza y hace explícitas** reglas que ya aparecían
+en "Qué NO hacer" (no `git push` a `main` sin gate) y en "Sesiones
+autónomas" (un commit por sprint, gate antes de commitear). Si hay
+conflicto aparente, esta sección prevalece: `main` se actualiza
+**sólo vía PR mergeado**, nunca por push directo aunque el gate pase.
+
 ## Cuándo pausar y preguntar
 
 - Ambigüedad entre lo que pide el roadmap y lo que pide la visión.
