@@ -12,6 +12,11 @@
  * y `chronicle` al feed lateral para que el jugador pueda responder
  * *"¿por qué elegí Coraje?"* sin abrir la visión.
  *
+ * Hotfix UX post-playtest PR #12: botón de pausa (+ barra
+ * espaciadora) — sin pausa es casi imposible clicar en un NPC en
+ * movimiento. No toca §A4 porque pausar sólo deja de llamar a
+ * `tickSim()`; el state sigue siendo el mismo.
+ *
  * §A4 intacto — ninguna aleatoriedad sale del PRNG seedable; el
  * tick() sigue siendo puro y el state se pasa inmutable a React.
  */
@@ -49,6 +54,7 @@ export function GameShell({ seed }: GameShellProps) {
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
 
   const day = useMemo(
     () => Math.floor(state.tick / TICKS_PER_DAY) + 1,
@@ -65,13 +71,29 @@ export function GameShell({ seed }: GameShellProps) {
 
   useEffect(() => {
     if (state.era !== 'primigenia') return;
+    if (paused) return;
     const id = setInterval(() => {
       setState((prev) =>
         prev.era === 'primigenia' ? tickSim(prev) : prev,
       );
     }, TICK_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [state.era]);
+  }, [state.era, paused]);
+
+  // Barra espaciadora alterna pausa. Evita interceptar cuando el
+  // usuario está escribiendo en un input (no hay ninguno ahora, pero
+  // la guarda es trivial y robusta).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      setPaused((p) => !p);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const onChoose = (choice: MessageChoice) => {
     setState((prev) => {
@@ -124,6 +146,8 @@ export function GameShell({ seed }: GameShellProps) {
         totalCount={state.npcs.length}
         monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress}
+        paused={paused}
+        onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
       />
       <ChronicleFeed
