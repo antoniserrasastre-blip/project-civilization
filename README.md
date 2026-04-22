@@ -32,7 +32,8 @@ Hoy el `main` contiene:
   reproducibilidad byte-idéntica 1000 veces.
 - **Documentación constitucional** — `vision-primigenia.md` (anexo
   editorial), `DECISIONS-PENDING-primigenia.md` (bandeja del Director),
-  `ROADMAP.md` (Fases 1-6 descompuestas en sprints), `CLAUDE.md` /
+  `ROADMAP-primigenia.md` (mapa estratégico de Fases 1-7) +
+  `SPRINTS-primigenia.md` (queue táctica accionable), `CLAUDE.md` /
   `CLAUDE-primigenia.md` (metodología del ingeniero), `CLAUDEDIRECTOR.md`
   (contrapeso editorial).
 
@@ -79,8 +80,9 @@ Si un test de determinismo falla, no se mergea.
 
 ## Roadmap (resumen)
 
-Plan en 6 fases hasta cerrar el loop primigenia. Detalle por sprint
-en `ROADMAP.md`.
+Plan en 6 fases hasta cerrar el loop primigenia. Mapa estratégico
+en `ROADMAP-primigenia.md`; queue táctica de sprints pendientes en
+`SPRINTS-primigenia.md`.
 
 | Fase | Tema | Sprints | Estado |
 |-|-|-|-|
@@ -100,7 +102,9 @@ tribal completa.
 | Documento | Qué contiene |
 |-|-|
 | `vision-primigenia.md` | Anexo editorial: identidad, sistemas base, fases. Manda sobre la visión madre para mecánicas primigenia. |
-| `ROADMAP.md` | Plan canónico de primigenia (Fases 1-6). |
+| `ROADMAP-primigenia.md` | Plan canónico estratégico de primigenia (Fases 1-7 + criterio de cierre). |
+| `SPRINTS-primigenia.md` | Queue táctica de sprints pendientes: archivos a tocar, tests Red primero, cierre. |
+| `ROADMAP.md` | Puntero a los dos anteriores (se conserva por compatibilidad con referencias históricas). |
 | `DECISIONS-PENDING-primigenia.md` | Bandeja del Director humano. Sprints bloqueados hasta firmar. |
 | `CLAUDE.md` | Metodología del ingeniero (TDD estricto, contratos §A4, batches anti-timeout, eficiencia de tokens). |
 | `CLAUDE-primigenia.md` | Convenciones específicas de la nueva arquitectura. |
