@@ -277,3 +277,24 @@ Hecho eso, Fase 7 (diferida: migrantes + rival) queda habilitada
 para planificación con `DECISIONS-PENDING-primigenia.md #33`
 resuelta por delante (política de migración de estado primigenia
 → tribal — abierta en paralelo a este log).
+
+## Triado de flags — 2026-04-22 (Director Creativo)
+
+> Barrido editorial de los 7 flags 🚩 de arriba. Estados:
+> **✅ cerrado** (resuelto por implementación o decisión posterior),
+> **🔧 programado** (hay sprint pendiente que lo aborda),
+> **🕐 vivo** (sigue abierto, requiere playtest o acción futura).
+
+| # | Flag | Estado | Próxima acción / cierre |
+|-|-|-|-|
+| 1 | 🟡 Fase 1 — Assets placeholders procedurales | 🔧 programado | Sprint **#6 ASSETS-IMPORT** (`SPRINTS-primigenia.md`), pausado hasta firma humana de **decisión #34** (recién abierta 2026-04-22 con default B = CC BY 4.0 + atribución). |
+| 2 | 🟡 Fase 1 — E2E del MapView ready-for-future | 🕐 vivo | Parcialmente mitigado: el gate local se reproduce con `PLAYWRIGHT_CHROMIUM_PATH` (commit `claude/fix-gate-primigenia`). Cierre real cuando el entorno con red ejecute `pnpm exec playwright install chromium`. No bloquea Sprint #1. |
+| 3 | 🟠 Fase 2 — Balance del drafting sin playtest | 🕐 vivo | Revalidar en el **playtest humano** post Sprint #1.5 / #2. Si el sweet spot 10 pt asfixia, subir a 12 pt en un commit de balance puntual. |
+| 4 | 🟡 Fase 3 — Crónica sin variedad narrativa | 🕐 vivo | Tocable en Sprint **#2 LEGIBILIDAD-MVP** (introduce `ChronicleFeed`). Si el jugador reporta repetición, añadir 3-5 plantillas por evento sin esperar al LLM provider real. |
+| 5 | 🟠 Fase 4 — Recetas con skill mínimo 15 (herramienta sílex) | 🕐 vivo | Test adverso pendiente (clan con skill medio 8). No bloquea; cabe dentro del Polish & Debug pass entre versiones mayores. |
+| 6 | 🟡 Fase 4 — Grafo de relaciones sin efecto visible | 🕐 vivo | Deuda válida de diseño. Se consume realmente en Fase 7+ (migrantes, rituales). No requiere acción durante primigenia. |
+| 7 | 🟠 Fase 4 — 20k ticks / 833 días puede ser demasiado lento | 🕐 vivo | Instrumentar *"minutos reales hasta ver los 5 crafteables en un run típico"* durante el playtest del humano. Si > 30 min, bajar costes de crafting o subir caps de inventario. |
+
+**Resumen**: 0 cerrados, 1 programado (#1 con #34 + Sprint #6), 6
+vivos — todos requieren playtest humano o entorno con red para su
+cierre definitivo. Ninguno bloquea el Sprint #1 REFACTOR-SUSURRO-FE.
