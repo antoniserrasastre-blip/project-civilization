@@ -264,15 +264,15 @@ transición "ya no somos nómadas":
 + **fogata permanente con ≥ 10 noches consecutivas durmiendo
 alrededor**. Dispara la disponibilidad del **monumento** (§5).
 
-### 3.7 El mensaje diario — el verbo continuo del dios
+### 3.7 El mensaje persistente — el verbo continuo del dios
 
-**El dios habla una vez al amanecer in-game**. Ese es su único
-verbo continuo, siempre disponible, sin coste. Al iniciarse cada
-nuevo día del clan, la simulación se pausa y se muestra un modal
-con seis **intenciones** posibles. El jugador elige una — o marca
-"guarda silencio hoy" y avanza sin hablar.
+El dios habla **una vez** y su palabra sobrevive semanas. Este es
+su único verbo continuo: un susurro global al clan que permanece
+activo hasta que el dios decide cambiarlo. El mundo no se detiene
+al elegirlo — el tiempo corre, los NPCs viven, el susurro reverbera
+en cada jornada sin necesidad de volver a pronunciarlo.
 
-**Las seis intenciones primigenia** (plantilla fija; texto libre
+**Las seis intenciones + Silencio** (plantilla fija; texto libre
 llegará post-primigenia cuando se active LLM real):
 
 | Intención | Cuándo encaja | Tonalidad que empuja |
@@ -283,29 +283,89 @@ llegará post-primigenia cuando se active LLM real):
 | **Encuentro** | Soledad, NPCs separados, linajes desconectados | Buscar al otro; pairing; reconciliación |
 | **Renuncia** | Recurso agotado localmente, apego a un lugar insostenible | Soltar; migrar; dejar ir |
 | **Esperanza** | Baja moral generalizada, herejía incipiente | Mirar al futuro; reforzar fe; perseverar |
+| **Silencio** | Estado por defecto o elección explícita | Sin empuje — el mundo corre sin voz |
 
-**Interpretación emergente (Pilar 1)**: cada NPC lee la intención
-del día **según sus niveles individuales y su linaje**. Un
-"coraje" en un NPC con supervivencia alta puede leerse como
-"lanzarse a cazar"; en uno con economía tensa, como "no robar al
-vecino"; en uno del linaje Gregal (inestable), como "provocar el
-conflicto que estaba evitando". La crónica narra las **2-3
-interpretaciones más relevantes** del día, no todas — quien
-quiera seguir a un NPC concreto puede abrir su ficha y ver qué
-leyó él.
+**Interpretación emergente (Pilar 1)**: cada NPC lee el susurro
+activo **según sus niveles individuales y su linaje**. Un "coraje"
+en un NPC con supervivencia alta puede leerse como "lanzarse a
+cazar"; en uno con economía tensa, como "no robar al vecino"; en
+uno del linaje Gregal (inestable), como "provocar el conflicto que
+estaba evitando". La crónica narra las **2-3 interpretaciones más
+relevantes** de la jornada; el jugador abre la ficha del NPC
+concreto si quiere ver qué leyó él.
 
-**Silencio**: si el jugador marca "guarda silencio hoy", la
-simulación avanza sin empujar a nadie. La **gratitud pasiva
-disminuye** y la **probabilidad de semilla de herejía aumenta**.
-Silenciar un día puntual es saludable; silenciar días seguidos
-abre boquete.
+**Estado inicial del susurro**: el clan nace con **Silencio** activo.
+El primer susurro explícito del jugador es **gratuito** — se concede
+como "estrenar la voz".
 
-**Por qué el pulso diario importa**: resuelve el vacío del
-jugador contemplativo (minimalista del playtest v1.0.1 perdía
-por no tener verbo activo). Ahora siempre hay exactamente una
-cosa que pensar cada mañana. El jugador activo escribe mensaje
-+ gasta un milagro si puede; el contemplativo escribe sólo el
-mensaje y deja que el mundo lo interprete.
+**Gracia inicial del Silencio**: durante los **primeros 7 días** (una
+semana in-game) sin haber susurrado, el Silencio no penaliza — el
+clan está en bivouac, orientándose. A partir del octavo día sin
+susurro elegido, el Silencio activa sus efectos: gratitud pasiva
+disminuye, probabilidad de semilla de herejía aumenta.
+
+**Volver a Silencio explícitamente** (tras haber susurrado algo) es
+una elección que **cuesta Fe** (§3.7b). Silenciar deliberadamente
+es un acto, no una omisión.
+
+**Por qué el susurro persiste**: el pulso diario obligatorio de la
+primera iteración resolvía el vacío del jugador contemplativo pero
+introducía click-spam — una decisión cada amanecer diluye el peso
+de cada decisión. El susurro persistente lo invierte: **pocas
+decisiones con mucho peso**. El jugador decide cuándo hablar y paga
+por cada cambio; entre susurro y susurro observa al clan vivir la
+consecuencia. El problema del jugador-mudo se resuelve por la
+penalización del Silencio acumulado y por los indicadores visibles
+del mundo (Fe, gratitud, necesidades emergentes), no por un modal
+forzoso.
+
+### 3.7b Fe como moneda de cambio
+
+Segunda moneda, separada funcionalmente de la gratitud (§3.8). La
+Fe **no desbloquea milagros** — eso es dominio exclusivo de la
+gratitud. La Fe sirve para una cosa: **cambiar el susurro activo**.
+
+**Generación**: Fe se acumula pasivamente según el tamaño actual del
+clan, con fórmula sublineal para que crecer demográficamente acelere
+suavemente el acceso a cambios sin hacerlos triviales:
+
+```
+Fe/día = sqrt(seguidores vivos)
+```
+
+Seguidores vivos = NPCs con `alive === true`. Elegidos y Ciudadanos
+cuentan igual.
+
+**Ritmo sostenido** (desde Fe=0 tras gastar):
+
+| Seguidores vivos | Fe/día | Días a 80 (cambio) | Días a 40 (silencio) |
+|-|-|-|-|
+| 5 | 2.24 | ~36 (punitivo) | ~18 |
+| 14 (arranque) | 3.74 | ~21 (≈ 3 semanas) | ~11 |
+| 20 | 4.47 | ~18 | ~9 |
+| 50 | 7.07 | ~11 | ~6 |
+| 100 | 10 | 8 | 4 |
+
+**Coste y cap**:
+- **Cambiar a susurro activo** (Auxilio ↔ Coraje ↔ Paciencia ↔ …):
+  **80 Fe** fijo, no escala con cambios previos.
+- **Silenciar deliberadamente** (susurro activo → Silencio elegido):
+  **40 Fe**. Asimetría intencional — silenciar es emergency-stop o
+  pausa táctica, no pivote. Silenciar y volver a hablar (40 + 80 =
+  120) sigue siendo más caro que un cambio directo (80), así que no
+  se puede explotar.
+- **Cap de acumulación**: **160 Fe** (2× coste de cambio). Anti-banking.
+  Excedente sobre el cap se pierde.
+- **Fe inicial**: **30**. Colchón de arranque que evita el "HUD seco"
+  pero no alcanza para un cambio (ni para silencio). Con 14 vivos,
+  acorta el primer cambio de 21 a ~13 días.
+
+**Efectos de borde**:
+- **Muerte de seguidores**: Fe/día se ajusta al vuelo (función de
+  vivos actuales). Epidemia o hambruna te deja con menos voz.
+- **Migrantes** (post-primigenia): aumentan generación al instante.
+- **Rival** (post-primigenia): no afecta Fe propia — contamina
+  gratitud vía herejía.
 
 ### 3.8 Milagros y gratitud — el verbo escaso del dios
 
@@ -316,14 +376,20 @@ la parte escasa de la economía divina.
 
 **Gratitud** (moneda emergente):
 - Se acumula en un **pool del clan** (no por NPC individual).
-- La generan los NPCs cuando viven un mensaje diario que les
-  **beneficia tangiblemente** — supervivencia salvada, conflicto
-  evitado, linaje restaurado, deuda saldada.
-- No se puede forzar: emerge si tu mensaje acertó con la necesidad
-  del día. Mensajes que no aprovechan al clan generan **cero
-  gratitud**.
-- Se pierde parcialmente al silenciar días seguidos o cuando
-  muere un creyente clave (cada Elegido muerto drena pool).
+- La generan los NPCs cuando viven el **susurro activo** en un
+  momento que les **beneficia tangiblemente** — supervivencia
+  salvada, conflicto evitado, linaje restaurado, deuda saldada.
+- Se evalúa **cada día** sobre el susurro activo: día con susurro
+  alineado a una necesidad real del clan = pulso de gratitud. Día
+  con susurro activo pero sin necesidad compatible (clan en
+  equilibrio, o susurro inadecuado al momento) = **cero gratitud**.
+- No hay retornos decrecientes artificiales — los hay **emergentes**:
+  si el clan ya está saciado con Auxilio activo, mañana no hay
+  hambre que calmar, no hay gratitud. **Rotar susurro no es
+  obligatorio, es útil** — el jugador experto rota cuando la
+  situación cambia, no por un temporizador.
+- Se pierde parcialmente al silenciar días seguidos o cuando muere
+  un creyente clave (cada Elegido muerto drena pool).
 
 **Los 5 milagros primigenia** (costes en gratitud — provisionales,
 revalidables en playtest Fase 5):
@@ -374,8 +440,44 @@ Llevant queda en reserva para la edad tribal.
 ## 4. Loop del jugador
 
 El jugador **no mueve NPCs**. El juego corre solo. El rol del jugador
-es **observar, hablar al amanecer y gastar los milagros que se ha
-ganado**.
+es **observar, elegir cuándo susurrar y gastar los milagros que se
+ha ganado**.
+
+### 4.0 Cómo se siente jugar
+
+Empiezas creando tu clan de 14 personas. En menos de un minuto ya
+estás en el mapa viendo cómo se mueven 14 puntitos por la isla.
+
+Al principio solo observas. El clan caza, discute, se empareja.
+Poco después aparece el botón **Hablar al clan**. Eliges tu primer
+susurro gratis y se activa para todo el mundo.
+
+Mientras pasa el tiempo, ves dos barras en el HUD: **Fe** y
+**Gratitud**.
+
+- La **Fe** sube sola según cuánta gente tienes viva. Te sirve para
+  cambiar de susurro cuando quieras.
+- La **Gratitud** la ganas cuando tu susurro actual realmente ayuda
+  al clan. Esa gratitud la gastas en milagros.
+
+Los milagros son lo más emocionante: clicas en un NPC concreto, abres
+su ficha y le puedes dar un poder permanente. Por ejemplo, *Ojo de
+halcón* para que vea mucho más lejos, o *Manos que recuerdan* para
+que sea mucho mejor artesano. Ese poder se queda con él para siempre
+y se hereda parcialmente a sus hijos.
+
+Ver cómo un personaje que estaba flojo de repente se vuelve importante
+gracias a un milagro que tú le diste — eso se siente muy bien.
+
+El objetivo final es que el clan construya cinco cosas básicas, duerma
+muchas noches seguidas en la fogata y levante el monumento al dios.
+Cuando lo consigues, terminas la primera era.
+
+Es un juego tranquilo, donde observas mucho, hablas poco, pero cuando
+actúas (ya sea con un susurro o con un milagro) sientes que realmente
+estás moldeando el destino de tu clan.
+
+### 4.1 Desglose por minuto
 
 **El primer minuto**
 - Pantallas de drafting encadenadas: 4 Elegidos con puntos, luego
