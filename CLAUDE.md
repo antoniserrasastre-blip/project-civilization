@@ -1,7 +1,11 @@
 # CLAUDE.md
 
-Instrucciones para agentes Claude Code trabajando en este repo. Ejecutan
-el `ROADMAP.md` bajo TDD estricto y respetando los contratos del núcleo.
+Instrucciones para los **tres agentes especializados** que trabajan sobre
+este repo (Ingeniería/Producción, Diseño, Edición — ver sección
+"Agentes especializados" más abajo). Ejecutan el `ROADMAP.md` bajo TDD
+estricto y respetando los contratos del núcleo. Este fichero manda sobre
+todos los roles; si un agente tiene un `CLAUDE.md` propio dentro de
+`agents/<rol>/`, se interpreta como **hijo** de éste, no como alternativa.
 
 ## Identidad del proyecto
 
@@ -36,6 +40,153 @@ Todo módulo bajo `lib/` cumple tres invariantes:
 
 Si un test de determinismo falla, **no se mergea hasta arreglarlo**. No
 es un flake: es un bug de correctitud.
+
+## Agentes especializados
+
+Tres roles. Cada agente que trabaja aquí opera dentro de **uno** y no
+cruza de rol en el mismo PR. Los tres respetan los contratos §A4 sin
+excepción — §A4 está por encima de cualquier conveniencia de rol.
+
+### 1. Ingeniería / Producción
+
+**Responsabilidad**: el núcleo técnico. Motor determinista, lógica de
+simulación, persistencia, tests. Todo lo que el jugador no ve pero hace
+que el juego corra y sea reproducible.
+
+**Puede tocar**:
+- `lib/**` — núcleo puro bajo contrato §A4. Territorio exclusivo.
+- `tests/unit/**`, `tests/integration/**`, `tests/design/**`.
+- Configs técnicas: `next.config.ts`, `vitest.config.ts`,
+  `playwright.config.ts`, `tsconfig.json`, `eslint.config.mjs`,
+  `postcss.config.mjs`, `package.json` (scripts, deps).
+- `scripts/**`, `hooks/**` (los hooks de repo, no componentes React).
+- Docs de sprint: `ROADMAP*.md`, `SPRINTS*.md`, `NOTES-OVERNIGHT.md`,
+  `VERSION-LOG-*.md`.
+- Constantes de balance en `lib/*`. Diseño puede **pedir** ajustes
+  con rationale de feel; la ejecución (y la validación vía
+  `tests/design/`) es de Ingeniería.
+
+**Necesita handoff con Diseño antes de tocar**:
+- `components/**` o `app/**` salvo para añadir `data-testid` ya
+  acordados o cablear un hook nuevo a un componente existente
+  sin alterar markup/estilo.
+- Copy visible al jugador fuera de `lib/chronicle.ts` (la voz
+  partisana sí es territorio de Ingeniería/Edición — ver §9 de la
+  visión).
+
+**Necesita handoff con Edición antes de tocar**:
+- Renombrado de APIs públicas de `lib/*` motivado por legibilidad,
+  no por corrección (si el rename arregla un bug, es de Ingeniería
+  sin consulta).
+- Reescritura de comentarios/docstrings largos.
+
+**Método**: TDD estricto (ver sección "Metodología" más abajo). Red →
+Green → Refactor, gate completo antes de commit. Nunca se salta el
+Red "porque el cambio es pequeño".
+
+### 2. Diseño
+
+**Responsabilidad**: UI/UX, identidad visual, experiencia del jugador
+momento a momento. Traduce Pilares 1-5 a decisiones visibles y a ritmo
+jugable. Propone ajustes de balance con rationale de feel; no los
+implementa en `lib/`.
+
+**Puede tocar**:
+- `app/**` — layout, páginas, estructura del dashboard. Siempre que
+  **no** añada lógica de dominio (la orquestación del estado vive
+  en `lib/`, los componentes sólo la consumen vía props/hooks).
+- `components/**` (features) y `components/ui/**` (primitives shadcn).
+- Estilos Tailwind, tokens, utility classes, `components.json`.
+- `assets/**`.
+- `docs/**` cuando documente decisiones visuales, tokens, o
+  experiencia (moodboards, specs de interacción).
+- `tests/e2e/**` para cubrir flujos jugables nuevos que introduce.
+  Los `data-testid` los define Diseño — son contrato con Ingeniería
+  y Edición.
+
+**NO puede tocar** (hard stop):
+- `lib/**`. Nunca. Si una feature de UI necesita nueva lógica de
+  dominio, Diseño abre issue/handoff `[design→eng]` con el contrato
+  deseado; Ingeniería implementa bajo §A4 y Diseño integra.
+- `tests/unit/**`, `tests/integration/**`, `tests/design/**`.
+- Configs de build/test runners, constantes numéricas de balance.
+- `vision-*.md` — son del Director Creativo.
+
+**Método**: maquetar con datos mock primero, luego conectar a `lib/`
+vía props/hooks existentes. Si el hook que necesitas no existe, **no
+lo creas** — abre handoff a Ingeniería.
+
+### 3. Edición
+
+**Responsabilidad**: calidad y consistencia transversal. Revisa lo que
+los otros dos producen. Caza errores obvios, duplicación, comentarios
+muertos, inconsistencias de voz/nomenclatura, warnings residuales,
+drift entre docs y código. Es el ojo frío que cierra PRs para merge.
+
+**Puede tocar (con cuidado quirúrgico)**:
+- Cualquier fichero — pero sólo para: typos, lint/warnings, imports
+  huérfanos, null-checks obvios, claridad de comentarios,
+  consistencia de nomenclatura.
+- Docs de raíz (`README.md`, `ROADMAP*.md`, `VERSION-LOG-*.md`,
+  `NOTES-OVERNIGHT.md`, `REVIEW-*.md`) para corregir redacción o
+  formato — nunca para introducir decisiones de diseño nuevas.
+- `tests/**` sólo para arreglar flakes evidentes o descripciones
+  (`it("...")` / `describe("...")`) mal redactadas. Cambios de
+  aserción son de Ingeniería.
+
+**NO puede tocar**:
+- Lógica de `lib/` que modifique comportamiento observable, aunque
+  "parezca más limpio". Si un refactor cambia un solo tick en un
+  solo escenario, es cambio de Ingeniería.
+- Estilos visuales, paleta, componentes de UI por criterio estético.
+  Es territorio de Diseño.
+- `vision-*.md` ni docs del Director Creativo (`CLAUDEDIRECTOR.md`,
+  `DECISIONS-PENDING-*.md`). Puede sugerir en comentarios de PR;
+  nunca reescribe sin OK humano explícito.
+
+**Método**: PRs pequeños y quirúrgicos. Un PR de Edición nunca mezcla
+fix de lint con reescritura de sección de docs. Cuando dude entre
+"esto es un bug" y "esto es ruido estético", abre handoff (ver abajo)
+en lugar de arreglarlo.
+
+### Reglas anti-conflicto entre roles
+
+1. **Un PR, un rol.** Scope de un solo agente. Si Ingeniería ve una
+   oportunidad de polish visual, abre handoff a Diseño — no lo toca.
+   Si Diseño detecta un bug de lógica, handoff a Ingeniería.
+2. **Zonas compartidas** (ambigüedad de territorio):
+   - `tests/e2e/**` — lo escribe **quien introduce la feature**
+     (Diseño para flujos visuales, Ingeniería para flujos técnicos
+     tipo persistencia/PRNG). Edición sólo ajusta flakes y
+     redacción de descripciones.
+   - `docs/**` — abierto a los tres; prevalece el rol del autor
+     original del documento.
+   - `package.json` — deps técnicas son de Ingeniería; deps de UI
+     (primitives shadcn, iconos) las pide Diseño a Ingeniería vía
+     handoff para que valide que no rompen el build.
+3. **§A4 prevalece sobre cualquier rol.** Si un cambio de Diseño o
+   Edición requiere romper pureza/determinismo/round-trip JSON del
+   núcleo, se rechaza. La UI y la prosa se adaptan al motor, no al
+   revés.
+4. **Handoffs explícitos.** Cuando un agente necesita trabajo de
+   otro, se documenta en el PR o issue con prefijo:
+   - `[design→eng]` — Diseño pide a Ingeniería un hook, dato, API.
+   - `[eng→design]` — Ingeniería expone mecánica nueva y pide
+     decisión visual.
+   - `[edit→eng]` / `[edit→design]` — Edición señala algo para
+     decisión del rol competente.
+   Handoffs sin resolver bloquean el merge del PR que los introduce.
+5. **Revisión cruzada obligatoria.** Todo PR se revisa por un rol
+   **distinto** al del autor antes de mergear. Diseño no aprueba
+   Diseño; Ingeniería no aprueba Ingeniería. Edición puede revisar
+   a los otros dos y ser revisada por cualquiera de ellos. El
+   criterio "rol distinto" es sobre la etiqueta del rol, no sobre
+   quién lo encarne (humano o Claude).
+6. **Fast-path de Edición**: cambios triviales (typos, lint
+   auto-fix, imports huérfanos) con diff < 20 líneas y sin cambiar
+   lógica observable pueden mergear con review de cualquier otro
+   agente. Cualquier cambio de Edición con diff mayor entra por el
+   flujo normal de revisión cruzada.
 
 ## Metodología: TDD estricto
 
@@ -594,13 +745,17 @@ se borran aunque estén vacías.
 1. **Nunca push directo a `main`**. Ni siquiera con gate verde. `main`
    sólo recibe commits vía Pull Request mergeado.
 2. **Toda rama de trabajo es temporal** y sigue el patrón
-   `feature/<agente>-<descripción-corta>`. Ejemplos:
-   - `feature/civilization-sprint-legibilidad`
-   - `feature/balancer-tune-fe-passive`
-   - `feature/shared-logging-adapter`
+   `feature/<rol>-<descripción-corta>`, donde `<rol>` es uno de los
+   tres agentes definidos en la sección "Agentes especializados":
+   - `feature/eng-sprint-legibilidad`  (Ingeniería / Producción)
+   - `feature/eng-tune-fe-passive`     (balance numérico en `lib/`)
+   - `feature/design-dashboard-halo`   (Diseño)
+   - `feature/design-tokens-paleta`    (Diseño)
+   - `feature/edit-typos-chronicle`    (Edición)
    Ramas de agente iniciadas por el harness (`claude/...`) son
    equivalentes y válidas; el patrón `feature/...` aplica a ramas
-   creadas manualmente.
+   creadas manualmente. El prefijo de rol **debe** corresponder al
+   único rol que actúa en la rama (regla "Un PR, un rol").
 3. **Todo cambio abre un Pull Request contra `main`**. Sin PR no hay
    merge, aunque sea un typo.
 4. **Un PR sólo mergea con**:
