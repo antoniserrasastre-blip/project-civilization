@@ -191,10 +191,11 @@ por NPC, sin retroceso) queda **intacto**.
 Cuando firmes, este draft se merge a `vision-primigenia.md` y se
 abre **Sprint REFACTOR-SUSURRO-FE**:
 
-- **Estado**: añadir `village.faith: number` (inicial 0) y
-  `village.silenceGraceDaysRemaining: number` (inicial 3).
+- **Estado**: añadir `village.faith: number` (inicial `30`) y
+  `village.silenceGraceDaysRemaining: number` (inicial `7`).
 - **Módulo nuevo** `lib/faith.ts`: `faithPerDay(aliveCount)`,
-  `FAITH_COST_CHANGE = 80`, `FAITH_CAP = 160`, pura y determinista.
+  `FAITH_COST_CHANGE = 80`, `FAITH_COST_SILENCE = 40`, `FAITH_CAP = 160`,
+  `FAITH_INITIAL = 30`. Pura y determinista.
 - **`village.activeMessage`**: cambia semántica — ya no se resetea
   al amanecer. Solo al cambiar explícitamente o silenciar.
 - **`archiveAtDawn`** → `archiveOnChange`: se invoca al cambiar
