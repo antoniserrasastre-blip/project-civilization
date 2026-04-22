@@ -78,7 +78,12 @@ export function makeDefaultClan(seed: number): NPC[] {
       draftB = pickFollower(draftB, candidates[i]);
     }
   }
-  const ciudadanos = finalizeBlockB(draftB);
+  // Bloque B hereda los nombres de Bloque A como `excludeNames`
+  // para garantizar unicidad a través de los 14 NPCs (Sprint #4).
+  const ciudadanos = finalizeBlockB(
+    draftB,
+    new Set(elegidos.map((n) => n.name)),
+  );
 
   return [...elegidos, ...ciudadanos].map((npc, i) => {
     const off = spawnOffset(i);

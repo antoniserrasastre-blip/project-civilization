@@ -306,7 +306,7 @@ export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
         if (hover) setHover(null);
         return;
       }
-      const label = `${hit.npc.id}, ${hit.npc.linaje}`;
+      const label = `${hit.npc.name}, ${hit.npc.linaje}`;
       if (hover?.npcId === hit.npc.id && hover.x === hit.cx && hover.y === hit.cy) {
         return;
       }
