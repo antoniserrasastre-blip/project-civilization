@@ -131,17 +131,14 @@ export function GameShell({ seed }: GameShellProps) {
   const [draftDone, setDraftDone] = useState(false);
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
   const [selectorOpen, setSelectorOpen] = useState(false);
+  // Todos los hooks deben declararse antes de cualquier return condicional.
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
 
   const handleDraftStart = (result: DraftResult) => {
     setState(initialGameState(result.seed, result.npcs));
     setDraftDone(true);
   };
-
-  if (!draftDone) {
-    return <DraftScreen seed={seed} onStart={handleDraftStart} />;
-  }
-  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
-  const [paused, setPaused] = useState(false);
   const spawnCenter = useMemo(() => defaultClanSpawn(seed).center, [seed]);
 
   const day = useMemo(
@@ -344,6 +341,7 @@ export function GameShell({ seed }: GameShellProps) {
     });
   };
 
+  if (!draftDone) return <DraftScreen seed={seed} onStart={handleDraftStart} />;
   if (state.era === 'tribal') return <TribalPlaceholder />;
 
   return (
