@@ -31,6 +31,7 @@ import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { computeRole, roleColor, ROLE } from '@/lib/roles';
 import { useUnitSprites, type SpriteMap } from '@/hooks/use-unit-sprites';
+import { useResourceSprites, type ResourceSpriteMap } from '@/hooks/use-resource-sprites';
 import { CASTA } from '@/lib/npcs';
 import {
   spriteKeyFor,
@@ -894,26 +895,22 @@ function renderResources(
   dims: ViewportDims,
   state: ViewportState,
   world: WorldMap,
+  resourceSprites: ResourceSpriteMap = new Map(),
 ) {
-  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
-    dims,
-    state,
-    world,
-  );
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
   const size = Math.max(7, Math.min(20, tilePx * 1.05));
   for (const resource of resources) {
     if (resource.quantity <= 0) continue;
-    if (
-      resource.x < firstX ||
-      resource.x >= lastX ||
-      resource.y < firstY ||
-      resource.y >= lastY
-    ) {
-      continue;
-    }
+    if (resource.x < firstX || resource.x >= lastX || resource.y < firstY || resource.y >= lastY) continue;
     const cx = resource.x * tilePx + state.offsetX + tilePx / 2;
     const cy = resource.y * tilePx + state.offsetY + tilePx / 2;
-    renderResourceGlyph(ctx, resource, cx, cy, size);
+    const img = resourceSprites.get(resource.id);
+    if (img) {
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+    } else {
+      renderResourceGlyph(ctx, resource, cx, cy, size);
+    }
   }
 }
 
@@ -1301,6 +1298,7 @@ export function MapView({
   const [relationsLayerOn, setRelationsLayerOn] = useState(false);
   const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
   const sprites = useUnitSprites();
+  const resourceSprites = useResourceSprites();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
@@ -1310,7 +1308,7 @@ export function MapView({
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
-    npcStatuses, relations, relationsLayerOn, items, npcs, sprites,
+    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
   });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
@@ -1390,7 +1388,7 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs, sprites,
+      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
     };
   });
 
@@ -1435,7 +1433,7 @@ export function MapView({
       canvas.width = currentDims.screenWidth;
       canvas.height = currentDims.screenHeight;
       renderTiles(ctx, rp.world, currentDims, currentViewport);
-      renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world);
+      renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
       renderStructures(ctx, rp.structures, currentDims, currentViewport);
       renderBuildProject(ctx, rp.buildProject, currentDims, currentViewport);
       renderFogOverlay(ctx, rp.fog, currentDims, currentViewport, rp.world);

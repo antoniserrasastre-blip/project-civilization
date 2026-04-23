@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="8" cy="15" rx="5" ry="1" fill="rgba(0,0,0,0.15)" shape-rendering="auto"/>
+  <!-- Cuerpo de la concha (cono de caracol marino) -->
+  <!-- Capa exterior: naranja mediterráneo -->
+  <rect x="3" y="5" width="10" height="8" fill="#c87840"/>
+  <rect x="2" y="7" width="2" height="5" fill="#c87840"/>
+  <rect x="12" y="6" width="2" height="6" fill="#c87840"/>
+  <rect x="4" y="4" width="8" height="2" fill="#c87840"/>
+  <rect x="6" y="3" width="4" height="2" fill="#c87840"/>
+  <!-- Espiral exterior -->
+  <rect x="4" y="6" width="8" height="6" fill="#d4906a"/>
+  <rect x="3" y="8" width="10" height="3" fill="#d4906a"/>
+  <!-- Líneas de espiral (bandas) -->
+  <rect x="3" y="7" width="10" height="1" fill="#b06030"/>
+  <rect x="3" y="10" width="10" height="1" fill="#b06030"/>
+  <rect x="4" y="12" width="8" height="1" fill="#b06030"/>
+  <!-- Interior perlado -->
+  <rect x="6" y="7" width="5" height="4" fill="#e8c090"/>
+  <rect x="5" y="8" width="7" height="2" fill="#e8c090"/>
+  <!-- Centro espiral -->
+  <rect x="7" y="8" width="3" height="3" fill="#f0d0a0"/>
+  <rect x="8" y="7" width="2" height="5" fill="#f0d0a0"/>
+  <!-- Punto central (ombligo) -->
+  <rect x="8" y="9" width="2" height="2" fill="#c89050"/>
+  <!-- Abertura de la concha (oscura) -->
+  <rect x="4" y="13" width="8" height="1" fill="#8a4820"/>
+  <rect x="5" y="12" width="6" height="1" fill="#a05828"/>
+  <!-- Brillo -->
+  <rect x="6" y="5" width="3" height="1" fill="#f0c880"/>
+  <rect x="5" y="6" width="2" height="1" fill="#f8d898"/>
+</svg>

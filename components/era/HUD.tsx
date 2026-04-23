@@ -314,42 +314,49 @@ export function HUD({
           <strong style={{ fontSize: '0.82rem' }}>Inventario comunal</strong>
           <div
             style={{
-              marginTop: 3,
+              marginTop: 4,
               display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              columnGap: 10,
-              rowGap: 1,
-              opacity: 0.88,
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 4,
+              opacity: 0.92,
             }}
           >
-            <span data-testid="hud-inventory-wood">
-              <span style={{ opacity: 0.68 }}>madera</span>{' '}
-              <strong>{communalInventory.wood}</strong>
-            </span>
-            <span data-testid="hud-inventory-stone">
-              <span style={{ opacity: 0.68 }}>piedra</span>{' '}
-              <strong>{communalInventory.stone}</strong>
-            </span>
-            <span data-testid="hud-inventory-berry">
-              <span style={{ opacity: 0.68 }}>bayas</span>{' '}
-              <strong>{communalInventory.berry}</strong>
-            </span>
-            <span data-testid="hud-inventory-game">
-              <span style={{ opacity: 0.68 }}>caza</span>{' '}
-              <strong>{communalInventory.game}</strong>
-            </span>
-            <span data-testid="hud-inventory-fish">
-              <span style={{ opacity: 0.68 }}>pescado</span>{' '}
-              <strong>{communalInventory.fish}</strong>
-            </span>
-            <span data-testid="hud-inventory-obsidian">
-              <span style={{ opacity: 0.68 }}>obsidiana</span>{' '}
-              <strong>{communalInventory.obsidian}</strong>
-            </span>
-            <span data-testid="hud-inventory-shell">
-              <span style={{ opacity: 0.68 }}>concha</span>{' '}
-              <strong>{communalInventory.shell}</strong>
-            </span>
+            {([
+              ['wood',     'madera'],
+              ['stone',    'piedra'],
+              ['berry',    'bayas'],
+              ['game',     'caza'],
+              ['fish',     'pescado'],
+              ['obsidian', 'obsidiana'],
+              ['shell',    'concha'],
+            ] as const).map(([key, label]) => (
+              <span
+                key={key}
+                data-testid={`hud-inventory-${key}`}
+                title={label}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 1,
+                  fontSize: '0.76rem',
+                }}
+              >
+                <img
+                  src={`/resources/${key}.svg`}
+                  alt={label}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    imageRendering: 'pixelated',
+                    opacity: communalInventory[key] === 0 ? 0.3 : 1,
+                  }}
+                />
+                <strong style={{ fontSize: '0.78rem' }}>
+                  {communalInventory[key]}
+                </strong>
+              </span>
+            ))}
           </div>
         </div>
       )}

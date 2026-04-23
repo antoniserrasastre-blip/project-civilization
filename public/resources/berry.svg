@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="8" cy="15" rx="4" ry="1" fill="rgba(0,0,0,0.2)" shape-rendering="auto"/>
+  <!-- Arbusto: base oscura -->
+  <rect x="2" y="9" width="12" height="5" fill="#2d5018"/>
+  <rect x="1" y="10" width="2" height="3" fill="#2d5018"/>
+  <rect x="13" y="10" width="2" height="3" fill="#2d5018"/>
+  <!-- Arbusto: cuerpo -->
+  <rect x="3" y="7" width="10" height="5" fill="#3a6820"/>
+  <rect x="2" y="8" width="2" height="3" fill="#3a6820"/>
+  <rect x="12" y="8" width="2" height="3" fill="#3a6820"/>
+  <!-- Arbusto: parte alta / ramas con hojas -->
+  <rect x="4" y="5" width="4" height="3" fill="#4a8028"/>
+  <rect x="8" y="4" width="5" height="4" fill="#4a8028"/>
+  <rect x="3" y="6" width="2" height="2" fill="#4a8028"/>
+  <!-- Bayas rojas (3 grandes, 2 pequeñas) -->
+  <rect x="4" y="8" width="2" height="2" fill="#c02828"/>
+  <rect x="3" y="7" width="2" height="2" fill="#c82828"/>
+  <rect x="8" y="7" width="2" height="2" fill="#c02828"/>
+  <rect x="11" y="8" width="2" height="2" fill="#c82828"/>
+  <rect x="6" y="10" width="2" height="2" fill="#a01818"/>
+  <!-- Brillo en bayas -->
+  <rect x="4" y="8" width="1" height="1" fill="#e04040"/>
+  <rect x="8" y="7" width="1" height="1" fill="#e04040"/>
+</svg>
