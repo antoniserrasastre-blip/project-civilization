@@ -197,21 +197,27 @@ export function decideDestination(
   const claimed = ctx.claimedTiles;
   const id = npc.id;
 
-  // Helper: aplica histéresis al destino candidato.
-  // Si el NPC ya tenía un destino committed y la nueva opción no es
-  // HYSTERESIS tiles más cercana, mantiene el destino anterior.
+  // Helper: aplica histéresis al destino candidato solo para comida.
+  // Solo tiene sentido cuando el NPC está en ruta (distPrev > 0).
+  // Si el NPC ya llegó a su destino anterior (distPrev === 0), no
+  // hay que mantenerlo: el ciclo se cerró y hay que buscar el siguiente.
   function withHysteresis(candidate: Position | null): Position | null {
     if (!candidate) return null;
     const prev = npc.destination;
     if (!prev) return candidate;
-    // Solo aplicar histéresis si el destino anterior aún tiene recursos.
+    const distPrev = manhattan(npc.position.x, npc.position.y, prev.x, prev.y);
+    // Bug crítico: si NPC ya está en el destino anterior (dist=0), nunca
+    // se cumpliría distNew+H < 0 → quedaría bloqueado. Avanzar siempre.
+    if (distPrev === 0) return candidate;
+    // Solo mantener si el destino anterior aún tiene recursos Y no está
+    // en claimedTiles (otro NPC ya lo reclamó este tick).
+    const prevClaimed = claimed?.has(`${prev.x},${prev.y}`);
+    if (prevClaimed) return candidate;
     const prevHasResource = ctx.world.resources.some(
       (r) => r.x === prev.x && r.y === prev.y && r.quantity > 0,
     );
     if (!prevHasResource) return candidate;
-    const distPrev = manhattan(npc.position.x, npc.position.y, prev.x, prev.y);
     const distNew = manhattan(npc.position.x, npc.position.y, candidate.x, candidate.y);
-    // Mantener destino anterior si el nuevo no supera la inercia por suficiente margen.
     return distNew + HYSTERESIS < distPrev ? candidate : prev;
   }
 
@@ -283,7 +289,7 @@ export function decideDestination(
         (rid) => matchesMissing(rid, missing),
         ctx.isReachable, buildIntentWeight(npc, ctx.items), claimed, id,
       );
-      if (spawn) return withHysteresis(spawn) ?? spawn;
+      if (spawn) return spawn; // construcción no necesita histéresis
     }
   }
 
@@ -299,7 +305,7 @@ export function decideDestination(
           (rid) => preferred.includes(rid),
           ctx.isReachable, undefined, claimed, id,
         );
-        if (intentTarget) return withHysteresis(intentTarget) ?? intentTarget;
+        if (intentTarget) return intentTarget; // herramienta no necesita histéresis
       }
     }
   }
