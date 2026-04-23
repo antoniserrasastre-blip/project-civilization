@@ -12,6 +12,7 @@ export const ITEM_KIND = {
   HAND_AXE: 'hand_axe',
   BONE_NEEDLE: 'bone_needle',
   RELIC_CHARM: 'relic_charm',
+  BASKET: 'basket',
 } as const;
 
 export type ItemKind = (typeof ITEM_KIND)[keyof typeof ITEM_KIND];
@@ -37,6 +38,14 @@ export interface EquippableItem {
 }
 
 export const ITEM_DEFS: Record<ItemKind, ItemDef> = {
+  [ITEM_KIND.BASKET]: {
+    kind: ITEM_KIND.BASKET,
+    label: 'Cesta',
+    slot: 'hand',
+    complex: false,
+    maxDurability: 40,
+    skillAffinity: 'gathering',
+  },
   [ITEM_KIND.SPEAR]: {
     kind: ITEM_KIND.SPEAR,
     label: 'Lanza',

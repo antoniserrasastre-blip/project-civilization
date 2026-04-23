@@ -52,6 +52,10 @@ import { applyEsclavoDrain, elegidoFaithBonusPerTick } from './casta-effects';
 import type { ChronicleEntry } from './game-state';
 import { CHRONICLE_MAX } from './game-state';
 import { narrate } from './chronicle';
+import { ITEM_KIND, type EquippableItem } from './items';
+import { canCraftItem, craftItem, ITEM_RECIPES } from './item-crafting';
+import { checkEureka, detectUnlockTrigger, canAutoCraft } from './eureka';
+import { transferLegacyItem } from './legacy';
 
 /** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
 const HUNGER_ESCAPE_LOW = 20;
@@ -200,7 +204,6 @@ function applyGratitudeEventsForTick(
 
 const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.FOGATA_PERMANENTE,
-  CRAFTABLE.HERRAMIENTA_SILEX,
   CRAFTABLE.REFUGIO,
   CRAFTABLE.DESPENSA,
   CRAFTABLE.PIEL_ROPA,
@@ -281,6 +284,7 @@ export function tick(state: GameState): GameState {
     currentTick: state.tick,
     ticksPerDay: TICKS_PER_DAY,
     isReachable: makeNpcReachabilityChecker(state),
+    items: state.items ?? [],
   };
   const newNPCs: NPC[] = [];
   let prng = state.prng;
@@ -355,15 +359,122 @@ export function tick(state: GameState): GameState {
       }
     : state.village;
 
+  // ── Cultura material (Sprint 9) ───────────────────────────────────────────
+
+  // Legado Divino — herramientas de prestige pasan al heredero cuando
+  // el portador muere. Detectamos muertes comparando state.npcs vs afterBuild.
+  let itemsAfterLegacy = afterBuild.items ?? [];
+  let npcsAfterLegacy = afterBuild.npcs;
+  for (const prev of state.npcs) {
+    if (!prev.alive) continue;
+    const cur = afterBuild.npcs.find((n) => n.id === prev.id);
+    if (!cur || cur.alive) continue;
+    // NPC murió este tick
+    const equippedItem = prev.equippedItemId
+      ? itemsAfterLegacy.find((i) => i.id === prev.equippedItemId)
+      : null;
+    if (equippedItem && equippedItem.prestige > 0) {
+      const result = transferLegacyItem(
+        cur,
+        equippedItem,
+        itemsAfterLegacy,
+        npcsAfterLegacy,
+      );
+      itemsAfterLegacy = result.items;
+      npcsAfterLegacy = result.npcs;
+    }
+  }
+
+  // Detección de triggers de desbloqueo Eureka (primera herida / exceso wood).
+  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy);
+  const newlyUnlocked = detectUnlockTrigger(state.npcs, npcsAfterLegacy, clanInvForTrigger);
+  const unlockedSet = new Set([
+    ...(afterBuild.unlockedItemKinds ?? []),
+    ...newlyUnlocked,
+  ]);
+
+  // Item auto-craft — un item por tick, orden por ITEM_KIND. Similar al
+  // auto-build de estructuras pero produce EquippableItem, no Structure.
+  const existingKinds = new Set(itemsAfterLegacy.map((i) => i.kind));
+  const itemCraftPriority = [
+    ITEM_KIND.BASKET,
+    ITEM_KIND.HAND_AXE,
+    ITEM_KIND.SPEAR,
+    ITEM_KIND.BONE_NEEDLE,
+  ] as const;
+  let npcsAfterItemCraft = npcsAfterLegacy;
+  let itemsAfterItemCraft = itemsAfterLegacy;
+  for (const kind of itemCraftPriority) {
+    if (existingKinds.has(kind)) continue;
+    if (!canAutoCraft(kind, unlockedSet)) continue;
+    if (!canCraftItem(kind, npcsAfterItemCraft)) continue;
+    const anchor = npcsAfterItemCraft.find((n) => n.alive) ?? null;
+    const result = craftItem(
+      kind,
+      npcsAfterItemCraft,
+      afterBuild.tick,
+      anchor?.id ?? null,
+    );
+    // Equipar al craftero si no lleva ya herramienta
+    const ownerIdx = anchor
+      ? npcsAfterItemCraft.findIndex((n) => n.id === anchor.id)
+      : -1;
+    if (ownerIdx >= 0 && !npcsAfterItemCraft[ownerIdx].equippedItemId) {
+      result.npcs[ownerIdx] = {
+        ...result.npcs[ownerIdx],
+        equippedItemId: result.item.id,
+      };
+    }
+    itemsAfterItemCraft = [...itemsAfterItemCraft, result.item];
+    npcsAfterItemCraft = result.npcs;
+    break; // máximo un item por tick
+  }
+
+  // Eureka — NPCs en necesidad crítica pueden descubrir herramientas.
+  // Se comprueba por NPC; máx 1 descubrimiento por tick global.
+  const existingKindsAfterCraft = new Set(itemsAfterItemCraft.map((i) => i.kind));
+  let npcsAfterEureka = npcsAfterItemCraft;
+  let itemsAfterEureka = itemsAfterItemCraft;
+  let eurekaFound = false;
+  let eurekaPrng = afterBuild.prng;
+  for (const npc of npcsAfterEureka) {
+    if (!npc.alive || eurekaFound) continue;
+    const clanInv = clanInventoryTotal(npcsAfterEureka);
+    const eurekaCtx = {
+      clanInventory: clanInv,
+      existingItemKinds: existingKindsAfterCraft,
+      currentTick: afterBuild.tick,
+    };
+    const eureka = checkEureka(npc, eurekaCtx, eurekaPrng);
+    eurekaPrng = eureka.prng;
+    if (eureka.discovered) {
+      const eItem = craftItem(
+        eureka.discovered,
+        npcsAfterEureka,
+        afterBuild.tick,
+        npc.id,
+        1,
+      );
+      const npcIdx = npcsAfterEureka.findIndex((n) => n.id === npc.id);
+      if (npcIdx >= 0 && !npcsAfterEureka[npcIdx].equippedItemId) {
+        eItem.npcs[npcIdx] = { ...eItem.npcs[npcIdx], equippedItemId: eItem.item.id };
+      }
+      itemsAfterEureka = [...itemsAfterEureka, eItem.item];
+      npcsAfterEureka = eItem.npcs;
+      existingKindsAfterCraft.add(eureka.discovered);
+      eurekaFound = true;
+    }
+  }
+
   // Esclavo drain — supervivencia cae pasivamente (§3.2 castas).
-  const npcsAfterCasta = applyEsclavoDrain(afterBuild.npcs);
+  const npcsAfterCasta = applyEsclavoDrain(npcsAfterEureka);
 
   // Reproducción — pairing + nacimientos. PRNG explícito (§A4).
   const usedNames = new Set(afterBuild.npcs.map((n) => n.name));
   const repro = tickReproduction(
     npcsAfterCasta,
     afterBuild.tick,
-    afterBuild.prng,
+    eurekaPrng,
     usedNames,
   );
   const npcsAfterRepro = repro.npcs;
@@ -458,6 +569,8 @@ export function tick(state: GameState): GameState {
     npcs: npcsAfterRepro,
     prng: prngAfterRepro,
     chronicle: chronicleAfterRepro,
+    items: itemsAfterEureka,
+    unlockedItemKinds: Array.from(unlockedSet),
     relations: state.relations,
     village: nextVillage,
   };

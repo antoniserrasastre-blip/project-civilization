@@ -159,7 +159,7 @@ describe('Consumo de comida en inventario', () => {
     const npc = makeTestNPC({
       id: 'n',
       stats: { supervivencia: 35, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
@@ -173,12 +173,12 @@ describe('Consumo de comida en inventario', () => {
     const npc = makeTestNPC({
       id: 'n',
       stats: { supervivencia: 35, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 1 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 1, obsidian: 0, shell: 0 },
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
 
-    expect(after.inventory).toMatchObject({ berry: 0, game: 1, fish: 0 });
+    expect(after.inventory).toMatchObject({ berry: 0, game: 1, fish: 0, obsidian: 0, shell: 0 });
   });
 
   it('no come automáticamente si la supervivencia aún está holgada', () => {
@@ -186,7 +186,7 @@ describe('Consumo de comida en inventario', () => {
     const npc = makeTestNPC({
       id: 'n',
       stats: { supervivencia: 70, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
@@ -202,17 +202,17 @@ describe('Consumo de comida en inventario', () => {
     const berry = makeTestNPC({
       id: 'berry',
       stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
     const fish = makeTestNPC({
       id: 'fish',
       stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 1 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 1, obsidian: 0, shell: 0 },
     });
     const game = makeTestNPC({
       id: 'game',
       stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [afterBerry, afterFish, afterGame] = tickNeeds(
@@ -233,7 +233,7 @@ describe('Consumo de comida en inventario', () => {
     const npc = makeTestNPC({
       id: 'n',
       stats: { supervivencia: 35, socializacion: 40 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [raw] = tickNeeds([npc], { world, npcs: [npc] });
@@ -259,7 +259,7 @@ describe('Consumo de comida en inventario', () => {
     const donor = makeTestNPC({
       id: 'donor',
       position: { x: 6, y: 5 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [afterHungry, afterDonor] = tickNeeds([hungry, donor], {
@@ -281,7 +281,7 @@ describe('Consumo de comida en inventario', () => {
     const donor = makeTestNPC({
       id: 'donor',
       position: { x: 19, y: 19 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
     const [withoutFire] = tickNeeds([hungry, donor], {

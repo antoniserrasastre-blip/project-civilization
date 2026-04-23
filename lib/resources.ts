@@ -25,6 +25,8 @@ export const REGEN_DAYS: Record<ResourceId, number | null> = {
   [RESOURCE.STONE]: null,
   [RESOURCE.WATER]: 0,
   [RESOURCE.FISH]: 0,
+  [RESOURCE.OBSIDIAN]: null,   // depletable — como piedra
+  [RESOURCE.SHELL]: 30,        // regenerable — la marea trae más
 };
 
 export function regenTicksFor(id: ResourceId): number | null {

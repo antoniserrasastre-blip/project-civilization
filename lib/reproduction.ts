@@ -130,7 +130,7 @@ export function birthNPC(
     traits: inherited.traits,
     birthTick: tick,
     alive: true,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
     equippedItemId: null,
     lastReproducedTick: null,
   };

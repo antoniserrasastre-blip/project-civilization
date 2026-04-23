@@ -378,9 +378,7 @@ function renderStructures(
       case CRAFTABLE.REFUGIO:
         drawShelterStructure(ctx, cx, cy, size);
         break;
-      case CRAFTABLE.HERRAMIENTA_SILEX:
-        drawToolStructure(ctx, cx, cy, size);
-        break;
+      // HERRAMIENTA_SILEX migrado a items en Sprint 9 — sin case aquí.
       case CRAFTABLE.DESPENSA:
         drawPantryStructure(ctx, cx, cy, size);
         break;

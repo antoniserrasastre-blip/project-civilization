@@ -79,7 +79,7 @@ describe('Constantes TILE y RESOURCE', () => {
     expect(typeof TILE.SHORE).toBe('number');
   });
 
-  it('RESOURCE lista los 6 tipos primigenia', () => {
+  it('RESOURCE lista los 8 tipos primigenia (Sprint 9: +obsidiana +concha)', () => {
     const ids: string[] = Object.values(RESOURCE);
     expect(ids).toContain('wood');
     expect(ids).toContain('stone');
@@ -87,7 +87,9 @@ describe('Constantes TILE y RESOURCE', () => {
     expect(ids).toContain('game');
     expect(ids).toContain('water');
     expect(ids).toContain('fish');
-    expect(new Set(ids).size).toBe(6);
+    expect(ids).toContain('obsidian');
+    expect(ids).toContain('shell');
+    expect(new Set(ids).size).toBe(8);
   });
 
   it('TileId acepta cualquier valor de TILE en compile-time', () => {

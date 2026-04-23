@@ -52,6 +52,8 @@ const RESOURCE_ES: Record<ResourceId, string> = {
   game: 'caza',
   water: 'agua',
   fish: 'pescado',
+  obsidian: 'obsidiana',
+  shell: 'concha',
 };
 
 export function narrate(ev: ChronicleEvent): string {

@@ -20,7 +20,8 @@ export const TILE = {
 
 export type TileId = (typeof TILE)[keyof typeof TILE];
 
-/** Los 6 recursos primigenia (§3.5 vision-primigenia). */
+/** Los 8 recursos primigenia. Obsidiana y concha fuerzan nomadismo
+ *  (Sprint 9): obsidiana en montaña para Lanza, conchas en costa para Cesta. */
 export const RESOURCE = {
   WOOD: 'wood',
   STONE: 'stone',
@@ -28,6 +29,8 @@ export const RESOURCE = {
   GAME: 'game',
   WATER: 'water',
   FISH: 'fish',
+  OBSIDIAN: 'obsidian',
+  SHELL: 'shell',
 } as const;
 
 export type ResourceId = (typeof RESOURCE)[keyof typeof RESOURCE];

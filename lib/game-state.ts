@@ -19,6 +19,7 @@ import type { BuildProject, Structure } from './structures';
 import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
 import type { WorldMap } from './world-state';
+import type { EquippableItem } from './items';
 
 import type { MonumentState } from './monument';
 import { initialMonumentState } from './monument';
@@ -45,6 +46,11 @@ export interface GameState {
   fog: FogState;
   structures: Structure[];
   buildProject: BuildProject | null;
+  /** Herramientas y reliquias equipables en circulación — Sprint 9. */
+  items: EquippableItem[];
+  /** Tipos de item cuya receta ha sido desbloqueada por Eureka. Las
+   *  recetas con requiresUnlock=true no se craftean hasta aparecer aquí. */
+  unlockedItemKinds: string[];
   relations: Edge[];
   village: VillageState;
   monument: MonumentState;
@@ -74,6 +80,8 @@ export function initialGameState(
     fog: createFog(world.width, world.height),
     structures: [],
     buildProject: null,
+    items: [],
+    unlockedItemKinds: [],
     relations: [],
     village: initialVillageState(),
     monument: initialMonumentState(),

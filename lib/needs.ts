@@ -24,6 +24,8 @@ import {
 } from './world-state';
 import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
+import type { EquippableItem } from './items';
+import { ITEM_DEFS } from './items';
 
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
@@ -62,6 +64,9 @@ export interface DestinationContext {
   /** Filtro opcional de alcanzabilidad. Si existe, los recursos
    *  inalcanzables no se eligen como destino. */
   isReachable?: (from: Position, to: Position) => boolean;
+  /** Herramientas equipables en circulación — para filtrado de intención
+   *  (Sprint 9): NPC con Lanza prefiere caza, con Cesta prefiere bayas. */
+  items?: readonly EquippableItem[];
 }
 
 export interface Position {
@@ -112,6 +117,15 @@ function centroidOfAlive(npcs: readonly NPC[]): Position | null {
 }
 
 const FOOD_IDS: ResourceId[] = [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH];
+
+/** Recursos preferidos por afinidad de herramienta (Sprint 9). */
+const TOOL_PREFERRED_RESOURCES: Record<string, ResourceId[]> = {
+  hunting: [RESOURCE.GAME],
+  gathering: [RESOURCE.BERRY, RESOURCE.WOOD, RESOURCE.SHELL],
+  crafting: [RESOURCE.STONE, RESOURCE.WOOD, RESOURCE.OBSIDIAN],
+  fishing: [RESOURCE.FISH],
+  healing: [RESOURCE.BERRY, RESOURCE.WATER],
+};
 
 function carriedFood(npc: NPC): number {
   return npc.inventory.berry + npc.inventory.game + npc.inventory.fish;
@@ -210,6 +224,25 @@ export function decideDestination(
         ctx.isReachable,
       );
       if (spawn) return spawn;
+    }
+  }
+
+  // Filtrado de intención por herramienta (Sprint 9 — Pilar 2).
+  // Solo activo si el contexto trae items y el NPC lleva herramienta.
+  if (ctx.items && npc.equippedItemId) {
+    const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
+    if (equipped) {
+      const affinity = ITEM_DEFS[equipped.kind].skillAffinity;
+      const preferred = TOOL_PREFERRED_RESOURCES[affinity] ?? [];
+      if (preferred.length > 0) {
+        const intentTarget = nearestResource(
+          npc.position,
+          ctx.world.resources,
+          (id) => preferred.includes(id),
+          ctx.isReachable,
+        );
+        if (intentTarget) return intentTarget;
+      }
     }
   }
 

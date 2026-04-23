@@ -118,26 +118,23 @@ function buildDraftedClan() {
 
 describe('Fase 4.7 — clan autónomo construye los 5 crafteables', () => {
   it(
-    '20.000 ticks producen los 5 crafteables en mundo rico',
+    '20.000 ticks producen los 4 edificios en mundo rico (Sprint 9)',
     () => {
       let s = initialGameState(1, buildDraftedClan(), buildRichWorld());
       for (let i = 0; i < 20_000; i++) {
         s = tick(s);
-        if (s.structures.length === 5) break;
+        if (s.structures.length === 4) break;
       }
-      expect(s.structures.length).toBe(5);
+      expect(s.structures.length).toBe(4);
       const kinds = s.structures.map((x) => x.kind).sort();
       expect(kinds).toEqual(
         [
           CRAFTABLE.DESPENSA,
           CRAFTABLE.FOGATA_PERMANENTE,
-          CRAFTABLE.HERRAMIENTA_SILEX,
           CRAFTABLE.PIEL_ROPA,
           CRAFTABLE.REFUGIO,
         ].sort(),
       );
-      // Los 5 deben construirse bien antes de los 20k ticks con
-      // un clan de 14 NPCs en mundo rico.
       expect(s.tick).toBeLessThan(20_000);
     },
     120_000,

@@ -53,7 +53,6 @@ const CRAFTABLE_ES: Record<CraftableId, string> = {
   refugio: 'Refugio',
   fogata_permanente: 'Fogata',
   piel_ropa: 'Piel/ropa',
-  herramienta_silex: 'Herramienta',
   despensa: 'Despensa',
 };
 

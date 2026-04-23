@@ -29,7 +29,7 @@ function stockedNpcs(n: number, opts: Partial<{ stone: number; wood: number }> =
         stone: opts.stone ?? 30,
         berry: 0,
         game: 0,
-        fish: 0,
+        fish: 0, obsidian: 0, shell: 0,
       },
     }),
   );
@@ -41,7 +41,6 @@ function all5Built() {
     CRAFTABLE.REFUGIO,
     CRAFTABLE.FOGATA_PERMANENTE,
     CRAFTABLE.PIEL_ROPA,
-    CRAFTABLE.HERRAMIENTA_SILEX,
     CRAFTABLE.DESPENSA,
   ]) {
     s = addStructure(s, k, { x: 0, y: 0 }, 0, s.length);
