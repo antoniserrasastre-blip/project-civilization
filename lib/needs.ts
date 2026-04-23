@@ -26,7 +26,8 @@ import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
 import { ITEM_DEFS } from './items';
-import { computeRole, intentFilter } from './roles';
+import { computeRole, intentFilter, ROLE, type Role } from './roles';
+import { INVENTORY_CAP_PER_TYPE } from './harvest';
 
 /** Penalty en tiles efectivos para recursos ya reclamados por otros NPCs.
  *  Un NPC a distancia 12 prefiere un recurso libre a distancia 18 antes
@@ -70,6 +71,19 @@ export const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
 
 const COOKED_FOOD_MULTIPLIER = 1.5;
 const COOKED_FOOD_SOCIAL_BONUS = 3;
+
+/** Recursos que cada rol busca proactivamente cuando está sano.
+ *  Define el "deber de rol" — el NPC siempre tiene algo que hacer
+ *  mientras sv > umbral, aunque no tenga hambre ni urgencia. */
+const ROLE_RESOURCES: Record<Role, ResourceId[]> = {
+  [ROLE.CAZADOR]:    [RESOURCE.GAME],
+  [ROLE.PESCADOR]:   [RESOURCE.FISH],
+  [ROLE.RECOLECTOR]: [RESOURCE.BERRY, RESOURCE.WOOD],
+  [ROLE.TALLADOR]:   [RESOURCE.STONE, RESOURCE.WOOD],
+  [ROLE.TEJEDOR]:    [RESOURCE.GAME, RESOURCE.SHELL],
+  [ROLE.CURANDERO]:  [RESOURCE.BERRY, RESOURCE.WATER],
+  [ROLE.RASTREADOR]: [RESOURCE.WOOD, RESOURCE.BERRY],
+};
 
 export interface DestinationContext {
   world: WorldMap;
@@ -282,10 +296,10 @@ export function decideDestination(
     if (c) return c;
   }
 
-  // ── Idle activo: objetivos cuando no hay urgencias vitales ──
+  // ── Tres deberes activos cuando no hay urgencias vitales ──
 
-  // 1. Recolectar materiales faltantes para la próxima construcción.
-  //    Todos los NPCs (no solo builders) contribuyen a juntar recursos.
+  // DEBER 1: Materiales para la construcción activa.
+  //   Todos los NPCs contribuyen, no solo los builders designados.
   if (ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
     const missing = missingResourceFor(recipe, ctx.npcs);
@@ -299,7 +313,7 @@ export function decideDestination(
     }
   }
 
-  // 2. Herramienta equipada → recurso afín.
+  // DEBER 2: Herramienta equipada toma el mando — recurso afín al oficio.
   if (ctx.items && npc.equippedItemId) {
     const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
     if (equipped) {
@@ -316,7 +330,29 @@ export function decideDestination(
     }
   }
 
-  // 3. Recolección proactiva de comida si lleva poco (buffer mínimo).
+  // DEBER 3: Rol activo — siempre hay algo que hacer mientras sv > umbral.
+  //   Cada NPC actúa según su rol aunque no tenga hambre ni urgencia.
+  //   Solo si el inventario del recurso preferido no está al tope.
+  const item = ctx.items?.find((i) => i.id === npc.equippedItemId) ?? null;
+  const role = computeRole(npc, item);
+  const roleResources = ROLE_RESOURCES[role] ?? [];
+  if (roleResources.length > 0) {
+    // Comprobamos si puede llevar más de alguno de sus recursos preferidos
+    const canCarryMore = roleResources.some((rid) => {
+      const key = rid as keyof typeof npc.inventory;
+      return (npc.inventory[key] ?? 0) < INVENTORY_CAP_PER_TYPE;
+    });
+    if (canCarryMore) {
+      const roleTarget = nearestResource(
+        npc.position, ctx.world.resources,
+        (rid) => roleResources.includes(rid),
+        ctx.isReachable, undefined, claimed, id,
+      );
+      if (roleTarget) return withHysteresis(roleTarget) ?? roleTarget;
+    }
+  }
+
+  // Buffer mínimo de comida cuando el rol no tiene preferencia clara.
   if (carriedFood(npc) < 2) {
     const proactiveFood = nearestResource(
       npc.position, ctx.world.resources,
@@ -326,15 +362,10 @@ export function decideDestination(
     if (proactiveFood) return withHysteresis(proactiveFood) ?? proactiveFood;
   }
 
-  // 4. Fallback activo: ir hacia el centroide del clan pero manteniendo
-  //    distancia mínima (no apiñarse). Si ya estoy cerca, quedarme.
+  // Fallback: ir hacia el centroide si estamos dispersos.
   const centroid = centroidOfAlive(ctx.npcs);
   if (centroid) {
-    const dx = Math.abs(npc.position.x - centroid.x);
-    const dy = Math.abs(npc.position.y - centroid.y);
-    const dist = dx + dy;
-    // Solo moverse hacia el centroide si estamos a más de 5 tiles —
-    // evita que todo el clan se amontone en un único punto.
+    const dist = manhattan(npc.position.x, npc.position.y, centroid.x, centroid.y);
     if (dist > 5) return centroid;
   }
 
