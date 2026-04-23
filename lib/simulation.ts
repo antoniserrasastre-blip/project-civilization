@@ -307,15 +307,14 @@ export function tick(state: GameState): GameState {
     state.structures,
     CRAFTABLE.FOGATA_PERMANENTE,
   );
-  // Solo los mejores craftsmen se encargan de la construcción activa.
-  // Los demás siguen con sus roles (caza, pesca, recolección).
+  // builders: 3 NPCs que van físicamente al sitio de obra O recogen materiales.
+  // No-builders siguen su vida normal (rol activo) aunque haya obra activa.
   const buildPriority = nextBuildPriority(state);
-  const builderIds: ReadonlySet<string> = buildPriority
-    ? new Set(
-        selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady)
-          .map((n) => n.id),
-      )
-    : new Set();
+  const activeBuilderIds: ReadonlySet<string> = new Set(
+    selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady).map((n) => n.id),
+  );
+  // builderIds: solo los que recogen materiales (cuando aún no hay buildProject)
+  const builderIds: ReadonlySet<string> = buildPriority ? activeBuilderIds : new Set();
 
   const ctx = {
     world: state.world,
@@ -339,13 +338,14 @@ export function tick(state: GameState): GameState {
       newNPCs.push(npc);
       continue;
     }
-    // Todos los NPCs conocen el objetivo de construcción — cualquiera
-    // puede recolectar materiales faltantes. Solo los builders designados
-    // contabilizan progreso en tryAutoBuild (no cambia aquí).
     const npcCtx = {
       ...ctx,
       claimedTiles,
+      // Todos ven el buildPriority para recolectar materiales faltantes.
       nextBuildPriority: buildPriority,
+      // Si hay obra activa, los builders van al sitio; no-builders ignoran.
+      buildSitePosition: state.buildProject?.position,
+      isBuilder: activeBuilderIds.has(npc.id),
     };
     const dest = decideDestination(npc, npcCtx);
     // Registrar destino como reclamado para los NPCs siguientes.

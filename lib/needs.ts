@@ -89,6 +89,10 @@ export interface DestinationContext {
   world: WorldMap;
   npcs: readonly NPC[];
   nextBuildPriority?: CraftableId;
+  /** Posición del buildProject activo — builders se mueven aquí físicamente. */
+  buildSitePosition?: { x: number; y: number };
+  /** Si este NPC es uno de los builders designados para la obra activa. */
+  isBuilder?: boolean;
   firePosition?: { x: number; y: number };
   currentTick?: number;
   ticksPerDay?: number;
@@ -297,6 +301,12 @@ export function decideDestination(
   }
 
   // ── Tres deberes activos cuando no hay urgencias vitales ──
+
+  // DEBER 0 (solo builders): ir físicamente al sitio de obra.
+  //   Los no-builders ignoran esto y siguen su vida normal.
+  if (ctx.isBuilder && ctx.buildSitePosition) {
+    return ctx.buildSitePosition;
+  }
 
   // DEBER 1: Materiales para la construcción activa.
   //   Todos los NPCs contribuyen, no solo los builders designados.
