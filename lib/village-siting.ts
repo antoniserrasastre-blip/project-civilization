@@ -32,11 +32,25 @@ function manhattan(ax: number, ay: number, bx: number, by: number): number {
   return Math.abs(ax - bx) + Math.abs(ay - by);
 }
 
-/** Tiles válidos para construir (no agua, no montaña). */
+/** Tiles válidos para construir — incluye todos los biomas habitables.
+ *  Excluye agua (WATER, SHALLOW_WATER), montaña alta y ríos. */
 export function isValidBuildTile(world: WorldMap, pos: { x: number; y: number }): boolean {
   if (pos.x < 0 || pos.y < 0 || pos.x >= world.width || pos.y >= world.height) return false;
   const tile = world.tiles[pos.y * world.width + pos.x];
-  return tile === TILE.GRASS || tile === TILE.SAND || tile === TILE.SHORE || tile === TILE.FOREST;
+  switch (tile) {
+    case TILE.GRASS:
+    case TILE.GRASS_LUSH:
+    case TILE.GRASS_SABANA:
+    case TILE.SAND:
+    case TILE.SAND_TROPICAL:
+    case TILE.SHORE:
+    case TILE.FOREST:
+    case TILE.JUNGLE_SOIL:
+    case TILE.RIVER:
+      return true;
+    default:
+      return false;
+  }
 }
 
 /** Puntúa un tile como candidato para la Fogata.

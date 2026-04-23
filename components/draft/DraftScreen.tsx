@@ -392,13 +392,29 @@ function ScenarioPhase({ onPick }: { onPick: (id: ScenarioId) => void }) {
 /* Fase 2: Geografía                                                    */
 /* ════════════════════════════════════════════════════════════════════ */
 function GeographyPhase({ onPick }: { onPick: (type: MapType) => void }) {
-  const types: { id: MapType; label: string; desc: string }[] = [
-    { id: 'archipelago', label: 'Archipiélago', desc: 'Múltiples islas fractales. Ideal para la expansión marítima.' },
-    { id: 'pangea',     label: 'Pangea',      desc: 'Una única masa de tierra masiva. Gran espacio interior.' },
-    { id: 'continents', label: 'Continentes', desc: '5 grandes masas de tierra separadas por canales.' },
+  const types: { id: MapType; label: string; desc: string; icon: string }[] = [
+    { 
+      id: 'archipelago', 
+      label: 'Archipiélago', 
+      desc: 'Múltiples islas fractales. Ideal para la expansión marítima y el nomadismo.',
+      icon: '/ui/map_preview_archipelago.svg'
+    },
+    { 
+      id: 'pangea',     
+      label: 'Pangea',      
+      desc: 'Una única masa de tierra masiva. Gran espacio interior y defensa central.',
+      icon: '/ui/map_preview_pangea.svg'
+    },
+    { 
+      id: 'continents', 
+      label: 'Continentes', 
+      desc: '5 grandes masas de tierra separadas por canales. Equilibrio entre tierra y mar.',
+      icon: '/ui/map_preview_continents.svg'
+    },
   ];
+
   return (
-    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, justifyContent: 'center', maxWidth: 800 }}>
       {types.map((t) => (
         <button
           key={t.id}
@@ -407,17 +423,32 @@ function GeographyPhase({ onPick }: { onPick: (type: MapType) => void }) {
           onClick={() => onPick(t.id)}
           style={{
             ...CARD,
-            width: 220,
+            width: 240,
             cursor: 'pointer',
-            textAlign: 'left',
+            textAlign: 'center',
             color: '#f5f5dc',
             display: 'flex',
             flexDirection: 'column',
-            gap: 6,
+            alignItems: 'center',
+            gap: 12,
+            transition: 'transform 0.1s ease',
           }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.02)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
         >
-          <strong style={{ fontSize: '1rem' }}>{t.label}</strong>
-          <span style={{ fontSize: '0.78rem', opacity: 0.75 }}>{t.desc}</span>
+          <div style={{ 
+            width: 128, 
+            height: 128, 
+            background: '#000', 
+            borderRadius: 8, 
+            border: '2px solid #2f2f2f',
+            overflow: 'hidden',
+            imageRendering: 'pixelated'
+          }}>
+            <img src={t.icon} alt={t.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+          </div>
+          <strong style={{ fontSize: '1.1rem', color: '#f7d060' }}>{t.label}</strong>
+          <span style={{ fontSize: '0.82rem', opacity: 0.8, lineHeight: 1.4 }}>{t.desc}</span>
         </button>
       ))}
     </div>

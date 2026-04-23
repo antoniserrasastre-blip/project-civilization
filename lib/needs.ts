@@ -59,10 +59,13 @@ export const NEED_THRESHOLDS = {
   socializacionLow: 30,
 } as const;
 
-const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
-  berry: 10,
-  fish: 14,
-  game: 22,
+// Valores reducidos: berry 10→4, fish 14→6, game 22→8.
+// Con decay=1/tick y nutrition=10, sv nunca bajaba (recovery on-tile
+// de +10 cancelaba el decay; el NPC se quedaba en sv=100 permanente).
+export const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
+  berry: 4,
+  fish: 6,
+  game: 8,
 };
 
 const COOKED_FOOD_MULTIPLIER = 1.5;
@@ -323,24 +326,19 @@ export function decideDestination(
     if (proactiveFood) return withHysteresis(proactiveFood) ?? proactiveFood;
   }
 
-  // 4. Fallback: buscar CUALQUIER recurso accesible para no quedarse parado.
-  //    Prioriza madera (útil para construcción) sobre el resto.
-  const anyWood = nearestResource(
-    npc.position, ctx.world.resources,
-    (rid) => rid === RESOURCE.WOOD,
-    ctx.isReachable, undefined, claimed, id,
-  );
-  if (anyWood) return anyWood;
+  // 4. Fallback activo: ir hacia el centroide del clan pero manteniendo
+  //    distancia mínima (no apiñarse). Si ya estoy cerca, quedarme.
+  const centroid = centroidOfAlive(ctx.npcs);
+  if (centroid) {
+    const dx = Math.abs(npc.position.x - centroid.x);
+    const dy = Math.abs(npc.position.y - centroid.y);
+    const dist = dx + dy;
+    // Solo moverse hacia el centroide si estamos a más de 5 tiles —
+    // evita que todo el clan se amontone en un único punto.
+    if (dist > 5) return centroid;
+  }
 
-  const anyResource = nearestResource(
-    npc.position, ctx.world.resources,
-    () => true,
-    ctx.isReachable, undefined, claimed, id,
-  );
-  if (anyResource) return anyResource;
-
-  // 5. Sin ningún recurso accesible: ir hacia el centroide del clan.
-  return centroidOfAlive(ctx.npcs) ?? npc.position;
+  return npc.position;
 }
 
 function missingResourceFor(
@@ -487,14 +485,17 @@ export function tickNeeds(
     let sv = npc.stats.supervivencia;
     let so = n.stats.socializacion;
 
+    // Recovery on-tile solo cuando sv es baja — evita que standing on
+    // resource cancele el decay cuando el NPC está sano (bug: sv=100 siempre).
+    const SV_RECOVERY_CAP = 70;
     const recoveryResource = recoveryResourceAtPosition(npc.position, ctx.world);
-    if (recoveryResource === RESOURCE.WATER) {
+    if (recoveryResource === RESOURCE.WATER && sv < SV_RECOVERY_CAP) {
       sv += NEED_TICK_RATES.supervivenciaRecover;
-    } else if (recoveryResource === RESOURCE.BERRY) {
+    } else if (recoveryResource === RESOURCE.BERRY && sv < SV_RECOVERY_CAP) {
       sv += FOOD_NUTRITION.berry;
-    } else if (recoveryResource === RESOURCE.FISH) {
+    } else if (recoveryResource === RESOURCE.FISH && sv < SV_RECOVERY_CAP) {
       sv += FOOD_NUTRITION.fish;
-    } else if (recoveryResource === RESOURCE.GAME) {
+    } else if (recoveryResource === RESOURCE.GAME && sv < SV_RECOVERY_CAP) {
       sv += FOOD_NUTRITION.game;
     } else if (
       sv < NEED_THRESHOLDS.supervivenciaEatFromInventory &&
