@@ -35,6 +35,7 @@ import { ARCHETYPE, SEX, type Archetype, type Sex } from '@/lib/npcs';
 import { SCENARIO, getScenarioDef, type ScenarioId } from '@/lib/scenarios';
 import { TRAIT, TRAIT_CATALOG, type TraitId } from '@/lib/traits';
 import type { NPC } from '@/lib/npcs';
+import { spawnClanForScenario } from '@/lib/default-clan';
 
 export interface DraftResult {
   seed: number;
@@ -47,6 +48,58 @@ interface DraftScreenProps {
 }
 
 type Phase = 'scenario' | 'blockA' | 'blockB' | 'confirm';
+
+/* ─── Quick Starts ────────────────────────────────────────────────── */
+interface QuickStartDef {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: '●○○' | '●●○' | '●●●';
+  scenarioId: ScenarioId;
+  blockA: Array<{ archetype: Archetype; sex: Sex }>;
+}
+
+const QUICK_STARTS: QuickStartDef[] = [
+  {
+    id: 'supervivientes',
+    name: 'Supervivientes',
+    description: 'Náufragos en la costa. Cazador y pescador aseguran comida inmediata; el curandero mantiene al clan con vida.',
+    difficulty: '●○○',
+    scenarioId: SCENARIO.NAUFRAGOS,
+    blockA: [
+      { archetype: ARCHETYPE.CAZADOR,   sex: SEX.M },
+      { archetype: ARCHETYPE.PESCADOR,  sex: SEX.F },
+      { archetype: ARCHETYPE.CURANDERO, sex: SEX.F },
+      { archetype: ARCHETYPE.RECOLECTOR,sex: SEX.M },
+    ],
+  },
+  {
+    id: 'constructores',
+    name: 'Constructores',
+    description: 'Éxodo organizado al interior. Dos artesanos levantan el monumento rápido; el líder coordina.',
+    difficulty: '●●○',
+    scenarioId: SCENARIO.EXODO,
+    blockA: [
+      { archetype: ARCHETYPE.LIDER,    sex: SEX.M },
+      { archetype: ARCHETYPE.ARTESANO, sex: SEX.F },
+      { archetype: ARCHETYPE.ARTESANO, sex: SEX.M },
+      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.F },
+    ],
+  },
+  {
+    id: 'nomadas',
+    name: 'Nómadas del Viento',
+    description: 'Dos exploradores y dos recolectores. Muévete rápido, agota los tiles y sigue adelante.',
+    difficulty: '●●●',
+    scenarioId: SCENARIO.NAUFRAGOS,
+    blockA: [
+      { archetype: ARCHETYPE.SCOUT,     sex: SEX.M },
+      { archetype: ARCHETYPE.SCOUT,     sex: SEX.F },
+      { archetype: ARCHETYPE.RECOLECTOR,sex: SEX.M },
+      { archetype: ARCHETYPE.CAZADOR,   sex: SEX.F },
+    ],
+  },
+];
 
 const ARCHETYPE_LABEL: Record<Archetype, string> = {
   [ARCHETYPE.LIDER]:      'Líder (4pts)',
@@ -124,12 +177,40 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
   const blockBReady = followerDraft.picks.length === 10;
 
   /* ─── Confirmar ─────────────────────────────────────────────────── */
+  /* ─── Quick Start ──────────────────────────────────────────────── */
+  const handleQuickStart = (qs: QuickStartDef) => {
+    try {
+      let d = startDraft(seed);
+      d = pickScenario(d, qs.scenarioId);
+      qs.blockA.forEach((p, i) => {
+        d = pickArchetype(d, i, p.archetype);
+        d = setSex(d, i, p.sex);
+      });
+      const elegidos = finalizeBlockA(d);
+
+      let fd = startFollowerDraft(seed);
+      const tiers: Array<'excelente' | 'bueno' | 'regular' | 'malo'> = ['excelente', 'bueno', 'regular', 'malo'];
+      const counts = [3, 3, 2, 2];
+      tiers.forEach((tier, ti) => {
+        const cands = generateCandidates(seed, tier, 0);
+        for (let i = 0; i < counts[ti]; i++) fd = pickFollower(fd, cands[i]);
+      });
+      const usedNames = new Set(elegidos.map((n) => n.name));
+      const ciudadanos = finalizeBlockB(fd, usedNames);
+      const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], qs.scenarioId);
+      onStart({ seed, npcs });
+    } catch { /* no debería fallar */ }
+  };
+
   const handleConfirm = () => {
     try {
       const elegidos = finalizeBlockA(draft);
       const usedNames = new Set(elegidos.map((n) => n.name));
       const ciudadanos = finalizeBlockB(followerDraft, usedNames);
-      onStart({ seed, npcs: [...elegidos, ...ciudadanos] });
+      // Aplicar posiciones de spawn según escenario — sin esto todos
+      // los NPCs quedan en {x:0,y:0} (esquina del mapa).
+      const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], draft.scenarioId);
+      onStart({ seed, npcs });
     } catch { /* validación */ }
   };
 
@@ -184,6 +265,43 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
           onConfirm={handleConfirm}
           onBack={() => setPhase('blockB')}
         />
+      )}
+
+      {phase === 'scenario' && (
+        <div style={{ width: '100%', maxWidth: 680 }}>
+          <div style={{ fontSize: '0.72rem', opacity: 0.5, textAlign: 'center', marginBottom: 8, letterSpacing: 1 }}>
+            — INICIO RÁPIDO —
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+            {QUICK_STARTS.map((qs) => (
+              <button
+                key={qs.id}
+                type="button"
+                data-testid={`quickstart-${qs.id}`}
+                onClick={() => handleQuickStart(qs)}
+                style={{
+                  background: '#1a1608', color: '#f5f5dc',
+                  border: '1px solid #4a3f1a', borderRadius: 8,
+                  padding: '10px 14px', cursor: 'pointer',
+                  fontFamily: 'inherit', textAlign: 'left',
+                  width: 200, display: 'flex', flexDirection: 'column', gap: 4,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.88rem' }}>{qs.name}</strong>
+                  <span style={{ fontSize: '0.7rem', color: '#f4a261' }}>{qs.difficulty}</span>
+                </div>
+                <span style={{ fontSize: '0.72rem', opacity: 0.7, lineHeight: 1.4 }}>{qs.description}</span>
+                <span style={{ fontSize: '0.7rem', color: '#a7f3d0', marginTop: 2 }}>
+                  {getScenarioDef(qs.scenarioId).name}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.7rem', opacity: 0.4, textAlign: 'center', marginBottom: 12 }}>
+            — o configura tu clan manualmente —
+          </div>
+        </div>
       )}
 
       <PhaseNav phase={phase} blockAReady={blockAReady} />

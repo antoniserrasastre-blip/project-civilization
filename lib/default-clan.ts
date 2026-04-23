@@ -35,7 +35,8 @@ import {
   startDraft,
   startFollowerDraft,
 } from './drafting';
-import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
+import { findIslands, pickClanSpawn, pickZonedClanSpawn, pickLandCells } from './spawn';
+import { SCENARIO_CATALOG, type ScenarioId } from './scenarios';
 
 const WORLD = worldMapJson as unknown as WorldMap;
 
@@ -69,6 +70,22 @@ export function defaultClanSpawn(seed: number): {
 } {
   const islands = findIslands(WORLD);
   return pickClanSpawn(seed, islands);
+}
+
+/** Posiciona `npcs` en celdas de tierra alrededor del spawn que
+ *  corresponde al escenario elegido. Pura: devuelve NPCs nuevos. */
+export function spawnClanForScenario(
+  seed: number,
+  npcs: readonly NPC[],
+  scenarioId: ScenarioId | null,
+): NPC[] {
+  const islands = findIslands(WORLD);
+  const zone = scenarioId ? SCENARIO_CATALOG[scenarioId].preferredSpawnZone : 'coast';
+  const spawn = zone === 'coast' || !scenarioId
+    ? pickClanSpawn(seed, islands)
+    : pickZonedClanSpawn(seed, islands, WORLD, zone);
+  const cells = pickLandCells(WORLD, spawn.center, npcs.length);
+  return npcs.map((npc, i) => ({ ...npc, position: { x: cells[i].x, y: cells[i].y } }));
 }
 
 export function makeDefaultClan(seed: number): NPC[] {

@@ -164,6 +164,42 @@ export function pickClanSpawn(
   return { islandIndex, center };
 }
 
+/** Tipo de zona de spawn — corresponde con ScenarioDef.preferredSpawnZone. */
+export type SpawnZone = 'coast' | 'forest' | 'highland' | 'any';
+
+function matchesZone(tileId: number, zone: SpawnZone): boolean {
+  switch (zone) {
+    case 'coast':    return tileId === TILE.SHORE;
+    case 'forest':   return tileId === TILE.FOREST || tileId === TILE.GRASS;
+    case 'highland': return tileId === TILE.MOUNTAIN;
+    case 'any':      return isLandTile(tileId);
+  }
+}
+
+/** Como `pickClanSpawn` pero respeta una zona de spawn preferida.
+ *  Si la isla elegida no tiene tiles de la zona (raro), cae al
+ *  pool completo de tierra de la isla. */
+export function pickZonedClanSpawn(
+  seed: number,
+  islands: readonly Island[],
+  world: WorldMap,
+  zone: SpawnZone,
+): ClanSpawn {
+  if (islands.length === 0) {
+    throw new Error('pickZonedClanSpawn: sin islas — no hay dónde poblar');
+  }
+  const prng0: PRNGState = { seed: seed | 0, cursor: 0 };
+  const { value: islandIndex, next: prng1 } = nextInt(prng0, 0, islands.length);
+  const isle = islands[islandIndex];
+
+  const zoneTiles = isle.tiles.filter((t) =>
+    matchesZone(world.tiles[t.y * world.width + t.x], zone),
+  );
+  const pool = zoneTiles.length > 0 ? zoneTiles : isle.tiles;
+  const { value: pickIdx } = nextInt(prng1, 0, pool.length);
+  return { islandIndex, center: pool[pickIdx] };
+}
+
 /** BFS desde `center` por tiles no-water. Devuelve las `n` celdas
  *  más cercanas. Determinista: el orden de expansión sigue el
  *  mismo patrón de vecinos 4-direccional. */
