@@ -274,7 +274,7 @@ Para firmar v1-primigenia (recordatorio desde
    humano)` en las viñetas).
 
 Hecho eso, Fase 7 (diferida: migrantes + rival) queda habilitada
-para planificación con `DECISIONS-PENDING-primigenia.md #33`
+para planificación con `DECISIONS-PENDING.md #33`
 resuelta por delante (política de migración de estado primigenia
 → tribal — abierta en paralelo a este log).
 
@@ -287,7 +287,7 @@ resuelta por delante (política de migración de estado primigenia
 
 | # | Flag | Estado | Próxima acción / cierre |
 |-|-|-|-|
-| 1 | 🟡 Fase 1 — Assets placeholders procedurales | 🔧 programado | Sprint **#6 ASSETS-IMPORT** (`SPRINTS-primigenia.md`), pausado hasta firma humana de **decisión #34** (recién abierta 2026-04-22 con default B = CC BY 4.0 + atribución). |
+| 1 | 🟡 Fase 1 — Assets placeholders procedurales | 🔧 programado | Sprint **#6 ASSETS-IMPORT** (`SPRINTS.md`), pausado hasta firma humana de **decisión #34** (recién abierta 2026-04-22 con default B = CC BY 4.0 + atribución). |
 | 2 | 🟡 Fase 1 — E2E del MapView ready-for-future | 🕐 vivo | Parcialmente mitigado: el gate local se reproduce con `PLAYWRIGHT_CHROMIUM_PATH` (commit `claude/fix-gate-primigenia`). Cierre real cuando el entorno con red ejecute `pnpm exec playwright install chromium`. No bloquea Sprint #1. |
 | 3 | 🟠 Fase 2 — Balance del drafting sin playtest | 🕐 vivo | Revalidar en el **playtest humano** post Sprint #1.5 / #2. Si el sweet spot 10 pt asfixia, subir a 12 pt en un commit de balance puntual. |
 | 4 | 🟡 Fase 3 — Crónica sin variedad narrativa | 🕐 vivo | Tocable en Sprint **#2 LEGIBILIDAD-MVP** (introduce `ChronicleFeed`). Si el jugador reporta repetición, añadir 3-5 plantillas por evento sin esperar al LLM provider real. |
