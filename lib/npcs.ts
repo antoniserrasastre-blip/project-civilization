@@ -124,6 +124,9 @@ export interface NPC {
   inventory: NPCInventory;
   /** Cultura material — herramienta/reliquia equipada. */
   equippedItemId: string | null;
+  /** Tick en que se reprodujo por última vez. null = nunca. Cooldown
+   *  de reproducción calculado en `lib/reproduction.ts`. */
+  lastReproducedTick: number | null;
 }
 
 /** Helper para tests — construye un NPC con defaults razonables y
@@ -151,6 +154,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     alive: true,
     inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
     equippedItemId: null,
+    lastReproducedTick: null,
     ...overrides,
   };
 }
