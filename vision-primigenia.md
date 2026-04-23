@@ -11,7 +11,7 @@
 > de verdad global y no se tocan aquí.
 >
 > **Estado**: borrador editorial. Ningún sprint arranca hasta que este
-> documento + `DECISIONS-PENDING-primigenia.md` estén firmados por el
+> documento + `DECISIONS-PENDING.md` estén firmados por el
 > Director humano.
 
 ---
@@ -601,7 +601,7 @@ todos los ticks futuros.
 
 **Decisión pendiente**: si se permite reelegir una bendición ya
 tomada en una era posterior (acumulación vs diversidad forzada).
-Ver `DECISIONS-PENDING-primigenia.md`.
+Ver `DECISIONS-PENDING.md`.
 
 ## 7. Derrotas
 
@@ -630,7 +630,7 @@ opción válida de juego contemplativo. No se fuerza progresión.
 
 Orden canónico, aprobado por el Director humano. **Ninguna fase
 arranca sin las anteriores cerradas con TDD verde**. Esto es la
-columna vertebral del `ROADMAP-primigenia.md` que escribirá el
+columna vertebral del `ROADMAP.md` que escribirá el
 ingeniero.
 
 ### Fase 1 — Mundo
@@ -725,8 +725,8 @@ abre la puerta a la edad tribal completa y al resto del roadmap.
 **Estado de este documento**: borrador editorial del Director
 Creativo, fechado 2026-04-19. Próximos pasos:
 1. Director humano firma los huecos pendientes listados en
-   `DECISIONS-PENDING-primigenia.md`.
-2. Ingeniero (`CLAUDE.md`) arranca `ROADMAP-primigenia.md` desde las
+   `DECISIONS-PENDING.md`.
+2. Ingeniero (`CLAUDE.md`) arranca `ROADMAP.md` desde las
    fases 1-6 con entregables testeables.
 3. v1.0.1 existente se archiva en rama `claude/v1.0.1-archivada`
    como referencia histórica — se reconstruirá sobre primigenia cuando

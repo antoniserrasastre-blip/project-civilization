@@ -33,7 +33,7 @@ hacks de eficiencia).
 - `app/page.tsx` — placeholder vacío con `data-testid="primigenia-placeholder"`.
 - `CLAUDE.md`, `CLAUDEDIRECTOR.md` — metodología + contrapeso editorial.
 - `README.md` — queda para reescribir en tarea 2/3.
-- `vision-primigenia.md`, `DECISIONS-PENDING-primigenia.md` — constitución
+- `vision-primigenia.md`, `DECISIONS-PENDING.md` — constitución
   y bandeja de la nueva edad (extraídos de la rama editorial
   `origin/claude/read-claudedirector-a3VyQ`).
 
@@ -52,15 +52,15 @@ hacks de eficiencia).
   `VERSION-LOG-v0.{1,2,3,4}.md`, `VERSION-LOG-v1.0.md`,
   `VERSION-LOG-v1.0.1.md`. Todas recuperables en `archive/v1.0.1`.
   El `ROADMAP.md` actual del repo es el de primigenia (renombrado
-  desde `ROADMAP-primigenia.md`).
+  desde `ROADMAP.md`).
 
 > [Director] 2026-04-22: nota del bootstrap **superada**. A partir
 > del commit que introduce este bloque, el repo tiene **tres**
 > ficheros de plan convivendo: `ROADMAP.md` (puntero histórico),
-> `ROADMAP-primigenia.md` (estratégico, canónico durante primigenia)
-> y `SPRINTS-primigenia.md` (táctico, queue accionable). El canónico
-> para planificar sprints es `ROADMAP-primigenia.md`; el ingeniero
-> consume `SPRINTS-primigenia.md`. `ROADMAP.md` queda solo como
+> `ROADMAP.md` (estratégico, canónico durante primigenia)
+> y `SPRINTS.md` (táctico, queue accionable). El canónico
+> para planificar sprints es `ROADMAP.md`; el ingeniero
+> consume `SPRINTS.md`. `ROADMAP.md` queda solo como
 > puntero para compatibilidad con referencias históricas por nombre.
 
 ## Blockers y acciones requeridas al Director humano
@@ -68,7 +68,7 @@ hacks de eficiencia).
 1. **Tag `v1.0.1-archive`**: push manual si se quiere referencia
    versionada (opcional — rama archivada ya cubre el requisito).
 2. **Primigenia docs**: los documentos `vision-primigenia.md` y
-   `DECISIONS-PENDING-primigenia.md` ya están en `main` (provenientes
+   `DECISIONS-PENDING.md` ya están en `main` (provenientes
    de la rama editorial original `claude/read-claudedirector-a3VyQ`,
    ahora preservada en `archive/read-claudedirector`). El bootstrap
    completo se mergeó a `main` el 2026-04-19; la rama

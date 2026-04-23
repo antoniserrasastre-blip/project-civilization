@@ -3,11 +3,9 @@
 Instrucciones para los **cuatro roles especializados** que trabajan sobre
 este repo (Ingeniería/Producción, Diseño, Edición, Director Creativo —
 ver sección "Agentes especializados" más abajo). Ejecutan
-`SPRINTS-primigenia.md` (queue táctica, durante la edad primigenia) +
-`ROADMAP-primigenia.md` (mapa estratégico) bajo TDD estricto y
-respetando los contratos del núcleo. Este fichero manda sobre todos los
-roles; si un agente tiene un `CLAUDE.md` propio dentro de
-`agents/<rol>/`, se interpreta como **hijo** de éste, no como alternativa.
+`SPRINTS.md` (queue táctica) +
+`ROADMAP.md` (mapa estratégico) bajo TDD estricto y
+respetando los contratos del núcleo.
 
 ## Identidad del proyecto
 
@@ -18,10 +16,8 @@ balear-ficticio.
 
 Fuentes de verdad, por orden de prioridad:
 
-1. **`SPRINTS-primigenia.md`** (táctico) + **`ROADMAP-primigenia.md`**
-   (estratégico) — qué sprint toca y en qué orden. El `ROADMAP.md` del
-   repo es un puntero a estos dos; durante primigenia no se lee
-   directamente.
+1. **`SPRINTS.md`** (táctico) + **`ROADMAP.md`**
+   (estratégico) — qué sprint toca y en qué orden.
 2. **`../vision-godgame.md`** (fuera del repo, en `GODGAME/`) — contrato
    de diseño. Los comentarios del código referencian secciones como §A1,
    §A4, §A5, o Pilares 1-5. Cuando veas una de esas referencias, asume
@@ -173,7 +169,7 @@ punto es resumen, no contrato.
   `NOTES-OVERNIGHT.md`.
 - `ROADMAP-*.md` y `SPRINTS-*.md` cuando hay firma que actualizar
   (adendas, cambios de orden, nuevas decisiones §A4).
-- Commits al `CLAUDE.md` y `CLAUDE-primigenia.md` cuando afectan
+- Commits al `CLAUDE.md` y `CONVENTIONS.md` cuando afectan
   contrato editorial (no cuando afectan código).
 
 **NO puede tocar**:
@@ -289,14 +285,7 @@ Todos verdes. Cualquier fallo → NO commit. Arréglalo primero.
 
 ## Reglas de ejecución de sprints
 
-1. **Lee `SPRINTS-primigenia.md` primero** (durante la edad primigenia)
-   para saber qué sprint toca y seguir su queue: meta, archivos a
-   tocar, tests Red primero, criterio de cierre. `ROADMAP-primigenia.md`
-   es el mapa estratégico (fases + criterios globales de cierre); la
-   queue táctica vive en `SPRINTS-primigenia.md`. Ambos son fuente de
-   verdad; ninguno contradice al otro. Para eras posteriores (tribal
-   en adelante), la fuente de verdad vuelve a ser `ROADMAP.md` genérico
-   hasta que se redacte una queue SPRINTS específica para esa era.
+1. **Lee `SPRINTS.md` primero** para saber qué sprint toca y seguir su queue: meta, archivos a tocar, tests Red primero, criterio de cierre. `ROADMAP.md` es el mapa estratégico (fases + criterios globales de cierre); la queue táctica vive en `SPRINTS.md`. Ambos son fuente de verdad; ninguno contradice al otro.
 2. **Lee las secciones relevantes de `../vision-godgame.md` y de
    `vision-primigenia.md`**. Los sprints referencian Pillars 1-5,
    anexos A1-A5 y §3.X de la visión primigenia (p.ej. §3.7 susurro
@@ -305,16 +294,14 @@ Todos verdes. Cualquier fallo → NO commit. Arréglalo primero.
    no añadas ficha de aventurero (sprint siguiente) aunque "quede
    bien". El scope creep mata este proyecto — está advertido
    explícitamente en la queue.
-4. **NO inviertas el orden canónico** de SPRINTS-primigenia.md sin
+4. **NO inviertas el orden canónico** de `SPRINTS.md` sin
    justificación técnica documentada en `NOTES-OVERNIGHT.md`. El orden
-   está calibrado por dependencias y por feel de jugador (p.ej.
-   LEGIBILIDAD antes que FICHA porque el jugador entiende el verbo
-   global antes de usar el verbo individual).
+   está calibrado por dependencias y por feel de jugador.
 5. **Al terminar un sprint**: actualizar la marca de estado en
-   `SPRINTS-primigenia.md` (si aplica), commitear con mensaje
+   `SPRINTS.md` (si aplica), commitear con mensaje
    `sprint NOMBRE: <entregable>`, y abrir PR — no auto-merge durante
    primigenia salvo instrucción explícita del Director humano.
-6. **Gate humano tras sprints críticos**: cuando SPRINTS-primigenia.md
+6. **Gate humano tras sprints críticos**: cuando `SPRINTS.md`
    marca un sprint como gate de playtest (p.ej. #1.5 PLAYTEST-SUSURRO),
    no arrancar el siguiente sprint sin que el humano firme. El gate
    no es opcional; es parte del camino crítico.
@@ -704,8 +691,9 @@ UI o flakes E2E que no dependen de la visión.
 
 Aplicado al flujo overnight (ver sección "Sesiones autónomas"):
 
-- **No abrir sesión** sin leer `SPRINTS-primigenia.md` y identificar
-  el sprint activo *antes* del primer prompt. Quema 500-1000 tokens
+- **No abrir sesión** sin leer `SPRINTS.md` e identificar
+  el sprint activo *antes* del primer prompt.
+ Quema 500-1000 tokens
   menos que preguntar al agente "¿qué toca?".
 - **Concentra los sprints pesados** (muchos módulos tocados, E2E
   nuevos, refactors §A4) en la primera mitad de la ventana de tu

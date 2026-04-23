@@ -1,4 +1,4 @@
-# CLAUDE-primigenia.md
+# CONVENTIONS.md
 
 Anexo de convenciones específicas de la **edad primigenia** (ver
 `vision-primigenia.md`). Extiende `CLAUDE.md` — no lo reemplaza. La
@@ -399,7 +399,7 @@ y el output depende **solo** de él y del código del generador.
 
 Prioridad CC0 (Kenney, OpenGameArt). IA generativa **solo como relleno
 de huecos**, registrada explícitamente. Decisión #9 del
-`DECISIONS-PENDING-primigenia.md`.
+`DECISIONS-PENDING.md`.
 
 ### 5.1 Estructura del registry
 

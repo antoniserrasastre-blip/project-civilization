@@ -4,7 +4,7 @@ Registry obligatorio de toda asset bajo `assets/`. Cada fila incluye
 hash SHA-256 verificable — si el fichero cambia sin actualizar la
 fila, el lint (`pnpm lint:assets`) falla el gate.
 
-Ver `CLAUDE-primigenia.md §7` para reglas operativas (CC0
+Ver `CONVENTIONS.md §7` para reglas operativas (CC0
 obligatorio para v1 pública, licencias no triviales flaggeadas,
 IA registrada con fuente).
 
