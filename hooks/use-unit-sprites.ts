@@ -8,12 +8,11 @@
 import { useEffect, useRef, useState } from 'react';
 
 export const UNIT_SPRITES = {
-  ELEGIDO:       '/units/heavy infantry - elite.png',
-  GUERRERO:      '/units/heavy infantry.png',
-  CAZADOR:       '/units/light infantry.png',
-  EXPLORADOR:    '/units/light infantry - elite.png',
-  RECOLECTOR:    '/units/farmers.png',
-  ARTESANO:      '/units/workers.png',
+  ELEGIDO:    '/units/unit-elegido.svg',
+  GUERRERO:   '/units/unit-guerrero.svg',
+  CAZADOR:    '/units/unit-cazador.svg',
+  RECOLECTOR: '/units/unit-recolector.svg',
+  ARTESANO:   '/units/unit-artesano.svg',
 } as const;
 
 export type UnitSpriteKey = keyof typeof UNIT_SPRITES;

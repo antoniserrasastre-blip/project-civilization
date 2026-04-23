@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="8" cy="15.5" rx="4" ry="1" fill="rgba(0,0,0,0.25)" shape-rendering="auto"/>
+  <!-- Sombrero/capucha de caza -->
+  <rect x="6" y="0" width="4" height="2" fill="#5a2a0a"/>
+  <rect x="5" y="1" width="6" height="1" fill="#5a2a0a"/>
+  <!-- Cabeza -->
+  <rect x="6" y="2" width="4" height="4" fill="#d4956a"/>
+  <!-- Ojos -->
+  <rect x="7" y="3" width="1" height="1" fill="#2a1505"/>
+  <rect x="9" y="3" width="1" height="1" fill="#2a1505"/>
+  <!-- Cuerpo: túnica roja oscura -->
+  <rect x="5" y="6" width="6" height="5" fill="#8b2020"/>
+  <!-- Brazo izquierdo (porta arco) -->
+  <rect x="3" y="5" width="2" height="6" fill="#8b2020"/>
+  <!-- Arco: línea curva simplificada -->
+  <rect x="1" y="4" width="1" height="8" fill="#7a5a14"/>
+  <rect x="2" y="5" width="1" height="6" fill="#7a5a14"/>
+  <!-- Cuerda del arco -->
+  <rect x="2" y="4" width="1" height="1" fill="#d4c090"/>
+  <rect x="2" y="11" width="1" height="1" fill="#d4c090"/>
+  <!-- Brazo derecho -->
+  <rect x="11" y="6" width="2" height="5" fill="#8b2020"/>
+  <!-- Cinturón -->
+  <rect x="5" y="10" width="6" height="1" fill="#5a1010"/>
+  <!-- Piernas -->
+  <rect x="5" y="11" width="2" height="3" fill="#5a1010"/>
+  <rect x="9" y="11" width="2" height="3" fill="#5a1010"/>
+  <!-- Botas -->
+  <rect x="4" y="14" width="4" height="1" fill="#1a0e04"/>
+  <rect x="8" y="14" width="4" height="1" fill="#1a0e04"/>
+</svg>
