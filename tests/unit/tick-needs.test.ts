@@ -27,6 +27,7 @@ function mkWorld(w = 20, h = 20): WorldMap {
     tiles: new Array(w * h).fill(TILE.GRASS),
     resources: [],
     meta: { generatorVersion: 1, shaHash: '', islandCount: 1 },
+    influence: [],
   };
 }
 

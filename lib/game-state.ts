@@ -69,7 +69,11 @@ export function initialGameState(
   npcs: readonly NPC[],
   worldOverride?: WorldMap,
 ): GameState {
-  const world = worldOverride ?? DEFAULT_WORLD;
+  // Garantiza que el campo influence existe aunque el fixture JSON sea antiguo.
+  const rawWorld = worldOverride ?? DEFAULT_WORLD;
+  const world: WorldMap = rawWorld.influence
+    ? rawWorld
+    : { ...rawWorld, influence: new Array<number>(rawWorld.width * rawWorld.height).fill(0) };
   // Por ahora todos parten en (0, 0); la colocación real en el
   // spawn costero entra en un sprint posterior (decide por mapa).
   // Los NPCs drafteados tienen position: { x: 0, y: 0 } por

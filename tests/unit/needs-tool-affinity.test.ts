@@ -35,6 +35,7 @@ function makeWorld(resources: Partial<ResourceSpawn>[] = []) {
       ...r,
     })),
     meta: { generatorVersion: 1, shaHash: '', islandCount: 1 },
+    influence: [],
   };
 }
 
