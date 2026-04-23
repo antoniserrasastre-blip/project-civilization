@@ -93,6 +93,7 @@ export function GameShell({ seed }: GameShellProps) {
         totalCount={state.npcs.length}
         monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress}
+        village={state.village}
         onOpenWhisper={() => setSelectorOpen(true)}
       />
       {selectorOpen && (
