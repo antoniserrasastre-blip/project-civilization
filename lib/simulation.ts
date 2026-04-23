@@ -332,11 +332,15 @@ export function tick(state: GameState): GameState {
   // Fallback a array vacío si el estado llegó sin influence inicializado.
   const currentInfluence = state.world.influence ??
     new Array<number>(state.world.width * state.world.height).fill(0);
+  // Las estructuras actúan como anclas permanentes de territorio.
+  // Usamos state.structures (pre-tick); las estructuras nuevas de este
+  // tick contribuirán a partir del siguiente.
   const nextInfluence = tickInfluence(
     currentInfluence,
     newNPCs,
     state.world.width,
     state.world.height,
+    state.structures,
   );
   const regen = tickResources(
     state.world.resources,
