@@ -6,44 +6,37 @@ fecha: 2026-04-23
 
 # SPRINTS — Proyecto Civilización
 
-Cola táctica de ejecución. Los sprints se ejecutan bajo TDD estricto y gate verde.
+## BLOQUE I: GÉNESIS Y OBSERVABILIDAD (ACTUAL)
 
-## Sprints en Progreso: Sprint Áureo (Fase 6.5)
+### 11. DRAFTING-SISTÉMICO (ACTUAL) · Pilares 1, 2 y 3
+**Meta**: Implementar el Draft de 14 fundadores con rasgos (Zomboid) y escenarios (Kenshi).
+**Contrato Técnico**:
+- **lib/traits.ts**: Catálogo de rasgos con coste y modificadores (Glotón, Nocturno, Fuerte, etc.).
+- **lib/drafting.ts**: Refactor para incluir sistema de puntos (Budget) y asignación de rasgos.
+- **Escenarios**: Implementar "El Éxodo" (Interior/Pocos recursos) y "Náufragos" (Costa/Sin madera).
+**Tests de Rotura (Obligatorios)**:
+- `tests/design/draft-chaos.test.ts`: Un clan de "Glotones" en el desierto debe colapsar determinísticamente.
+- `tests/unit/drafting.test.ts`: Validación de presupuesto y exclusión de rasgos incompatibles.
+- `tests/integration/draft-persistence.test.ts`: Los rasgos deben persistir tras el `finalizeBlockA/B`.
 
-### 8. MODULO-SOCIAL (COMPLETADO)
-**Meta**: Reproducción, linajes activos y efectos de casta.
-- `lib/reproduction.ts`, `lib/inheritance.ts`, `lib/casta-effects.ts`.
+### 12. CAPA-DE-INFLUENCIA (Pendiente) · WorldBox
+**Meta**: Territorio dinámico y agotamiento de recursos.
+- **Mecánica**: Heatmap de presencia en `state.world.influence`.
+- **Fricción**: Los recursos tienen `reserva` finita y tiempo de regeneración.
 
-### 9. CULTURA-MATERIAL (COMPLETADO)
-**Meta**: Items equipables, recursos raros y sistema Eureka.
-- `lib/items.ts`, `lib/crafting.ts`, `lib/eureka.ts`.
-
-### 10. ARQUETIPOS-ACTIVOS (COMPLETADO)
-**Meta**: 7 roles operativos que filtran la intención divina.
-- `lib/roles.ts`, `lib/simulation.ts`.
-
-### 11. OBSERVABILIDAD-TOTAL (ACTUAL) · Pilar 3
-**Meta**: UI que exponga la profundidad social y técnica sin micromanagement.
-**Archivos**: `components/era/HUD.tsx`, `components/era/NpcSheet.tsx`, `components/map/MapView.tsx`.
-- **HUD**: Inventario Comunal (total de recursos del clan).
-- **NpcSheet expandida**: Skills, Biografía (historia personal) e Inventario Físico.
-- **Capas de Mapa**: Relaciones y Píxel de Oficio (marcador visual).
-- **Tests**: `tests/e2e/observabilidad.spec.ts`.
-
----
-
-## Próximos Sprints — Era Tribal (Fase 7)
-
-### 12. MIGRANTES-Y-RIVAL (Pendiente) · Pilar 4
-**Meta**: NPCs externos atraídos por el monumento y reaparición del Dios Rival.
+### 13. EL-ANALISTA-DIVINO (Pendiente) · CK3/TFT
+**Meta**: HUD de linajes y panel de sinergias.
+- **Visual**: Líneas de intención de los NPCs en el mapa.
+- **Sinergias**: Buffs globales por composición de clan (ej: 3 Pescadores).
 
 ---
 
-## Historial de Sprints (Completados 1-7)
-- **1. REFACTOR-SUSURRO-FE**
-- **2. LEGIBILIDAD-MVP**
-- **3. FICHA-AVENTURERO**
-- **4. NPC-NAMES**
-- **5. SPAWN-COSTERO**
-- **6. MONUMENTO-LOGIC**
-- **7. ASSETS-PROCEDURAL**
+## BLOQUE II: CULTURA MATERIAL (Próximamente)
+- **14. IDENTIDAD-VISUAL**: Sprites de herramientas y senderos de desgaste.
+- **15. HUBS-LOGÍSTICOS**: Acopio automático de recursos y roles de transporte.
+- **16. SISTEMA-EUREKA**: Tecnologías desbloqueadas por geografía y uso.
+
+---
+
+## Historial de Sprints (Completados 1-10)
+- **1-10**: Infraestructura base, Fe, Roles básicos, Monumento y Arquetipos.

@@ -6,55 +6,64 @@ fecha: 2026-04-23
 
 # ROADMAP — Proyecto Civilización
 
-Este documento es la fuente de verdad estratégica para la evolución del motor GODGAME. Define las fases de desarrollo, las dependencias críticas y los criterios de cierre para cada era.
+Este documento es la fuente de verdad estratégica. Define la visión de un **Grand Strategy de Simulación Autónoma**: un mundo determinista donde el jugador es un Dios que guía una cultura emergente sin micro-gestión.
 
-## Estado Actual: Transición al Sprint Áureo (Fase 6.5)
+## Visión Estratégica: "Age of Civilizations" Determinista
 
-Tras completar la infraestructura base de la **Edad Primigenia (Fases 1-6)**, nos encontramos en el **Sprint Áureo**. El objetivo es profundizar en la cultura material y la estructura social para preparar el salto a la **Era Tribal**.
+El objetivo es fusionar la profundidad de los grandes juegos de estrategia con la autonomía de los simuladores sistémicos:
+- **Geopolítica y Dinastías (CK3/EU4)**: El clan no es un grupo de NPCs, es una entidad con linajes, prestigio y políticas de estado (Susurros).
+- **Simulación Sistémica (WorldBox/Map Sim)**: El territorio evoluciona, se reclama y se transforma de forma autónoma.
+- **Sinergias y Composición (TFT)**: Los NPCs y sus herramientas forman "combos" culturales que desbloquean comportamientos.
+- **Estética de Diorama (AoE/Civ)**: Legibilidad visual total. Ves a un NPC y sabes su oficio por su silueta y herramientas.
 
 ---
 
-## Fases de Desarrollo
+## Estado Actual: Sprint Áureo (Fase 6.5)
 
-### 🟢 Era Primigenia: Cimientos y Supervivencia (Completada)
-*Fases cerradas y validadas con Gate Verde.*
+Estamos en el puente entre la supervivencia individual y la **Soberanía de Clan**.
 
-| # | Fase | Hito | Estado |
+### 🟢 Era Primigenia (Completada)
+*Infraestructura técnica y económica cerrada.*
+
+| # | Fase | Hito | Referencia |
 |---|---|---|---|
-| 1-4 | Infraestructura | Mundo, NPCs, Movimiento y Economía básica. | ✅ Listo |
-| 5 | Susurro y Fe | Verbo divino persistente y economía de Gratitud. | ✅ Listo |
-| 6 | Monumento (Core) | Lógica de construcción y cierre de era. | ✅ Listo |
+| 1-4 | Infraestructura | Mundo, NPCs y Economía §A4. | ✅ Listo |
+| 5 | Susurro y Fe | El "Mana" divino (EU4) y la Gratitud. | ✅ Listo |
+| 6 | Monumento | El primer hito de civilización (Civ). | ✅ Listo |
 
-### 🟡 Fase 6.5: Sprint Áureo (En Progreso)
-*Transición hacia la complejidad social y técnica.*
+### 🟡 Fase 6.5: Sprint Áureo (Activa)
+*Hacia la profundidad social y estética.*
 
-- **Módulo Social**: Reproducción, linajes activos y peso mecánico de las castas (Elegidos, Ciudadanos, Esclavos).
-- **Cultura Material**: Herramientas equipables, sistema Eureka (descubrimiento por necesidad) y recursos raros.
-- **Especialización**: 7 roles (Cazador, Pescador, Tallador, etc.) que filtran la intención divina.
-- **Observabilidad**: HUD de inventario comunal y NpcSheet con biografía y skills.
+- **Sprint 11: OBSERVABILIDAD-TOTAL (Pilar 3)**:
+    - **Mapa de Influencia**: Capa de territorio (WorldBox) que muestra el dominio del clan.
+    - **Dashboard de Sinergias**: Panel de bonos culturales por composición de NPCs (TFT).
+    - **Ficha Dinástica**: Biografía y linaje con peso histórico (CK3).
+- **Sprint 12: CULTURA MATERIAL (AoE Style)**:
+    - **Identidad Visual**: Sprites que reflejan la herramienta equipada (Hachas, Lanzas, Redes).
+    - **Oficios Visibles**: Animaciones que permiten "leer" el mapa de un vistazo.
+- **Sprint 13: LÓGICA DE ESTADO (EU4 Style)**:
+    - **Doctrinas de Susurro**: El Susurro cambia la "mentalidad" global del clan (ej: Expansión vs Aislamiento).
+    - **Eurekas Contextuales**: Descubrimiento automático de tecnología por geografía (Civ).
 
-### ⚪ Fase 7: Era Tribal (Apertura Pendiente)
-*El mundo se expande y aparecen otros.*
+### ⚪ Fase 7: Era Tribal (Próximamente)
+*Geopolítica y el Dios Rival.*
 
-- **Pilar 4 (Rival)**: Reintroducción del Dios Rival y tribus competidoras.
-- **Migrantes**: El monumento atrae a NPCs externos con culturas diferentes.
-- **IA Reactiva**: Mejora de la autonomía de los NPCs frente a amenazas externas.
+- **Pilar 4 (Rival)**: El tablero se complica con la aparición de la IA competidora.
+- **Logística Emergente (Port Royale)**: Rutas de intercambio automáticas entre asentamientos del clan.
+- **Arqueología Inversa**: Descubrimiento de ruinas de dioses anteriores para ganar Lore y Fe.
 
 ---
 
-## Criterios de Cierre de la Edad Primigenia (Sincronización)
+## Criterios de Éxito de la Visión
 
-La edad primigenia se declara técnicamente cerrada, pero el "Sprint Áureo" es el puente necesario para que la **Era Tribal** sea jugable y profunda.
-
-1. **Especialización Demostrable**: Los NPCs usan herramientas según su rol de forma autónoma.
-2. **Ciclo de Vida Hereditario**: Los hijos heredan skills y linaje; el legado persiste tras la muerte.
-3. **Observabilidad Total**: El jugador entiende el estado del clan (inventario, relaciones, skills) sin ambigüedad.
-4. **Handoff Tribal**: La transición preserva la Bendición de Aldea y los linajes elegidos.
+1. **Legibilidad de Diorama**: El jugador puede entender la economía del clan solo mirando el mapa (sin leer menús).
+2. **Drama Autónomo**: Los NPCs generan historias de linaje y conflicto por sí mismos debido a sus rasgos y sinergias.
+3. **Progreso Orgánico**: La tecnología y el territorio avanzan como consecuencia de la vida de los NPCs, no por clics del jugador.
+4. **Determinismo §A4**: Todo lo anterior ocurre sin un solo `Math.random()`, garantizando que la historia de cada mundo sea reproducible.
 
 ---
 
 ## Guía de Navegación
-- **Decisiones**: Consultar [`DECISIONS-PENDING.md`](./DECISIONS-PENDING.md) para preguntas abiertas de diseño.
-- **Cola de trabajo**: Consultar [`SPRINTS.md`](./SPRINTS.md) para la ejecución táctica.
-- **Registro Histórico**: Consultar los archivos `VERSION-LOG-fase-X.md` para detalles técnicos de cada hito alcanzado.
-- **Visión**: Consultar `vision-primigenia.md` para los detalles de diseño de esta era.
+- **Ejecución Táctica**: Consultar [`SPRINTS.md`](./SPRINTS.md).
+- **Bandeja de Decisiones**: Consultar [`DECISIONS-PENDING.md`](./DECISIONS-PENDING.md).
+- **Convenciones Técnicas**: Consultar [`CONVENTIONS.md`](./CONVENTIONS.md).
