@@ -22,7 +22,7 @@ import {
   type TileId,
 } from '@/lib/world-state';
 import type { NPC } from '@/lib/npcs';
-import type { Structure } from '@/lib/structures';
+import type { BuildProject, Structure } from '@/lib/structures';
 import type { FogState } from '@/lib/fog';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
@@ -389,6 +389,48 @@ function renderStructures(
         break;
     }
   }
+}
+
+function renderBuildProject(
+  ctx: CanvasRenderingContext2D,
+  project: BuildProject | null | undefined,
+  dims: ViewportDims,
+  state: ViewportState,
+) {
+  if (!project) return;
+  const tilePx = dims.tileSize * state.zoom;
+  const x = project.position.x * tilePx + state.offsetX;
+  const y = project.position.y * tilePx + state.offsetY;
+  if (
+    x + tilePx < 0 ||
+    y + tilePx < 0 ||
+    x > dims.screenWidth ||
+    y > dims.screenHeight
+  ) {
+    return;
+  }
+  const cx = x + tilePx / 2;
+  const cy = y + tilePx / 2;
+  const size = Math.max(10, Math.min(25, tilePx * 1.15));
+  drawStructureShadow(ctx, cx, cy, size);
+
+  ctx.strokeStyle = MAP_STYLE.structures.woodLight;
+  ctx.lineWidth = Math.max(2, size * 0.1);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.42, cy + size * 0.38);
+  ctx.lineTo(cx - size * 0.18, cy - size * 0.34);
+  ctx.moveTo(cx + size * 0.42, cy + size * 0.38);
+  ctx.lineTo(cx + size * 0.18, cy - size * 0.34);
+  ctx.moveTo(cx - size * 0.36, cy + size * 0.1);
+  ctx.lineTo(cx + size * 0.36, cy + size * 0.1);
+  ctx.stroke();
+
+  const pct = Math.max(0, Math.min(1, project.progress / project.required));
+  ctx.strokeStyle = MAP_STYLE.intent.ember;
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.beginPath();
+  ctx.arc(cx, cy - size * 0.48, size * 0.16, -Math.PI / 2, -Math.PI / 2 + pct * Math.PI * 2);
+  ctx.stroke();
 }
 
 function visibleTileBounds(
@@ -790,6 +832,8 @@ export interface MapViewProps {
   /** Crafteables materializados en el mundo: fogata, refugio,
    *  despensa, etc. Se pintan bajo los NPCs. */
   structures?: readonly Structure[];
+  /** Obra activa antes de materializarse como Structure. */
+  buildProject?: BuildProject | null;
   /** Rastros de intención calculados fuera del canvas con la misma
    *  decisión que usa el tick de simulación. */
   intentTrails?: readonly NpcIntentTrail[];
@@ -818,6 +862,7 @@ export function MapView({
   fog,
   npcs = [],
   structures = [],
+  buildProject = null,
   intentTrails = [],
   npcStatuses = [],
   onNpcClick,
@@ -903,6 +948,7 @@ export function MapView({
     renderTiles(ctx, world, dims, viewport);
     renderResources(ctx, world.resources, dims, viewport, world);
     renderStructures(ctx, structures, dims, viewport);
+    renderBuildProject(ctx, buildProject, dims, viewport);
     renderFogOverlay(ctx, fog, dims, viewport, world);
     renderIntentTrails(ctx, intentTrails, dims, viewport);
     renderNPCs(ctx, placements);
@@ -912,6 +958,7 @@ export function MapView({
     viewport,
     placements,
     structures,
+    buildProject,
     world,
     fog,
     intentTrails,
@@ -1017,6 +1064,7 @@ export function MapView({
         data-testid="map-view-canvas"
         data-npc-count={placements.length}
         data-structure-count={structures.length}
+        data-build-project={buildProject ? buildProject.kind : ''}
         data-resource-count={activeResourceCount}
         data-fog-enabled={fog ? 'true' : 'false'}
         data-intent-count={intentTrails.length}

@@ -201,11 +201,33 @@ const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.PIEL_ROPA,
 ];
 
+function aliveWorkers(npcs: readonly NPC[]): number {
+  return npcs.reduce((n, npc) => n + (npc.alive ? 1 : 0), 0);
+}
+
 /** El clan construye de forma autónoma si tiene recursos y la
  *  receta no está ya construida. Orden fijo — el jugador no decide
  *  (en primigenia el verbo del jugador es mensaje, no orden directa).
  *  Una construcción por tick. */
 function tryAutoBuild(state: GameState): GameState {
+  if (state.buildProject) {
+    const progress = state.buildProject.progress + aliveWorkers(state.npcs);
+    if (progress < state.buildProject.required) {
+      return {
+        ...state,
+        buildProject: { ...state.buildProject, progress },
+      };
+    }
+    const structures = addStructure(
+      state.structures,
+      state.buildProject.kind,
+      state.buildProject.position,
+      state.tick,
+      state.structures.length,
+    );
+    return { ...state, structures, buildProject: null };
+  }
+
   const existing = new Set(state.structures.map((s) => s.kind));
   const inv = clanInventoryTotal(state.npcs);
   const kind = BUILD_PRIORITY.find((k) => !existing.has(k));
@@ -218,17 +240,22 @@ function tryAutoBuild(state: GameState): GameState {
   // asentamiento no tiene "centro" canónico.
   const anchor =
     state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
-  const structures = addStructure(
-    state.structures,
-    kind,
-    anchor.position,
-    state.tick,
-    state.structures.length,
-  );
-  return { ...state, npcs, structures };
+  return {
+    ...state,
+    npcs,
+    buildProject: {
+      id: `bp-${kind}-${state.tick}`,
+      kind,
+      position: { ...anchor.position },
+      startedAtTick: state.tick,
+      progress: 0,
+      required: recipe.daysWork * TICKS_PER_DAY,
+    },
+  };
 }
 
 export function nextBuildPriority(state: GameState): CraftableId | undefined {
+  if (state.buildProject) return undefined;
   const existing = new Set(state.structures.map((s) => s.kind));
   for (const kind of BUILD_PRIORITY) {
     if (!existing.has(kind)) return kind;

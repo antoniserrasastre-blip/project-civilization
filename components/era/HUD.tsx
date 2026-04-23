@@ -69,6 +69,11 @@ export interface BuildHudStatus {
   next: CraftableId | null;
   ready: boolean;
   missing: Partial<Record<keyof typeof INVENTORY_ES, number>>;
+  active?: {
+    kind: CraftableId;
+    progress: number;
+    required: number;
+  };
 }
 
 export interface HUDProps {
@@ -294,8 +299,25 @@ export function HUD({
           }}
         >
           <strong>Construcción</strong>{' '}
-          {buildStatus.next ? CRAFTABLE_ES[buildStatus.next] : 'completa'}
-          {buildStatus.next &&
+          {buildStatus.active
+            ? CRAFTABLE_ES[buildStatus.active.kind]
+            : buildStatus.next
+              ? CRAFTABLE_ES[buildStatus.next]
+              : 'completa'}
+          {buildStatus.active ? (
+            <div
+              data-testid="hud-build-progress"
+              style={{ fontSize: '0.76rem', opacity: 0.78 }}
+            >
+              Obra:{' '}
+              {Math.round(
+                (buildStatus.active.progress / buildStatus.active.required) *
+                  100,
+              )}
+              %
+            </div>
+          ) : (
+            buildStatus.next &&
             (buildStatus.ready ? (
               <span style={{ color: '#a7f3d0' }}> lista</span>
             ) : (
@@ -312,7 +334,8 @@ export function HUD({
                   )
                   .join(', ')}
               </div>
-            ))}
+            ))
+          )}
         </div>
       )}
       <button

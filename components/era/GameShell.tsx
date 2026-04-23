@@ -191,6 +191,18 @@ export function GameShell({ seed }: GameShellProps) {
       .filter((status) => status.badges.length > 0);
   }, [state.npcs, state.world]);
   const buildStatus = useMemo<BuildHudStatus>(() => {
+    if (state.buildProject) {
+      return {
+        next: state.buildProject.kind,
+        ready: false,
+        missing: {},
+        active: {
+          kind: state.buildProject.kind,
+          progress: state.buildProject.progress,
+          required: state.buildProject.required,
+        },
+      };
+    }
     const next = nextBuildPriority(state) ?? null;
     if (!next) return { next: null, ready: true, missing: {} };
     const inv = clanInventoryTotal(state.npcs);
@@ -303,6 +315,7 @@ export function GameShell({ seed }: GameShellProps) {
         fog={state.fog}
         npcs={state.npcs}
         structures={state.structures}
+        buildProject={state.buildProject}
         intentTrails={intentTrails}
         npcStatuses={npcStatuses}
         onNpcClick={(id) => setSelectedNpcId(id)}
