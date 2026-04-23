@@ -329,18 +329,31 @@ export function tick(state: GameState): GameState {
   }
 
   // Actualizar heatmap de influencia con posiciones post-movimiento.
-  // Fallback a array vacío si el estado llegó sin influence inicializado.
   const currentInfluence = state.world.influence ??
     new Array<number>(state.world.width * state.world.height).fill(0);
-  // Las estructuras actúan como anclas permanentes de territorio.
-  // Usamos state.structures (pre-tick); las estructuras nuevas de este
-  // tick contribuirán a partir del siguiente.
+
+  // Fuentes de influencia: estructuras con kind (pre-tick) + monumento
+  // si está construido/construyéndose (emite desde el centroide de estructuras).
+  const influenceSources: { position: { x: number; y: number }; kind?: string }[] =
+    state.structures.map((s) => ({ position: s.position, kind: s.kind }));
+
+  const monPhase = state.monument.phase;
+  if ((monPhase === 'built' || monPhase === 'building') && state.structures.length > 0) {
+    const cx = Math.round(
+      state.structures.reduce((sum, s) => sum + s.position.x, 0) / state.structures.length,
+    );
+    const cy = Math.round(
+      state.structures.reduce((sum, s) => sum + s.position.y, 0) / state.structures.length,
+    );
+    influenceSources.push({ position: { x: cx, y: cy }, kind: 'monumento' });
+  }
+
   const nextInfluence = tickInfluence(
     currentInfluence,
     newNPCs,
     state.world.width,
     state.world.height,
-    state.structures,
+    influenceSources,
   );
   const regen = tickResources(
     state.world.resources,
