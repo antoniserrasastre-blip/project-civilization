@@ -59,13 +59,13 @@ export const NEED_THRESHOLDS = {
   socializacionLow: 30,
 } as const;
 
-// Valores reducidos: berry 10→4, fish 14→6, game 22→8.
-// Con decay=1/tick y nutrition=10, sv nunca bajaba (recovery on-tile
-// de +10 cancelaba el decay; el NPC se quedaba en sv=100 permanente).
+// Calibrado para TICKS_PER_DAY=480 con decay=2:
+// berry=8 aguanta ~4 ticks, fish=12 ~6 ticks, game=18 ~9 ticks.
+// Resultado: ~12-15 comidas/día, ciclo hambre/comer visible.
 export const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
-  berry: 4,
-  fish: 6,
-  game: 8,
+  berry: 8,
+  fish: 12,
+  game: 18,
 };
 
 const COOKED_FOOD_MULTIPLIER = 1.5;
@@ -372,8 +372,9 @@ function matchesMissing(
 // --- Sprint 4.1: feed-forward de necesidades por tick ---
 
 export const NEED_TICK_RATES = {
-  /** Decay pasivo de supervivencia por tick (entropía). */
-  supervivenciaDecay: 1,
+  /** Decay pasivo de supervivencia por tick (entropía).
+   *  Valor 2 calibrado para TICKS_PER_DAY=480: sv 100→55 en ~22 ticks. */
+  supervivenciaDecay: 2,
   /** Recovery cuando el NPC está sobre un recurso activo. */
   supervivenciaRecover: 2,
   /** Socialización al estar en soledad (sin NPCs en radio). */
@@ -485,18 +486,12 @@ export function tickNeeds(
     let sv = npc.stats.supervivencia;
     let so = n.stats.socializacion;
 
-    // Recovery on-tile solo cuando sv es baja — evita que standing on
-    // resource cancele el decay cuando el NPC está sano (bug: sv=100 siempre).
-    const SV_RECOVERY_CAP = 70;
+    // Solo el AGUA cura al estar encima (beber es pasivo y tiene sentido).
+    // La COMIDA no cura on-tile — se cosecha al inventario y se come
+    // cuando hay urgencia. Esto elimina el bucle recovery-parálisis.
     const recoveryResource = recoveryResourceAtPosition(npc.position, ctx.world);
-    if (recoveryResource === RESOURCE.WATER && sv < SV_RECOVERY_CAP) {
+    if (recoveryResource === RESOURCE.WATER) {
       sv += NEED_TICK_RATES.supervivenciaRecover;
-    } else if (recoveryResource === RESOURCE.BERRY && sv < SV_RECOVERY_CAP) {
-      sv += FOOD_NUTRITION.berry;
-    } else if (recoveryResource === RESOURCE.FISH && sv < SV_RECOVERY_CAP) {
-      sv += FOOD_NUTRITION.fish;
-    } else if (recoveryResource === RESOURCE.GAME && sv < SV_RECOVERY_CAP) {
-      sv += FOOD_NUTRITION.game;
     } else if (
       sv < NEED_THRESHOLDS.supervivenciaEatFromInventory &&
       carriedFood(npc) > 0

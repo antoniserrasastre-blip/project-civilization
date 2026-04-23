@@ -78,9 +78,9 @@ describe('Decay pasivo de supervivencia', () => {
 });
 
 describe('Recovery on-the-spot', () => {
-  it('NPC sobre spawn de baya con sv baja → supervivencia sube (no baja)', () => {
-    // Recovery on-tile solo activa cuando sv < SV_RECOVERY_CAP (70).
-    // Con sv=60 y berry=4: 60+4=64.
+  it('NPC sobre spawn de baya — la comida NO cura on-tile, solo decae', () => {
+    // La comida se cosecha al inventario; no cura pasivamente al estar encima.
+    // sv=60, decay=2 → 60-2=58.
     const world = mkWorld();
     world.resources.push({
       id: RESOURCE.BERRY,
@@ -97,56 +97,38 @@ describe('Recovery on-the-spot', () => {
       stats: { supervivencia: 60, socializacion: 60 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    expect(after.stats.supervivencia).toBe(64); // 60 + FOOD_NUTRITION.berry(4)
+    expect(after.stats.supervivencia).toBe(58); // 60 - decay(2)
   });
 
-  it('NPC sobre caza recupera más que sobre baya', () => {
+  it('NPC sobre caza y NPC sobre baya decaen igual (comida no cura on-tile)', () => {
     const berryWorld = mkWorld();
     berryWorld.resources.push({
-      id: RESOURCE.BERRY,
-      x: 5,
-      y: 5,
-      quantity: 10,
-      initialQuantity: 10,
-      regime: 'regenerable',
-      depletedAtTick: null,
+      id: RESOURCE.BERRY, x: 5, y: 5,
+      quantity: 10, initialQuantity: 10, regime: 'regenerable', depletedAtTick: null,
     });
     const gameWorld = mkWorld();
     gameWorld.resources.push({
-      id: RESOURCE.GAME,
-      x: 5,
-      y: 5,
-      quantity: 10,
-      initialQuantity: 10,
-      regime: 'regenerable',
-      depletedAtTick: null,
+      id: RESOURCE.GAME, x: 5, y: 5,
+      quantity: 10, initialQuantity: 10, regime: 'regenerable', depletedAtTick: null,
     });
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 40, socializacion: 60 },
+      stats: { supervivencia: 60, socializacion: 60 },
     });
-
     const [berry] = tickNeeds([npc], { world: berryWorld, npcs: [npc] });
-    const [game] = tickNeeds([npc], { world: gameWorld, npcs: [npc] });
-
-    expect(game.stats.supervivencia).toBeGreaterThan(
-      berry.stats.supervivencia,
-    );
+    const [game]  = tickNeeds([npc], { world: gameWorld,  npcs: [npc] });
+    // Ambos decaen -2, ninguno se cura on-tile
+    expect(berry.stats.supervivencia).toBe(58);
+    expect(game.stats.supervivencia).toBe(58);
   });
 
-  it('sv al máximo decae aunque esté sobre recurso (recovery solo activa < 70)', () => {
-    // Con sv=100 ≥ SV_RECOVERY_CAP(70): no hay recovery on-tile.
-    // El NPC está sobre agua pero sv=100 ≥ 55 (no come inventario) → decay.
+  it('agua SÍ cura on-tile; decay=2 y waterRecover=2 se cancelan → sv=100', () => {
+    // El agua es la única recovery pasiva. Con sv=100: decay -2 + water +2 = 0.
     const world = mkWorld();
     world.resources.push({
-      id: RESOURCE.WATER,
-      x: 5,
-      y: 5,
-      quantity: 999,
-      initialQuantity: 999,
-      regime: 'continuous',
-      depletedAtTick: null,
+      id: RESOURCE.WATER, x: 5, y: 5,
+      quantity: 999, initialQuantity: 999, regime: 'continuous', depletedAtTick: null,
     });
     const npc = makeTestNPC({
       id: 'n',
@@ -154,15 +136,16 @@ describe('Recovery on-the-spot', () => {
       stats: { supervivencia: 100, socializacion: 60 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    // sv=100 → decay -1 = 99 (recovery no compensa porque sv >= 70)
-    expect(after.stats.supervivencia).toBe(99);
+    expect(after.stats.supervivencia).toBe(100); // -2 decay + 2 water = 0
   });
 });
 
 describe('Consumo de comida en inventario', () => {
   it('NPC con baya en inventario consume 1 y recupera supervivencia', () => {
     // sv=35 < supervivenciaEatFromInventory(55) → come baya del inventario.
-    // FOOD_NUTRITION.berry = 4 → 35+4 = 39.
+    // FOOD_NUTRITION.berry=8, decay=2 → neto: 35+8-2=41... pero la lógica
+    // es: come (sv+=8) y luego decay (-2) en ramas separadas? No — come
+    // en vez de decaer. sv = 35 + 8 = 43.
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
@@ -173,7 +156,7 @@ describe('Consumo de comida en inventario', () => {
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
 
     expect(after.inventory.berry).toBe(1);
-    expect(after.stats.supervivencia).toBe(39); // 35 + berry(4)
+    expect(after.stats.supervivencia).toBe(43); // 35 + berry(8)
   });
 
   it('consume comida en orden berry → fish → game de forma determinista', () => {

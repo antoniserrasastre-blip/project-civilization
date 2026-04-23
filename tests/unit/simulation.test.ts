@@ -137,7 +137,7 @@ describe('tick — movimiento hacia comida', () => {
     const npc = makeTestNPC({
       id: 'swimmer',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80 },
     });
     let s = initialGameState(1, [npc], world);
 
