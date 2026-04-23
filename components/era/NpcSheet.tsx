@@ -15,7 +15,9 @@
  * orquesta la interacción.
  */
 
+import { useEffect, useRef } from 'react';
 import type { NPC } from '@/lib/npcs';
+import { CASTA } from '@/lib/npcs';
 import type { VillageState } from '@/lib/village';
 import type { MiracleId } from '@/lib/miracles';
 import type { NpcStatusBadge } from '@/components/map/MapView';
@@ -25,6 +27,10 @@ import {
   MIRACLES_CATALOG,
 } from '@/lib/miracles';
 import { roleLabel } from '@/lib/roles';
+import { spriteUrlFor, shouldShowCrown } from '@/lib/npc-sprite';
+import { LINAJE_COLORS } from '@/lib/npc-marker';
+import type { EquippableItem } from '@/lib/items';
+import { itemForNpc, ITEM_KIND } from '@/lib/items';
 
 const TRAIT_LABEL: Record<string, string> = {
   hambre_sagrada: 'Hambre sagrada',
@@ -74,14 +80,100 @@ export interface NpcSheetProps {
   village: VillageState;
   status?: NpcOperationalStatus;
   biography?: NpcBiography;
-  /** Rol activo derivado (Sprint 10). Si se omite, no se muestra
-   *  la sección de oficio. */
   role?: Role;
-  /** Etiqueta legible de la herramienta equipada ('Lanza', 'Cesta',
-   *  etc.) o 'sin herramienta'. Se pasa ya resuelto por el shell. */
   toolLabel?: string;
+  /** Ítems en circulación — necesarios para retrato y sprite. */
+  items?: readonly EquippableItem[];
   onClose: () => void;
   onGrantMiracle: (miracleId: MiracleId) => void;
+}
+
+// ── Retrato del NPC ────────────────────────────────────────────────────
+
+const ITEM_EMOJI: Record<string, string> = {
+  [ITEM_KIND.SPEAR]:       'lanza',
+  [ITEM_KIND.HAND_AXE]:    'hacha',
+  [ITEM_KIND.BONE_NEEDLE]: 'aguja',
+  [ITEM_KIND.BASKET]:      'cesta',
+  [ITEM_KIND.RELIC_CHARM]: 'reliquia',
+};
+
+function NpcPortrait({ npc, items = [] }: { npc: NPC; items?: readonly EquippableItem[] }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const spriteUrl = spriteUrlFor(npc, items);
+  const linajeBorder = LINAJE_COLORS[npc.linaje] ?? '#888';
+  const equippedItem = itemForNpc(npc, items);
+  const isCrown = shouldShowCrown(npc);
+  const SIZE = 96;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    const cx = SIZE / 2;
+    const cy = SIZE / 2;
+
+    // Fondo circular con color de linaje
+    ctx.beginPath();
+    ctx.arc(cx, cy, SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#16130c';
+    ctx.fill();
+    ctx.strokeStyle = linajeBorder;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // Sprite
+    const img = new Image();
+    img.onload = () => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, SIZE / 2 - 5, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(img, cx - SIZE * 0.38, cy - SIZE * 0.4, SIZE * 0.76, SIZE * 0.76);
+      ctx.restore();
+
+      // Corona para Elegidos
+      if (isCrown) {
+        const u = SIZE / 20;
+        const top = cy - SIZE * 0.38 - u;
+        ctx.fillStyle = '#f0c030';
+        ctx.beginPath();
+        ctx.moveTo(cx - u * 2.5, top + u * 2);
+        ctx.lineTo(cx - u * 2.5, top);
+        ctx.lineTo(cx - u, top + u * 1.5);
+        ctx.lineTo(cx, top - u * 0.5);
+        ctx.lineTo(cx + u, top + u * 1.5);
+        ctx.lineTo(cx + u * 2.5, top);
+        ctx.lineTo(cx + u * 2.5, top + u * 2);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#7a5810';
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    };
+    img.src = spriteUrl;
+  }, [spriteUrl, linajeBorder, isCrown]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <canvas ref={canvasRef} width={SIZE} height={SIZE} style={{ imageRendering: 'pixelated' }} />
+      {equippedItem && (
+        <span style={{ fontSize: '0.72rem', color: '#a7f3d0', opacity: 0.9 }}>
+          {ITEM_EMOJI[equippedItem.kind] ?? equippedItem.kind}
+        </span>
+      )}
+      {isCrown && (
+        <span style={{ fontSize: '0.7rem', color: '#f0c030', letterSpacing: 1 }}>
+          ELEGIDO
+        </span>
+      )}
+    </div>
+  );
 }
 
 export function NpcSheet({
@@ -91,6 +183,7 @@ export function NpcSheet({
   biography,
   role,
   toolLabel,
+  items = [],
   onClose,
   onGrantMiracle,
 }: NpcSheetProps) {
@@ -118,34 +211,37 @@ export function NpcSheet({
         lineHeight: 1.4,
       }}
     >
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'baseline',
-          marginBottom: 8,
-        }}
-      >
-        <h2
-          data-testid="npc-sheet-title"
-          style={{ margin: 0, fontSize: '1rem' }}
-        >
-          {npc.name}
-        </h2>
-        <button
-          type="button"
-          data-testid="npc-sheet-close"
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            color: '#888',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-          }}
-        >
-          cerrar
-        </button>
+      {/* Cabecera: retrato + nombre + cerrar */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+        <NpcPortrait npc={npc} items={items} />
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <h2 data-testid="npc-sheet-title" style={{ margin: 0, fontSize: '1.1rem' }}>
+              {npc.name}
+            </h2>
+            <button
+              type="button"
+              data-testid="npc-sheet-close"
+              onClick={onClose}
+              style={{ background: 'transparent', color: '#888', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
+            >
+              cerrar
+            </button>
+          </div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: 4 }}>
+            {npc.casta === CASTA.ELEGIDO ? 'Elegido' : 'Ciudadano'} · {npc.linaje}
+          </div>
+          {role && (
+            <div style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: 2 }}>
+              {roleLabel(role)}{toolLabel && toolLabel !== 'sin herramienta' ? ` · ${toolLabel}` : ''}
+            </div>
+          )}
+          {status?.action && (
+            <div style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: 2, fontStyle: 'italic' }}>
+              {status.action}
+            </div>
+          )}
+        </div>
       </div>
 
       <section

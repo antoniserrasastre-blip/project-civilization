@@ -1,22 +1,16 @@
-/**
- * Precarga los sprites de unidades desde /public/units/.
- * Devuelve un Map<nombre, HTMLImageElement> listo para ctx.drawImage.
- * Mientras carga devuelve un map vacío — el canvas cae al fallback geométrico.
- */
 'use client';
 
+/**
+ * Precarga los sprites de unidades desde /public/units/.
+ * Devuelve un Map<SpriteKey, HTMLImageElement> listo para ctx.drawImage.
+ * Mientras carga devuelve un map vacío — el canvas cae al fallback geométrico.
+ */
+
 import { useEffect, useRef, useState } from 'react';
+import { SPRITE_URLS, type SpriteKey } from '@/lib/npc-sprite';
 
-export const UNIT_SPRITES = {
-  ELEGIDO:    '/units/unit-elegido.svg',
-  GUERRERO:   '/units/unit-guerrero.svg',
-  CAZADOR:    '/units/unit-cazador.svg',
-  RECOLECTOR: '/units/unit-recolector.svg',
-  ARTESANO:   '/units/unit-artesano.svg',
-} as const;
-
-export type UnitSpriteKey = keyof typeof UNIT_SPRITES;
-export type SpriteMap = Map<UnitSpriteKey, HTMLImageElement>;
+export type { SpriteKey as UnitSpriteKey } from '@/lib/npc-sprite';
+export type SpriteMap = Map<SpriteKey, HTMLImageElement>;
 
 export function useUnitSprites(): SpriteMap {
   const [sprites, setSprites] = useState<SpriteMap>(new Map());
@@ -26,7 +20,7 @@ export function useUnitSprites(): SpriteMap {
     if (loaded.current) return;
     loaded.current = true;
 
-    const entries = Object.entries(UNIT_SPRITES) as [UnitSpriteKey, string][];
+    const entries = Object.entries(SPRITE_URLS) as [SpriteKey, string][];
     const map: SpriteMap = new Map();
     let remaining = entries.length;
 

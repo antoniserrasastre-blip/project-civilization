@@ -403,6 +403,7 @@ export function GameShell({ seed }: GameShellProps) {
           biography={selectedNpcBiography}
           role={selectedNpcRole}
           toolLabel={selectedNpcToolLabel}
+          items={state.items}
           onClose={() => setSelectedNpcId(null)}
           onGrantMiracle={onGrantMiracle}
         />
