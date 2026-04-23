@@ -279,7 +279,10 @@ export function decideDestination(
     if (c) return c;
   }
 
-  // Recolección proactiva para crafteable.
+  // ── Idle activo: objetivos cuando no hay urgencias vitales ──
+
+  // 1. Recolectar materiales faltantes para la próxima construcción.
+  //    Todos los NPCs (no solo builders) contribuyen a juntar recursos.
   if (ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
     const missing = missingResourceFor(recipe, ctx.npcs);
@@ -289,11 +292,11 @@ export function decideDestination(
         (rid) => matchesMissing(rid, missing),
         ctx.isReachable, buildIntentWeight(npc, ctx.items), claimed, id,
       );
-      if (spawn) return spawn; // construcción no necesita histéresis
+      if (spawn) return spawn;
     }
   }
 
-  // Herramienta en mano da propósito cuando el NPC está saciado.
+  // 2. Herramienta equipada → recurso afín.
   if (ctx.items && npc.equippedItemId) {
     const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
     if (equipped) {
@@ -310,9 +313,8 @@ export function decideDestination(
     }
   }
 
-  // Recolección proactiva — NPC sin urgencias llena su inventario de comida.
-  // Evita el idle total cuando sv/soc son altos y no hay tarea asignada.
-  if (carriedFood(npc) < 3) {
+  // 3. Recolección proactiva de comida si lleva poco (buffer mínimo).
+  if (carriedFood(npc) < 2) {
     const proactiveFood = nearestResource(
       npc.position, ctx.world.resources,
       (rid) => FOOD_IDS.includes(rid),

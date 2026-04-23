@@ -339,12 +339,13 @@ export function tick(state: GameState): GameState {
       newNPCs.push(npc);
       continue;
     }
-    // Builders designados ven la prioridad de construcción;
-    // el resto ignora la obra y hace su propio rol.
+    // Todos los NPCs conocen el objetivo de construcción — cualquiera
+    // puede recolectar materiales faltantes. Solo los builders designados
+    // contabilizan progreso en tryAutoBuild (no cambia aquí).
     const npcCtx = {
       ...ctx,
       claimedTiles,
-      nextBuildPriority: builderIds.has(npc.id) ? buildPriority : undefined,
+      nextBuildPriority: buildPriority,
     };
     const dest = decideDestination(npc, npcCtx);
     // Registrar destino como reclamado para los NPCs siguientes.
