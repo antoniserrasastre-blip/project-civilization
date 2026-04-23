@@ -29,11 +29,21 @@ export const INFLUENCE_CASTA_WEIGHT: Record<string, number> = {
   [CASTA.ESCLAVO]: 3,
 };
 
-/** Radio y peso de las estructuras. Son anclas permanentes —
- *  emiten más que un Elegido y con radio mayor para marcar
- *  el territorio incluso cuando los NPCs se alejan. */
-export const STRUCTURE_INFLUENCE_WEIGHT = 20;
-export const STRUCTURE_INFLUENCE_RADIUS = 5;
+/** Territorio por tipo de estructura. Cada construcción tiene un peso
+ *  (cuánta influencia emite por tick) y un radio (hasta dónde llega).
+ *  Las estructuras con más valor cultural / permanencia reclaman más.
+ *
+ *  Keys = CraftableId + 'monumento' (caso especial sin position propia). */
+export const STRUCTURE_TERRITORY: Record<string, { weight: number; radius: number }> = {
+  fogata_permanente: { weight: 15, radius: 4 }, // Primer campamento
+  refugio:           { weight: 22, radius: 5 }, // Hogar — ancla social
+  despensa:          { weight: 18, radius: 4 }, // Almacén de recursos
+  piel_ropa:         { weight: 10, radius: 3 }, // Taller menor
+  monumento:         { weight: 35, radius: 8 }, // Centro de civilización
+};
+
+/** Fallback para estructuras desconocidas. */
+const STRUCTURE_TERRITORY_DEFAULT = { weight: 15, radius: 4 };
 
 /** Array plano row-major: `grid[y * width + x]`. Valores 0–INFLUENCE_MAX. */
 export type InfluenceGrid = number[];
@@ -44,9 +54,11 @@ export function emptyInfluenceGrid(width: number, height: number): InfluenceGrid
 }
 
 /** Tipo mínimo que necesita tickInfluence para procesar estructuras.
- *  Compatible con Structure de lib/structures.ts sin acoplamiento. */
+ *  Compatible con Structure de lib/structures.ts sin acoplamiento.
+ *  El campo `kind` es opcional — si se pasa, se busca en STRUCTURE_TERRITORY. */
 export interface InfluenceSource {
   position: { x: number; y: number };
+  kind?: string;
 }
 
 /** Pinta influencia desde un punto emisor en el grid. Reutilizable
@@ -98,8 +110,8 @@ export function tickInfluence(
   }
 
   for (const s of structures) {
-    paintInfluence(next, s.position.x, s.position.y,
-      STRUCTURE_INFLUENCE_WEIGHT, STRUCTURE_INFLUENCE_RADIUS, width, height);
+    const t = (s.kind ? STRUCTURE_TERRITORY[s.kind] : null) ?? STRUCTURE_TERRITORY_DEFAULT;
+    paintInfluence(next, s.position.x, s.position.y, t.weight, t.radius, width, height);
   }
 
   return next;
