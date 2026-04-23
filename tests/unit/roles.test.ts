@@ -16,6 +16,7 @@ import {
   computeRole,
   intentFilter,
   roleLabel,
+  roleColor,
   type Role,
 } from '@/lib/roles';
 import { makeTestNPC } from '@/lib/npcs';
@@ -45,6 +46,22 @@ describe('ROLE catálogo', () => {
     ]) {
       expect(values.has(k)).toBe(true);
     }
+  });
+});
+
+describe('roleColor — paleta estable por rol', () => {
+  it('todos los 7 roles tienen color asignado', () => {
+    for (const r of Object.values(ROLE) as Role[]) {
+      expect(roleColor(r)).toMatch(/^#[0-9a-f]{6}$/i);
+    }
+  });
+
+  it('colores son distintos entre roles', () => {
+    const seen = new Set<string>();
+    for (const r of Object.values(ROLE) as Role[]) {
+      seen.add(roleColor(r));
+    }
+    expect(seen.size).toBe(7);
   });
 });
 

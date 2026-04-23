@@ -63,6 +63,8 @@ const INVENTORY_ES = {
   berry: 'bayas',
   game: 'caza',
   fish: 'pescado',
+  obsidian: 'obsidiana',
+  shell: 'concha',
 } as const;
 
 export interface BuildHudStatus {
@@ -335,6 +337,14 @@ export function HUD({
             <span data-testid="hud-inventory-fish">
               <span style={{ opacity: 0.68 }}>pescado</span>{' '}
               <strong>{communalInventory.fish}</strong>
+            </span>
+            <span data-testid="hud-inventory-obsidian">
+              <span style={{ opacity: 0.68 }}>obsidiana</span>{' '}
+              <strong>{communalInventory.obsidian}</strong>
+            </span>
+            <span data-testid="hud-inventory-shell">
+              <span style={{ opacity: 0.68 }}>concha</span>{' '}
+              <strong>{communalInventory.shell}</strong>
             </span>
           </div>
         </div>

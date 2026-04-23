@@ -54,6 +54,23 @@ export function roleLabel(role: Role): string {
   return LABELS[role];
 }
 
+/** Paleta de oficios — un color estable por rol activo. Consumida por
+ *  `MapView` para el píxel de oficio (Sprint 11). Tonos lo bastante
+ *  separados entre sí para ser distinguibles a zoom mínimo. */
+const COLORS: Record<Role, string> = {
+  [ROLE.CAZADOR]: '#c0482f',
+  [ROLE.RASTREADOR]: '#3a8ca8',
+  [ROLE.PESCADOR]: '#2d7faa',
+  [ROLE.RECOLECTOR]: '#3f8a40',
+  [ROLE.TALLADOR]: '#b7802d',
+  [ROLE.TEJEDOR]: '#c66b9a',
+  [ROLE.CURANDERO]: '#7a5ea8',
+};
+
+export function roleColor(role: Role): string {
+  return COLORS[role];
+}
+
 /** Umbral a partir del cual un skill se considera "dominante".
  *  Calibrado contra drafting (Elegidos arrancan ~40-70 en su
  *  skill fuerte; Ciudadanos 15-25). */

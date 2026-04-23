@@ -21,12 +21,15 @@ import {
   type WorldMap,
   type TileId,
 } from '@/lib/world-state';
-import type { NPC, Archetype } from '@/lib/npcs';
+import type { NPC } from '@/lib/npcs';
 import type { BuildProject, Structure } from '@/lib/structures';
 import type { FogState } from '@/lib/fog';
 import type { Edge } from '@/lib/relations';
+import type { EquippableItem } from '@/lib/items';
+import { itemForNpc } from '@/lib/items';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
+import { computeRole, roleColor } from '@/lib/roles';
 import { TILE_COLOR } from '@/lib/tile-colors';
 import {
   applyDrag,
@@ -85,20 +88,11 @@ const MAP_STYLE = {
   },
 } as const;
 
-/** Paleta de oficios — un color por arquetipo para el píxel de
- *  oficio del Sprint 11 OBSERVABILIDAD-TOTAL. Ciudadanos sin
- *  arquetipo formal reciben un gris neutro (no distraen). */
-const PROFESSION_COLOR: Record<Archetype, string> = {
-  cazador: '#c0482f',
-  recolector: '#3f8a40',
-  curandero: '#7a5ea8',
-  artesano: '#b7802d',
-  lider: '#d6b24a',
-  scout: '#3a8ca8',
-  tejedor: '#c66b9a',
-  pescador: '#2d7faa',
-};
-const PROFESSION_NEUTRAL = '#9a8e78';
+/** Color del píxel de oficio. Se deriva del rol activo del NPC
+ *  (`computeRole` — skills + item equipado) vía `roleColor`, no del
+ *  arquetipo de drafting. Así todos los NPCs — incluidos ciudadanos
+ *  y descendientes — reciben color distinguible según lo que hacen
+ *  ahora, no según con qué nacieron. */
 
 export interface NpcIntentTrail {
   npcId: string;
@@ -193,15 +187,19 @@ function drawCircle(
   ctx.stroke();
 }
 
-function professionColor(npc: NPC): string {
-  if (npc.archetype) return PROFESSION_COLOR[npc.archetype];
-  return PROFESSION_NEUTRAL;
+function professionColor(
+  npc: NPC,
+  items: readonly EquippableItem[],
+): string {
+  const item = itemForNpc(npc, items);
+  return roleColor(computeRole(npc, item));
 }
 
 function renderNPCs(
   ctx: CanvasRenderingContext2D,
   placements: readonly MarkerPlacement[],
   professionLayer: boolean,
+  items: readonly EquippableItem[],
 ) {
   // Pixel-art duro: sin antialias.
   ctx.imageSmoothingEnabled = false;
@@ -221,7 +219,7 @@ function renderNPCs(
       // Píxel de oficio — pintado en el cuadrante inferior derecho
       // del marcador para no pisar el halo central del Elegido.
       const offset = Math.max(1, Math.round(marker.size * 0.24));
-      ctx.fillStyle = professionColor(npc);
+      ctx.fillStyle = professionColor(npc, items);
       ctx.fillRect(Math.round(cx) + offset - 1, Math.round(cy) + offset - 1, 2, 2);
     }
   }
@@ -913,6 +911,10 @@ export interface MapViewProps {
   /** Grafo de relaciones (Sprint 4.4). Se pinta como capa opcional
    *  cuando el jugador activa el toggle — Sprint 11 OBSERVABILIDAD. */
   relations?: readonly Edge[];
+  /** Items equipados del clan — necesarios para que el píxel de
+   *  oficio refleje el rol activo (Sprint 10) en vez del arquetipo
+   *  fijo del drafting. Con array vacío, el color deriva de skills. */
+  items?: readonly EquippableItem[];
   /** Callback al clickear un NPC. Sprint FICHA-AVENTURERO lo
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
@@ -940,6 +942,7 @@ export function MapView({
   intentTrails = [],
   npcStatuses = [],
   relations = [],
+  items = [],
   onNpcClick,
   initialCenter,
 }: MapViewProps = {}) {
@@ -1030,7 +1033,7 @@ export function MapView({
       renderRelationsLayer(ctx, relations, placements, dims);
     }
     renderIntentTrails(ctx, intentTrails, dims, viewport);
-    renderNPCs(ctx, placements, true);
+    renderNPCs(ctx, placements, true, items);
     renderNpcStatusBadges(ctx, placements, npcStatuses);
   }, [
     dims,
@@ -1044,6 +1047,7 @@ export function MapView({
     npcStatuses,
     relations,
     relationsLayerOn,
+    items,
   ]);
 
   // Drag.
