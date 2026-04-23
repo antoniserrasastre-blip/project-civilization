@@ -31,6 +31,7 @@ import type { VillageState } from '@/lib/village';
 import type { CraftableId } from '@/lib/crafting';
 import type { NPCInventory } from '@/lib/npcs';
 import { useGratitudeFloaters } from '@/hooks/use-gratitude-floaters';
+import { SYNERGY_CATALOG, type ActiveSynergy } from '@/lib/synergies';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
   none: 'sin desbloquear',
@@ -94,6 +95,8 @@ export interface HUDProps {
    *  vivos del clan. Visible siempre que se pase; los tests antiguos
    *  que no lo inyectan siguen pasando. */
   communalInventory?: NPCInventory;
+  /** Sprint 13: sinergias activas por composición del clan. */
+  activeSynergies?: ActiveSynergy[];
   paused: boolean;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
@@ -177,6 +180,7 @@ export function HUD({
   village,
   buildStatus,
   communalInventory,
+  activeSynergies,
   paused,
   onTogglePause,
   onOpenWhisper,
@@ -396,6 +400,37 @@ export function HUD({
               </div>
             ))
           )}
+        </div>
+      )}
+      {activeSynergies && activeSynergies.length > 0 && (
+        <div
+          data-testid="hud-synergies"
+          style={{
+            marginTop: 6,
+            paddingTop: 6,
+            borderTop: '1px solid rgba(245,245,220,0.18)',
+          }}
+        >
+          <strong style={{ fontSize: '0.8rem', opacity: 0.85 }}>Sinergies actives</strong>
+          {activeSynergies.map((s) => {
+            const def = SYNERGY_CATALOG[s.id];
+            return (
+              <div
+                key={s.id}
+                data-testid={`synergy-${s.id}`}
+                style={{
+                  fontSize: '0.76rem',
+                  marginTop: 3,
+                  color: '#a7f3d0',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <span>⚡ {def.name}</span>
+                <span style={{ opacity: 0.7 }}>{s.npcIds.length} NPCs</span>
+              </div>
+            );
+          })}
         </div>
       )}
       <button
