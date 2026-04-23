@@ -14,52 +14,49 @@ El objetivo es fusionar la profundidad de los grandes juegos de estrategia con l
 - **Geopolítica y Dinastías (CK3/EU4)**: El clan no es un grupo de NPCs, es una entidad con linajes, prestigio y políticas de estado (Susurros).
 - **Simulación Sistémica (WorldBox/Map Sim)**: El territorio evoluciona, se reclama y se transforma de forma autónoma.
 - **Sinergias y Composición (TFT)**: Los NPCs y sus herramientas forman "combos" culturales que desbloquean comportamientos.
+- **ADN Social (Zomboid/Kenshi)**: El inicio importa. Rasgos positivos/negativos y escenarios de spawn dictan el destino.
 - **Estética de Diorama (AoE/Civ)**: Legibilidad visual total. Ves a un NPC y sabes su oficio por su silueta y herramientas.
 
 ---
 
-## Estado Actual: Sprint Áureo (Fase 6.5)
+## Fases de Desarrollo
 
-Estamos en el puente entre la supervivencia individual y la **Soberanía de Clan**.
-
-### 🟢 Era Primigenia (Completada)
-*Infraestructura técnica y económica cerrada.*
-
-| # | Fase | Hito | Referencia |
-|---|---|---|---|
-| 1-4 | Infraestructura | Mundo, NPCs y Economía §A4. | ✅ Listo |
-| 5 | Susurro y Fe | El "Mana" divino (EU4) y la Gratitud. | ✅ Listo |
-| 6 | Monumento | El primer hito de civilización (Civ). | ✅ Listo |
+### 🟢 Era Primigenia: Cimientos (Completada)
+*Infraestructura técnica y económica §A4 cerrada.*
 
 ### 🟡 Fase 6.5: Sprint Áureo (Activa)
-*Hacia la profundidad social y estética.*
+*Hacia la profundidad social, estratégica y estética.*
 
-- **Sprint 11: OBSERVABILIDAD-TOTAL (Pilar 3)**:
-    - **Mapa de Influencia**: Capa de territorio (WorldBox) que muestra el dominio del clan.
-    - **Dashboard de Sinergias**: Panel de bonos culturales por composición de NPCs (TFT).
-    - **Ficha Dinástica**: Biografía y linaje con peso histórico (CK3).
-- **Sprint 12: CULTURA MATERIAL (AoE Style)**:
-    - **Identidad Visual**: Sprites que reflejan la herramienta equipada (Hachas, Lanzas, Redes).
-    - **Oficios Visibles**: Animaciones que permiten "leer" el mapa de un vistazo.
-- **Sprint 13: LÓGICA DE ESTADO (EU4 Style)**:
-    - **Doctrinas de Susurro**: El Susurro cambia la "mentalidad" global del clan (ej: Expansión vs Aislamiento).
-    - **Eurekas Contextuales**: Descubrimiento automático de tecnología por geografía (Civ).
+- **Sprint 11: DRAFTING-SISTÉMICO (ACTUAL)**:
+    - **Génesis de Civilización**: Sistema de puntos (Budget 15) para elegir fundadores.
+    - **Rasgos Contrapuestos**: Catálogo tipo *Project Zomboid* (Glotón, Nocturno, Fuerte).
+    - **Escenarios de Inicio**: Perfiles de spawn tipo *Kenshi* (Náufragos vs Éxodo).
+- **Sprint 12: OBSERVABILIDAD-TOTAL**:
+    - **Mapa de Influencia**: Capa de territorio (WorldBox) y agotamiento de recursos.
+    - **Dashboard de Sinergias**: Panel de bonos culturales por composición (TFT).
+    - **Ficha Dinástica**: Árbol genealógico y herencia de legados (CK3).
+- **Sprint 13: CULTURA MATERIAL Y LOGÍSTICA**:
+    - **Identidad Visual**: Sprites con herramientas visibles (AoE Style).
+    - **Hubs Logísticos**: Acopio automático y roles de transporte (Port Royale Style).
+- **Sprint 14: LÓGICA DE ESTADO**:
+    - **Doctrinas de Susurro**: El Susurro como política de estado con coste de Estabilidad (EU4 Style).
+    - **Eurekas Contextuales**: Descubrimiento de tecnología por geografía (Civ Style).
 
 ### ⚪ Fase 7: Era Tribal (Próximamente)
-*Geopolítica y el Dios Rival.*
+*Geopolítica, el Dios Rival y la Trascendencia.*
 
-- **Pilar 4 (Rival)**: El tablero se complica con la aparición de la IA competidora.
-- **Logística Emergente (Port Royale)**: Rutas de intercambio automáticas entre asentamientos del clan.
-- **Arqueología Inversa**: Descubrimiento de ruinas de dioses anteriores para ganar Lore y Fe.
+- **Pilar 4 (Rival)**: Aparición de la IA competidora y fronteras calientes.
+- **Logística Geopolítica**: Rutas de intercambio entre asentamientos.
+- **Ciclo de Vida Hereditario**: Herencia de rasgos y herramientas de prestigio entre generaciones.
 
 ---
 
 ## Criterios de Éxito de la Visión
 
-1. **Legibilidad de Diorama**: El jugador puede entender la economía del clan solo mirando el mapa (sin leer menús).
-2. **Drama Autónomo**: Los NPCs generan historias de linaje y conflicto por sí mismos debido a sus rasgos y sinergias.
-3. **Progreso Orgánico**: La tecnología y el territorio avanzan como consecuencia de la vida de los NPCs, no por clics del jugador.
-4. **Determinismo §A4**: Todo lo anterior ocurre sin un solo `Math.random()`, garantizando que la historia de cada mundo sea reproducible.
+1. **Legibilidad de Diorama**: El jugador entiende el estado del mundo solo mirando el mapa.
+2. **Drama Autónomo**: Los NPCs generan historias de linaje y conflicto por sí mismos.
+3. **Progreso Orgánico**: La tecnología y el territorio avanzan como consecuencia de la vida de los NPCs.
+4. **Determinismo §A4**: 10.000 ticks byte-idénticos con el mismo seed.
 
 ---
 
