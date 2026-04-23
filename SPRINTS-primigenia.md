@@ -243,34 +243,38 @@ el hardcode `(85, 73)` del patch `11f2e95`.
 
 ---
 
-## 6. ASSETS-IMPORT (2–3 días) · bloqueado hasta firma decisión #34
+## 6. RENDER-PROCEDURAL (2–3 días) · desbloqueado · decisión #34-A firmada
 
-**Meta**: importar Ancient Greeks terrain + units filtrados (CC BY 4.0)
-para sustituir placeholders procedurales y markers primitivos.
+**Meta**: mejorar la legibilidad visual del mapa y los NPCs usando
+**exclusivamente** lo que ya existe en el repo (SVGs procedurales,
+CSS, Canvas) — sin imports de assets externos. Hacer los placeholders
+actuales más expresivos y jugables antes de decidir la estética final.
 
-**Pre-requisito**: firma humana de decisión #34 en
-`DECISIONS-PENDING-primigenia.md`. Hasta entonces sprint en pausa.
+**Decisión #34 firmada (Opción A, 2026-04-23)**: assets externos
+descartados durante la Edad Primigenia. Scope redefinido.
 
-**Archivos** (post-firma):
-- `assets/terrain/` — PNGs de Ancient Greeks tileset_32px/terrain_32px.
-- `assets/units/` — subset de units filtrados (farmers, workers,
-  animals, boats, carts; **excluir** heavy/light infantry y cavalry
-  por scope creep Pilar 4).
-- `assets/ORIGINS.md` — filas con SHA-256, autoría (marceles, cimeto),
-  licencia CC BY 4.0, URL fuente.
-- `scripts/lint-assets.mjs` — verificar ya existe; validar nuevos.
-- `components/map/MapView.tsx` — renderer de terreno carga tileset
-  en lugar de colores planos de `tile-colors.ts`.
-- `lib/npc-marker.ts` — opcional: flag para usar sprite en vez de
-  shape geométrica (retrocompatible).
+**Archivos**:
+- `components/map/MapView.tsx` — mejoras de legibilidad: colores de
+  tile más contrastados, borde de costa, diferenciación visual de
+  biomas (grass/forest/mountain/shore/water) sin sprites externos.
+- `components/map/tile-colors.ts` (o equivalente) — paleta afinada
+  post-playtest; tokens para que Director Diseño pueda tunar sin
+  tocar lógica.
+- `lib/npc-marker.ts` (si no existe) — shape geométrica diferenciada
+  por arquetipo (Cazador vs Recolector vs ciudadanos) con color por
+  estado vital (thriving/neutral/crítico). Sin sprites.
+- `components/era/HUD.tsx` — indicador visual del susurro activo más
+  legible (icono o badge de texto corto, sin imágenes externas).
 
 **Tests Red primero**:
-- `pnpm lint:assets` verde sobre los nuevos assets.
-- `tests/unit/asset-registry.test.ts` (existente) — hashes nuevos
-  validan.
+- E2E `tests/e2e/render-visual.spec.ts` — tiles tienen `data-tile-type`
+  correcto; NPC markers tienen `data-archetype`; colores de bioma
+  verificables via computed style o snapshot.
 
 **Cierre**:
 - Gate verde.
+- Playtest: tile de grass/forest/mountain distinguibles a primera vista;
+  NPC crítico identificable sin hover; susurro activo visible en HUD.
 - Playtest: mapa ya no se ve en colores planos; NPCs con sprites
   reales.
 

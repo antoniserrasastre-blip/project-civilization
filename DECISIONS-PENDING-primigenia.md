@@ -351,7 +351,7 @@ razón de endurecimiento sigue siendo reversible.
 Sin firma, el ingeniero no arranca #6. Los sprints #1-#5 del queue
 son independientes y pueden avanzar en paralelo a la firma.
 
-**Marca**: [A / B / C] · Comentario:
+**Marca**: **A** · 2026-04-23 — *"Seguimos exclusivamente con los assets ya integrados o generados proceduralmente. Assets externos (Kenney.nl y cualquier otro pack) fuera del alcance de la Edad Primigenia. Placeholders SVG hasta tener clara la estética final."* Firma: Director humano. Subdecisiones #34.a–c nulas (sólo aplicaban a B). **Sprint #6 desbloqueado con scope redefinido** (ver `SPRINTS-primigenia.md` §6).
 
 ## Formato de decisiones futuras
 
