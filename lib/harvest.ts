@@ -39,15 +39,23 @@ function inventoryKeyFor(id: ResourceId): keyof NPCInventory | null {
 export interface HarvestTickResult {
   npcs: NPC[];
   resources: ResourceSpawn[];
+  /** Reserves actualizadas (mismo array plano que WorldMap.reserves). */
+  reserves: number[];
 }
 
 /** Recolecta 1 unidad por NPC que esté sobre un spawn válido. Un
  *  spawn con múltiples visitantes reparte 1 al primero según orden
- *  lex de id (estable y determinista). */
+ *  lex de id (estable y determinista).
+ *
+ *  Si se pasa `reservesIn` + `worldWidth`, aplica depleción acumulativa:
+ *  tiles con reserves = 0 están agotados y no pueden cosecharse aunque
+ *  el spawn tenga quantity > 0. */
 export function tickHarvests(
   npcsIn: readonly NPC[],
   resourcesIn: readonly ResourceSpawn[],
   currentTick: number,
+  reservesIn?: readonly number[],
+  worldWidth?: number,
 ): HarvestTickResult {
   // Clonamos arrays / elementos que mutaremos.
   const npcs = npcsIn.map((n) => ({
@@ -55,6 +63,7 @@ export function tickHarvests(
     inventory: { ...n.inventory },
   }));
   const resources = resourcesIn.map((r) => ({ ...r }));
+  const reserves = reservesIn ? [...reservesIn] : null;
 
   // Orden estable por id para resolver simultaneidad.
   const npcOrder = [...npcs].sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -69,6 +78,12 @@ export function tickHarvests(
       const key = inventoryKeyFor(r.id);
       if (!key) continue; // agua
       if (npc.inventory[key] >= INVENTORY_CAP_PER_TYPE) continue;
+      // Comprobar reserva acumulativa del tile.
+      if (reserves && worldWidth !== undefined) {
+        const idx = r.y * worldWidth + r.x;
+        if (reserves[idx] <= 0) continue; // tile agotado
+        reserves[idx] = Math.max(0, reserves[idx] - 1);
+      }
       // Transferir 1 unidad.
       npc.inventory[key] += 1;
       r.quantity -= 1;
@@ -84,5 +99,5 @@ export function tickHarvests(
 
   // Los NPCs se devuelven en el orden original del input; npcs[i]
   // ha sido mutado in-place (es copia) durante la iteración sorted.
-  return { npcs, resources };
+  return { npcs, resources, reserves: reserves ?? [] };
 }

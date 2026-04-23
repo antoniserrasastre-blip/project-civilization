@@ -346,8 +346,15 @@ export function tick(state: GameState): GameState {
   // Recolección ANTES de tickNeeds para que el inventario post-harvest
   // pueda usarse en sprints siguientes. El estado "on-the-spot" de
   // needs también puede ver el mismo spawn antes de agotarse.
-  const harvested = tickHarvests(newNPCs, regen, state.tick + 1);
-  const nextWorld = { ...state.world, resources: harvested.resources, influence: nextInfluence };
+  const currentReserves = state.world.reserves ??
+    new Array<number>(state.world.width * state.world.height).fill(0);
+  const harvested = tickHarvests(newNPCs, regen, state.tick + 1, currentReserves, state.world.width);
+  const nextWorld = {
+    ...state.world,
+    resources: harvested.resources,
+    influence: nextInfluence,
+    reserves: harvested.reserves,
+  };
   const npcsAfterNeeds = tickNeeds(harvested.npcs, {
     world: nextWorld,
     npcs: harvested.npcs,
