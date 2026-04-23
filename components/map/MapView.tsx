@@ -21,9 +21,10 @@ import {
   type WorldMap,
   type TileId,
 } from '@/lib/world-state';
-import type { NPC } from '@/lib/npcs';
+import type { NPC, Archetype } from '@/lib/npcs';
 import type { BuildProject, Structure } from '@/lib/structures';
 import type { FogState } from '@/lib/fog';
+import type { Edge } from '@/lib/relations';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { TILE_COLOR } from '@/lib/tile-colors';
@@ -76,7 +77,28 @@ const MAP_STYLE = {
     stroke: 'rgba(238, 205, 126, 0.55)',
     ember: 'rgba(255, 179, 71, 0.78)',
   },
+  relations: {
+    kinship: 'rgba(180, 210, 255, 0.55)',
+    debt: 'rgba(232, 122, 108, 0.6)',
+    saved: 'rgba(180, 230, 170, 0.55)',
+    favor: 'rgba(238, 205, 126, 0.5)',
+  },
 } as const;
+
+/** Paleta de oficios — un color por arquetipo para el píxel de
+ *  oficio del Sprint 11 OBSERVABILIDAD-TOTAL. Ciudadanos sin
+ *  arquetipo formal reciben un gris neutro (no distraen). */
+const PROFESSION_COLOR: Record<Archetype, string> = {
+  cazador: '#c0482f',
+  recolector: '#3f8a40',
+  curandero: '#7a5ea8',
+  artesano: '#b7802d',
+  lider: '#d6b24a',
+  scout: '#3a8ca8',
+  tejedor: '#c66b9a',
+  pescador: '#2d7faa',
+};
+const PROFESSION_NEUTRAL = '#9a8e78';
 
 export interface NpcIntentTrail {
   npcId: string;
@@ -171,14 +193,20 @@ function drawCircle(
   ctx.stroke();
 }
 
+function professionColor(npc: NPC): string {
+  if (npc.archetype) return PROFESSION_COLOR[npc.archetype];
+  return PROFESSION_NEUTRAL;
+}
+
 function renderNPCs(
   ctx: CanvasRenderingContext2D,
   placements: readonly MarkerPlacement[],
+  professionLayer: boolean,
 ) {
   // Pixel-art duro: sin antialias.
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'miter';
-  for (const { marker, cx, cy } of placements) {
+  for (const { npc, marker, cx, cy } of placements) {
     const { fill, outline, highlight } = marker.colors;
     if (marker.shape === 'diamond') {
       drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
@@ -188,6 +216,13 @@ function renderNPCs(
       ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
     } else {
       drawCircle(ctx, cx, cy, marker.size, fill, outline, marker.outline);
+    }
+    if (professionLayer) {
+      // Píxel de oficio — pintado en el cuadrante inferior derecho
+      // del marcador para no pisar el halo central del Elegido.
+      const offset = Math.max(1, Math.round(marker.size * 0.24));
+      ctx.fillStyle = professionColor(npc);
+      ctx.fillRect(Math.round(cx) + offset - 1, Math.round(cy) + offset - 1, 2, 2);
     }
   }
 }
@@ -707,6 +742,44 @@ function renderFogOverlay(
   }
 }
 
+function relationColor(type: Edge['type']): string {
+  switch (type) {
+    case 'kinship':
+      return MAP_STYLE.relations.kinship;
+    case 'debt':
+      return MAP_STYLE.relations.debt;
+    case 'saved':
+      return MAP_STYLE.relations.saved;
+    case 'favor':
+      return MAP_STYLE.relations.favor;
+  }
+}
+
+function renderRelationsLayer(
+  ctx: CanvasRenderingContext2D,
+  relations: readonly Edge[],
+  placements: readonly MarkerPlacement[],
+  dims: ViewportDims,
+) {
+  if (relations.length === 0) return;
+  const byId = new Map<string, MarkerPlacement>();
+  for (const p of placements) byId.set(p.npc.id, p);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const tilePx = dims.tileSize;
+  ctx.lineWidth = Math.max(1, Math.min(2, tilePx * 0.05));
+  for (const edge of relations) {
+    const a = byId.get(edge.from);
+    const b = byId.get(edge.to);
+    if (!a || !b) continue;
+    ctx.strokeStyle = relationColor(edge.type);
+    ctx.beginPath();
+    ctx.moveTo(a.cx, a.cy);
+    ctx.lineTo(b.cx, b.cy);
+    ctx.stroke();
+  }
+}
+
 function renderIntentTrails(
   ctx: CanvasRenderingContext2D,
   trails: readonly NpcIntentTrail[],
@@ -837,6 +910,9 @@ export interface MapViewProps {
   intentTrails?: readonly NpcIntentTrail[];
   /** Badges compactos de estado vital sobre NPCs. */
   npcStatuses?: readonly NpcStatusVisual[];
+  /** Grafo de relaciones (Sprint 4.4). Se pinta como capa opcional
+   *  cuando el jugador activa el toggle — Sprint 11 OBSERVABILIDAD. */
+  relations?: readonly Edge[];
   /** Callback al clickear un NPC. Sprint FICHA-AVENTURERO lo
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
@@ -863,9 +939,11 @@ export function MapView({
   buildProject = null,
   intentTrails = [],
   npcStatuses = [],
+  relations = [],
   onNpcClick,
   initialCenter,
 }: MapViewProps = {}) {
+  const [relationsLayerOn, setRelationsLayerOn] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dims, setDims] = useState<ViewportDims>({
@@ -948,8 +1026,11 @@ export function MapView({
     renderStructures(ctx, structures, dims, viewport);
     renderBuildProject(ctx, buildProject, dims, viewport);
     renderFogOverlay(ctx, fog, dims, viewport, world);
+    if (relationsLayerOn) {
+      renderRelationsLayer(ctx, relations, placements, dims);
+    }
     renderIntentTrails(ctx, intentTrails, dims, viewport);
-    renderNPCs(ctx, placements);
+    renderNPCs(ctx, placements, true);
     renderNpcStatusBadges(ctx, placements, npcStatuses);
   }, [
     dims,
@@ -961,6 +1042,8 @@ export function MapView({
     fog,
     intentTrails,
     npcStatuses,
+    relations,
+    relationsLayerOn,
   ]);
 
   // Drag.
@@ -1067,6 +1150,9 @@ export function MapView({
         data-fog-enabled={fog ? 'true' : 'false'}
         data-intent-count={intentTrails.length}
         data-status-count={npcStatuses.length}
+        data-profession-layer="on"
+        data-relations-layer={relationsLayerOn ? 'on' : 'off'}
+        data-relations-count={relations.length}
         style={{ display: 'block', cursor, imageRendering: 'pixelated' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
@@ -1098,6 +1184,49 @@ export function MapView({
           {hover.label}
         </div>
       )}
+      <div
+        data-testid="map-layers-panel"
+        style={{
+          position: 'absolute',
+          right: 12,
+          bottom: 12,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4,
+          padding: '6px 8px',
+          background: 'rgba(10, 8, 6, 0.72)',
+          border: '1px solid rgba(245,245,220,0.18)',
+          borderRadius: 8,
+          color: '#f5f5dc',
+          fontSize: 11,
+        }}
+      >
+        <span style={{ opacity: 0.75 }}>Capas</span>
+        <button
+          type="button"
+          data-testid="map-layer-relations-toggle"
+          onClick={() => setRelationsLayerOn((v) => !v)}
+          aria-pressed={relationsLayerOn}
+          title={
+            relationsLayerOn
+              ? 'Ocultar capa de relaciones'
+              : 'Mostrar parentesco y deudas'
+          }
+          style={{
+            background: relationsLayerOn ? '#2a2a1c' : '#1e1e1e',
+            color: '#f5f5dc',
+            border: `1px solid ${relationsLayerOn ? '#6b5a1f' : '#2f2f2f'}`,
+            borderRadius: 6,
+            padding: '3px 8px',
+            fontSize: 11,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+          }}
+        >
+          {relationsLayerOn ? '● Relaciones' : '○ Relaciones'}
+        </button>
+      </div>
       <div
         data-testid="map-status-legend"
         style={{

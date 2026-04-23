@@ -29,6 +29,7 @@ import { HUD, type BuildHudStatus } from '@/components/era/HUD';
 import { ChronicleFeed } from '@/components/era/ChronicleFeed';
 import {
   NpcSheet,
+  type NpcBiography,
   type NpcOperationalStatus,
 } from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
@@ -190,6 +191,10 @@ export function GameShell({ seed }: GameShellProps) {
       })
       .filter((status) => status.badges.length > 0);
   }, [state.npcs, state.world]);
+  const communalInventory = useMemo<NPCInventory>(
+    () => clanInventoryTotal(state.npcs),
+    [state.npcs],
+  );
   const buildStatus = useMemo<BuildHudStatus>(() => {
     if (state.buildProject) {
       return {
@@ -291,6 +296,25 @@ export function GameShell({ seed }: GameShellProps) {
     };
   }, [npcStatuses, selectedNpc, state]);
 
+  const selectedNpcBiography = useMemo<NpcBiography | undefined>(() => {
+    if (!selectedNpc) return undefined;
+    const bornDay = Math.floor(selectedNpc.birthTick / TICKS_PER_DAY) + 1;
+    const ageTick = Math.max(0, state.tick - selectedNpc.birthTick);
+    const ageDays = Math.max(0, Math.floor(ageTick / TICKS_PER_DAY));
+    const parentNames = selectedNpc.parents
+      ? (() => {
+          const [pa, pb] = selectedNpc.parents!;
+          const a = state.npcs.find((n) => n.id === pa);
+          const b = state.npcs.find((n) => n.id === pb);
+          return [a?.name ?? pa, b?.name ?? pb] as [string, string];
+        })()
+      : null;
+    const childrenCount = state.npcs.filter(
+      (n) => n.parents && n.parents.includes(selectedNpc.id),
+    ).length;
+    return { bornDay, ageDays, parentNames, childrenCount };
+  }, [selectedNpc, state.npcs, state.tick]);
+
   const onGrantMiracle = (miracleId: MiracleId) => {
     if (!selectedNpcId) return;
     setState((prev) => {
@@ -318,6 +342,7 @@ export function GameShell({ seed }: GameShellProps) {
         buildProject={state.buildProject}
         intentTrails={intentTrails}
         npcStatuses={npcStatuses}
+        relations={state.relations}
         onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter}
       />
@@ -332,6 +357,7 @@ export function GameShell({ seed }: GameShellProps) {
         monumentProgress={state.monument.progress}
         village={state.village}
         buildStatus={buildStatus}
+        communalInventory={communalInventory}
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
@@ -355,6 +381,7 @@ export function GameShell({ seed }: GameShellProps) {
           npc={selectedNpc}
           village={state.village}
           status={selectedNpcStatus}
+          biography={selectedNpcBiography}
           onClose={() => setSelectedNpcId(null)}
           onGrantMiracle={onGrantMiracle}
         />

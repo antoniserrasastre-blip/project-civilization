@@ -43,6 +43,14 @@ const BADGE_LABEL: Record<NpcStatusBadge, string> = {
   swimming: 'nadando',
 };
 
+const SKILL_LABEL = {
+  hunting: 'Caza',
+  gathering: 'Recolección',
+  crafting: 'Artesanía',
+  fishing: 'Pesca',
+  healing: 'Sanación',
+} as const;
+
 export interface NpcOperationalStatus {
   action: string;
   destination: { x: number; y: number };
@@ -50,10 +58,20 @@ export interface NpcOperationalStatus {
   badges: readonly NpcStatusBadge[];
 }
 
+/** Biografía resumida — la calcula el shell a partir del estado y la
+ *  pasa materializada. El componente es tonto (no deriva nada). */
+export interface NpcBiography {
+  bornDay: number;
+  ageDays: number;
+  parentNames: [string, string] | null;
+  childrenCount: number;
+}
+
 export interface NpcSheetProps {
   npc: NPC;
   village: VillageState;
   status?: NpcOperationalStatus;
+  biography?: NpcBiography;
   onClose: () => void;
   onGrantMiracle: (miracleId: MiracleId) => void;
 }
@@ -62,6 +80,7 @@ export function NpcSheet({
   npc,
   village,
   status,
+  biography,
   onClose,
   onGrantMiracle,
 }: NpcSheetProps) {
@@ -154,6 +173,113 @@ export function NpcSheet({
         <div>
           Socialización: <strong>{Math.round(npc.stats.socializacion)}</strong>
         </div>
+      </section>
+
+      <section
+        data-testid="npc-sheet-skills"
+        style={{ marginBottom: 10 }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          Habilidades
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 3,
+            fontSize: '0.8rem',
+          }}
+        >
+          {(Object.keys(SKILL_LABEL) as Array<keyof typeof SKILL_LABEL>).map(
+            (key) => {
+              const value = Math.round(npc.skills[key]);
+              const pct = Math.max(0, Math.min(100, value));
+              return (
+                <div
+                  key={key}
+                  data-testid={`npc-skill-${key}`}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '86px 1fr 28px',
+                    alignItems: 'center',
+                    columnGap: 6,
+                  }}
+                >
+                  <span style={{ opacity: 0.78 }}>{SKILL_LABEL[key]}</span>
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'relative',
+                      height: 4,
+                      background: '#1e1e1e',
+                      borderRadius: 3,
+                      overflow: 'hidden',
+                      border: '1px solid #2a2620',
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: 'block',
+                        height: '100%',
+                        width: `${pct}%`,
+                        background: '#a78b4b',
+                      }}
+                    />
+                  </span>
+                  <strong style={{ textAlign: 'right' }}>{value}</strong>
+                </div>
+              );
+            },
+          )}
+        </div>
+      </section>
+
+      <section
+        data-testid="npc-sheet-biography"
+        style={{ marginBottom: 10, fontSize: '0.8rem' }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.85rem' }}>
+          Historia biográfica
+        </div>
+        {biography ? (
+          <>
+            <div>
+              <span style={{ opacity: 0.7 }}>Nacido el </span>
+              <strong data-testid="npc-bio-born">
+                día {biography.bornDay}
+              </strong>
+              <span style={{ opacity: 0.7 }}> — </span>
+              <strong data-testid="npc-bio-age">
+                {biography.ageDays} día{biography.ageDays === 1 ? '' : 's'}
+              </strong>
+              <span style={{ opacity: 0.7 }}>
+                {npc.alive ? ' de vida' : ' al morir'}
+              </span>
+            </div>
+            <div>
+              <span style={{ opacity: 0.7 }}>Padres: </span>
+              {biography.parentNames ? (
+                <strong data-testid="npc-bio-parents">
+                  {biography.parentNames[0]} y {biography.parentNames[1]}
+                </strong>
+              ) : (
+                <em style={{ opacity: 0.65 }} data-testid="npc-bio-founder">
+                  fundador del clan
+                </em>
+              )}
+            </div>
+            <div>
+              <span style={{ opacity: 0.7 }}>Hijos: </span>
+              <strong data-testid="npc-bio-children">
+                {biography.childrenCount}
+              </strong>
+            </div>
+          </>
+        ) : (
+          <div style={{ opacity: 0.6, fontSize: '0.78rem' }}>
+            Historia no disponible.
+          </div>
+        )}
       </section>
 
       <section
