@@ -25,7 +25,7 @@ import {
 import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
-import { ITEM_DEFS } from './items';
+import { computeRole, intentFilter } from './roles';
 
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
@@ -64,8 +64,9 @@ export interface DestinationContext {
   /** Filtro opcional de alcanzabilidad. Si existe, los recursos
    *  inalcanzables no se eligen como destino. */
   isReachable?: (from: Position, to: Position) => boolean;
-  /** Herramientas equipables en circulación — para filtrado de intención
-   *  (Sprint 9): NPC con Lanza prefiere caza, con Cesta prefiere bayas. */
+  /** Items del clan. Si está presente, `decideDestination` usa el
+   *  item equipado del NPC para computar su rol activo y sesgar
+   *  la elección de recursos (Sprint 10 — Pilar 1). */
   items?: readonly EquippableItem[];
 }
 
@@ -83,20 +84,26 @@ function nearestResource(
   resources: readonly ResourceSpawn[],
   acceptable: (id: ResourceId) => boolean,
   isReachable?: (from: Position, to: Position) => boolean,
+  /** Peso aditivo por recurso (filtro de intención del rol). El peso
+   *  se resta de la distancia efectiva: `score = d - weight`. Con
+   *  weight=0 el comportamiento es idéntico al anterior. */
+  intentWeight?: (id: ResourceId) => number,
 ): Position | null {
-  let best: { d: number; x: number; y: number } | null = null;
+  let best: { score: number; x: number; y: number } | null = null;
   for (const r of resources) {
     if (r.quantity <= 0) continue;
     if (!acceptable(r.id)) continue;
     const pos = { x: r.x, y: r.y };
     if (isReachable && !isReachable(from, pos)) continue;
     const d = manhattan(from.x, from.y, r.x, r.y);
+    const w = intentWeight ? intentWeight(r.id) : 0;
+    const score = d - w;
     if (
       !best ||
-      d < best.d ||
-      (d === best.d && (r.x < best.x || (r.x === best.x && r.y < best.y)))
+      score < best.score ||
+      (score === best.score && (r.x < best.x || (r.x === best.x && r.y < best.y)))
     ) {
-      best = { d, x: r.x, y: r.y };
+      best = { score, x: r.x, y: r.y };
     }
   }
   return best ? { x: best.x, y: best.y } : null;
@@ -117,15 +124,6 @@ function centroidOfAlive(npcs: readonly NPC[]): Position | null {
 }
 
 const FOOD_IDS: ResourceId[] = [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH];
-
-/** Recursos preferidos por afinidad de herramienta (Sprint 9). */
-const TOOL_PREFERRED_RESOURCES: Record<string, ResourceId[]> = {
-  hunting: [RESOURCE.GAME],
-  gathering: [RESOURCE.BERRY, RESOURCE.WOOD, RESOURCE.SHELL],
-  crafting: [RESOURCE.STONE, RESOURCE.WOOD, RESOURCE.OBSIDIAN],
-  fishing: [RESOURCE.FISH],
-  healing: [RESOURCE.BERRY, RESOURCE.WATER],
-};
 
 function carriedFood(npc: NPC): number {
   return npc.inventory.berry + npc.inventory.game + npc.inventory.fish;
@@ -148,6 +146,24 @@ function recoveryResourceAtPosition(
     }
   }
   return null;
+}
+
+function equippedItem(
+  npc: NPC,
+  items: readonly EquippableItem[] | undefined,
+): EquippableItem | null {
+  if (!npc.equippedItemId || !items) return null;
+  return items.find((i) => i.id === npc.equippedItemId) ?? null;
+}
+
+function buildIntentWeight(
+  npc: NPC,
+  items: readonly EquippableItem[] | undefined,
+): (id: ResourceId) => number {
+  const item = equippedItem(npc, items);
+  const role = computeRole(npc, item);
+  const weights = intentFilter(role);
+  return (id: ResourceId) => weights[id] ?? 0;
 }
 
 export function decideDestination(
@@ -200,6 +216,7 @@ export function decideDestination(
       ctx.world.resources,
       (id) => FOOD_IDS.includes(id),
       ctx.isReachable,
+      buildIntentWeight(npc, ctx.items),
     );
     if (food) return food;
   }
@@ -222,27 +239,9 @@ export function decideDestination(
         ctx.world.resources,
         (id) => matchesMissing(id, missing),
         ctx.isReachable,
+        buildIntentWeight(npc, ctx.items),
       );
       if (spawn) return spawn;
-    }
-  }
-
-  // Filtrado de intención por herramienta (Sprint 9 — Pilar 2).
-  // Solo activo si el contexto trae items y el NPC lleva herramienta.
-  if (ctx.items && npc.equippedItemId) {
-    const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
-    if (equipped) {
-      const affinity = ITEM_DEFS[equipped.kind].skillAffinity;
-      const preferred = TOOL_PREFERRED_RESOURCES[affinity] ?? [];
-      if (preferred.length > 0) {
-        const intentTarget = nearestResource(
-          npc.position,
-          ctx.world.resources,
-          (id) => preferred.includes(id),
-          ctx.isReachable,
-        );
-        if (intentTarget) return intentTarget;
-      }
     }
   }
 
@@ -266,13 +265,14 @@ function matchesMissing(
   id: ResourceId,
   missing: keyof NPCInventory,
 ): boolean {
-  // Mapeo directo entre ResourceId y campo de inventario. Agua y
-  // fish no aparecen en recetas primigenia; cobertura simbólica.
+  // Mapeo directo entre ResourceId y campo de inventario.
   if (missing === 'wood') return id === RESOURCE.WOOD;
   if (missing === 'stone') return id === RESOURCE.STONE;
   if (missing === 'berry') return id === RESOURCE.BERRY;
   if (missing === 'game') return id === RESOURCE.GAME;
   if (missing === 'fish') return id === RESOURCE.FISH;
+  if (missing === 'obsidian') return id === RESOURCE.OBSIDIAN;
+  if (missing === 'shell') return id === RESOURCE.SHELL;
   return false;
 }
 
