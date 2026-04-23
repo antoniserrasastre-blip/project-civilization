@@ -29,6 +29,12 @@ export const INFLUENCE_CASTA_WEIGHT: Record<string, number> = {
   [CASTA.ESCLAVO]: 3,
 };
 
+/** Radio y peso de las estructuras. Son anclas permanentes —
+ *  emiten más que un Elegido y con radio mayor para marcar
+ *  el territorio incluso cuando los NPCs se alejan. */
+export const STRUCTURE_INFLUENCE_WEIGHT = 20;
+export const STRUCTURE_INFLUENCE_RADIUS = 5;
+
 /** Array plano row-major: `grid[y * width + x]`. Valores 0–INFLUENCE_MAX. */
 export type InfluenceGrid = number[];
 
@@ -37,40 +43,63 @@ export function emptyInfluenceGrid(width: number, height: number): InfluenceGrid
   return new Array(width * height).fill(0);
 }
 
+/** Tipo mínimo que necesita tickInfluence para procesar estructuras.
+ *  Compatible con Structure de lib/structures.ts sin acoplamiento. */
+export interface InfluenceSource {
+  position: { x: number; y: number };
+}
+
+/** Pinta influencia desde un punto emisor en el grid. Reutilizable
+ *  tanto para NPCs como para estructuras. */
+function paintInfluence(
+  next: number[],
+  x: number,
+  y: number,
+  weight: number,
+  radius: number,
+  width: number,
+  height: number,
+): void {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.abs(dx) + Math.abs(dy);
+      if (dist > radius) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+      const contribution = Math.max(1, weight - dist * 2);
+      const idx = ny * width + nx;
+      next[idx] = Math.min(INFLUENCE_MAX, next[idx] + contribution);
+    }
+  }
+}
+
 /** Avanza el heatmap un tick. Pura — no muta el grid de entrada.
  *
  *  1. Aplica decay a todos los tiles (floor).
- *  2. Cada NPC vivo añade influencia a los tiles dentro de INFLUENCE_RADIUS,
- *     con magnitud decreciente según la distancia Manhattan desde su posición.
- *  3. Clamea a [0, INFLUENCE_MAX]. */
+ *  2. Cada NPC vivo añade influencia dentro de INFLUENCE_RADIUS.
+ *  3. Cada estructura añade influencia dentro de STRUCTURE_INFLUENCE_RADIUS
+ *     con peso STRUCTURE_INFLUENCE_WEIGHT — son anclas permanentes que
+ *     mantienen el territorio incluso cuando los NPCs se alejan.
+ *  4. Clamea a [0, INFLUENCE_MAX]. */
 export function tickInfluence(
   grid: InfluenceGrid,
   npcs: readonly NPC[],
   width: number,
   height: number,
+  structures: readonly InfluenceSource[] = [],
 ): InfluenceGrid {
-  // Decay
   const next = grid.map((v) => Math.floor((v * INFLUENCE_DECAY_RATE) / 1000));
 
-  // Presencia de NPCs vivos
   for (const npc of npcs) {
     if (!npc.alive) continue;
     const weight = INFLUENCE_CASTA_WEIGHT[npc.casta] ?? INFLUENCE_CASTA_WEIGHT[CASTA.CIUDADANO];
-    const { x, y } = npc.position;
+    paintInfluence(next, npc.position.x, npc.position.y, weight, INFLUENCE_RADIUS, width, height);
+  }
 
-    for (let dy = -INFLUENCE_RADIUS; dy <= INFLUENCE_RADIUS; dy++) {
-      for (let dx = -INFLUENCE_RADIUS; dx <= INFLUENCE_RADIUS; dx++) {
-        const dist = Math.abs(dx) + Math.abs(dy);
-        if (dist > INFLUENCE_RADIUS) continue;
-        const nx = x + dx;
-        const ny = y + dy;
-        if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
-        // Contribución decrece con la distancia: base − dist * 2, mínimo 1
-        const contribution = Math.max(1, weight - dist * 2);
-        const idx = ny * width + nx;
-        next[idx] = Math.min(INFLUENCE_MAX, next[idx] + contribution);
-      }
-    }
+  for (const s of structures) {
+    paintInfluence(next, s.position.x, s.position.y,
+      STRUCTURE_INFLUENCE_WEIGHT, STRUCTURE_INFLUENCE_RADIUS, width, height);
   }
 
   return next;

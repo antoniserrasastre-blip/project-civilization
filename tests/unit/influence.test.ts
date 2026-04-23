@@ -181,3 +181,67 @@ describe('tickInfluence — peso por casta', () => {
     );
   });
 });
+
+// ─── Estructuras como anclas de territorio ───────────────────────────
+
+describe('tickInfluence — estructuras', () => {
+  it('una estructura añade influencia en su posición aunque no haya NPCs', () => {
+    const grid = emptyInfluenceGrid(W, H);
+    const estructura = { position: { x: 10, y: 10 } };
+    const next = tickInfluence(grid, [], W, H, [estructura]);
+    expect(next[10 * W + 10]).toBeGreaterThan(0);
+  });
+
+  it('las estructuras no decaen: con N ticks sin NPCs, la influencia se estabiliza alta', () => {
+    let grid = emptyInfluenceGrid(W, H);
+    const estructura = { position: { x: 10, y: 10 } };
+    for (let i = 0; i < 200; i++) {
+      grid = tickInfluence(grid, [], W, H, [estructura]);
+    }
+    // Con decay 0.98 y emisión constante, llega al equilibrio (no a 0)
+    expect(grid[10 * W + 10]).toBeGreaterThan(100);
+  });
+
+  it('sin estructuras el grid sigue decayendo a 0', () => {
+    let grid = emptyInfluenceGrid(W, H);
+    const npc = makeTestNPC({ id: 'n1', position: { x: 10, y: 10 } });
+    for (let i = 0; i < 10; i++) grid = tickInfluence(grid, [npc], W, H);
+    for (let i = 0; i < 200; i++) grid = tickInfluence(grid, [], W, H);
+    expect(grid[10 * W + 10]).toBe(0);
+  });
+
+  it('las estructuras emiten influencia en su radio', () => {
+    const grid = emptyInfluenceGrid(W, H);
+    const estructura = { position: { x: 10, y: 10 } };
+    const next = tickInfluence(grid, [], W, H, [estructura]);
+    // Radio de estructura debe ser > 0 tiles de distancia
+    expect(next[9 * W + 10]).toBeGreaterThan(0);  // norte
+    expect(next[11 * W + 10]).toBeGreaterThan(0); // sur
+  });
+
+  it('las estructuras contribuyen MÁS que un NPC ciudadano', () => {
+    const gridBase = emptyInfluenceGrid(W, H);
+    const pos = { x: 10, y: 10 };
+    const estructura = { position: pos };
+    const ciudadano = makeTestNPC({ id: 'c1', position: pos, casta: CASTA.CIUDADANO });
+    const conEstructura = tickInfluence(gridBase, [], W, H, [estructura]);
+    const conCiudadano = tickInfluence(gridBase, [ciudadano], W, H);
+    expect(conEstructura[10 * W + 10]).toBeGreaterThan(conCiudadano[10 * W + 10]);
+  });
+
+  it('sin array de estructuras el comportamiento es idéntico al original', () => {
+    const grid = emptyInfluenceGrid(W, H);
+    const npc = makeTestNPC({ id: 'n1', position: { x: 5, y: 5 } });
+    const sinEstructuras = tickInfluence(grid, [npc], W, H);
+    const conArrayVacio = tickInfluence(grid, [npc], W, H, []);
+    expect(sinEstructuras).toEqual(conArrayVacio);
+  });
+
+  it('determinismo: misma estructura → mismo output', () => {
+    const grid = emptyInfluenceGrid(W, H);
+    const estructura = { position: { x: 10, y: 10 } };
+    const a = tickInfluence(grid, [], W, H, [estructura]);
+    const b = tickInfluence(grid, [], W, H, [estructura]);
+    expect(a).toEqual(b);
+  });
+});
