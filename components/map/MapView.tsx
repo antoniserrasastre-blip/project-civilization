@@ -30,8 +30,14 @@ import { itemForNpc, ITEM_KIND } from '@/lib/items';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { computeRole, roleColor, ROLE } from '@/lib/roles';
-import { useUnitSprites, type SpriteMap, type UnitSpriteKey } from '@/hooks/use-unit-sprites';
+import { useUnitSprites, type SpriteMap } from '@/hooks/use-unit-sprites';
 import { CASTA } from '@/lib/npcs';
+import {
+  spriteKeyFor,
+  shouldShowCrown,
+  actionStateFor,
+  type NpcActionState,
+} from '@/lib/npc-sprite';
 import { TILE_COLOR } from '@/lib/tile-colors';
 import {
   applyDrag,
@@ -197,27 +203,9 @@ function professionColor(
   return roleColor(computeRole(npc, item));
 }
 
-/** Elige el sprite key para un NPC según casta y rol activo. */
-function spriteKeyFor(
-  npc: NPC,
-  items: readonly EquippableItem[],
-): UnitSpriteKey {
-  if (npc.casta === CASTA.ELEGIDO) return 'ELEGIDO';
-  const role = computeRole(npc, itemForNpc(npc, items));
-  switch (role) {
-    case ROLE.CAZADOR:
-    case ROLE.RASTREADOR:  return 'CAZADOR';
-    case ROLE.RECOLECTOR:
-    case ROLE.PESCADOR:    return 'RECOLECTOR';
-    case ROLE.TALLADOR:
-    case ROLE.TEJEDOR:
-    case ROLE.CURANDERO:   return 'ARTESANO';
-    default:               return 'GUERRERO';
-  }
-}
+// spriteKeyFor y shouldShowCrown importados de @/lib/npc-sprite
 
-/** Dibuja un sprite centrado en (cx,cy) con tamaño sz y wobble suave.
- *  El wobble usa el índice del NPC para desincronizar las oscilaciones. */
+/** Dibuja un sprite con animación según estado de acción. */
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -226,13 +214,93 @@ function drawSprite(
   sz: number,
   npcIndex: number,
   now: number,
+  action: NpcActionState = 'idle',
 ) {
-  const wobble = Math.sin(now / 480 + npcIndex * 0.9) * 0.07; // ±4°
   ctx.save();
   ctx.translate(cx, cy);
-  ctx.rotate(wobble);
+
+  switch (action) {
+    case 'moving': {
+      // Inclinación hacia adelante + wobble más rápido
+      const lean = Math.sin(now / 180 + npcIndex * 0.9) * 0.12;
+      ctx.rotate(lean);
+      break;
+    }
+    case 'harvesting': {
+      // Inclinación hacia abajo (cosecha), rebote rítmico
+      const bob = Math.abs(Math.sin(now / 260 + npcIndex * 1.1)) * 0.14;
+      ctx.rotate(bob);
+      ctx.translate(0, Math.abs(Math.sin(now / 260 + npcIndex * 1.1)) * sz * 0.06);
+      break;
+    }
+    case 'building': {
+      // Brazo arriba-abajo (golpe de martillo)
+      const hammer = Math.sin(now / 220 + npcIndex * 0.7) * 0.18;
+      ctx.rotate(hammer);
+      break;
+    }
+    case 'swimming': {
+      // Ondulación horizontal
+      const wave = Math.sin(now / 300 + npcIndex * 1.3) * 0.1;
+      ctx.rotate(wave);
+      ctx.globalAlpha = 0.8;
+      // Tinte azul
+      ctx.filter = 'hue-rotate(180deg) saturate(1.4)';
+      break;
+    }
+    case 'critical': {
+      // Pulso rojo: escala oscilante
+      const pulse = 0.85 + Math.abs(Math.sin(now / 180)) * 0.15;
+      ctx.scale(pulse, pulse);
+      ctx.globalAlpha = 0.7 + Math.abs(Math.sin(now / 180)) * 0.3;
+      ctx.filter = 'saturate(2) hue-rotate(-20deg)';
+      break;
+    }
+    default: {
+      // Idle: wobble suave
+      const wobble = Math.sin(now / 480 + npcIndex * 0.9) * 0.07;
+      ctx.rotate(wobble);
+    }
+  }
+
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+  ctx.restore();
+}
+
+/** Dibuja corona dorada encima del sprite para Elegidos. */
+function drawCrownOverlay(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  sz: number,
+) {
+  const u = sz / 16;
+  const top = cy - sz / 2 - u * 1.5;
+  ctx.save();
+  ctx.fillStyle = '#f0c030';
+  // Base de la corona
+  ctx.fillRect(cx - u * 3, top + u * 2, u * 6, u * 1.5);
+  // Tres puntas
+  ctx.beginPath();
+  ctx.moveTo(cx - u * 3, top + u * 2);
+  ctx.lineTo(cx - u * 3, top);
+  ctx.lineTo(cx - u * 1.5, top + u * 1.5);
+  ctx.lineTo(cx, top - u * 0.5);
+  ctx.lineTo(cx + u * 1.5, top + u * 1.5);
+  ctx.lineTo(cx + u * 3, top);
+  ctx.lineTo(cx + u * 3, top + u * 2);
+  ctx.closePath();
+  ctx.fill();
+  // Contorno oscuro
+  ctx.strokeStyle = '#7a5810';
+  ctx.lineWidth = Math.max(0.5, u * 0.4);
+  ctx.stroke();
+  // Piedra central (joya)
+  ctx.fillStyle = '#e63946';
+  ctx.beginPath();
+  ctx.arc(cx, top + u * 0.5, u * 0.6, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
 }
 
@@ -343,14 +411,32 @@ function renderNPCs(
   pulseAlpha = 1,
   sprites: SpriteMap = new Map(),
   now = 0,
+  npcStatuses: readonly NpcStatusVisual[] = [],
+  intentTrails: readonly NpcIntentTrail[] = [],
+  resourceTileSet: ReadonlySet<number> = new Set(),
+  worldWidth = 512,
 ) {
+  const badgeMap = new Map(npcStatuses.map((s) => [s.npcId, s.badges]));
+  const movingSet = new Set(
+    intentTrails
+      .filter((t) => t.from.x !== t.to.x || t.from.y !== t.to.y)
+      .map((t) => t.npcId),
+  );
+
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'miter';
+
   for (let i = 0; i < placements.length; i++) {
     const { npc, marker, cx, cy } = placements[i];
     const { fill, outline, highlight } = marker.colors;
 
-    // Anillo de linaje — corona exterior con pulso suave.
+    // Acción actual del NPC
+    const badges = badgeMap.get(npc.id) ?? [];
+    const isMoving = movingSet.has(npc.id);
+    const tileIdx = npc.position.y * worldWidth + npc.position.x;
+    const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
+
+    // Anillo de linaje con pulso
     const ringR = marker.size / 2 + marker.outline + 2;
     ctx.beginPath();
     ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
@@ -360,12 +446,12 @@ function renderNPCs(
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    // Sprite o fallback geométrico.
+    const spriteSize = marker.size * 2.2;
     const spriteKey = spriteKeyFor(npc, items);
     const img = sprites.get(spriteKey);
-    const spriteSize = marker.size * 2.2; // más grandes y legibles
+
     if (img) {
-      drawSprite(ctx, img, cx, cy, spriteSize, i, now);
+      drawSprite(ctx, img, cx, cy, spriteSize, i, now, action);
     } else {
       if (marker.shape === 'diamond') {
         drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
@@ -376,13 +462,18 @@ function renderNPCs(
       }
     }
 
-    // Overlay de herramienta/arma según ítem equipado.
+    // Corona para Elegidos (encima del sprite)
+    if (shouldShowCrown(npc)) {
+      drawCrownOverlay(ctx, cx, cy, spriteSize);
+    }
+
+    // Overlay de herramienta/arma
     const equippedItem = itemForNpc(npc, items);
     if (equippedItem) {
       drawItemOverlay(ctx, cx, cy, spriteSize, equippedItem.kind);
     }
 
-    // Píxel de oficio encima de todo.
+    // Píxel de oficio — resumen del rol activo
     if (professionLayer) {
       const offset = Math.max(1, Math.round(marker.size * 0.24));
       ctx.fillStyle = professionColor(npc, items);
@@ -1352,7 +1443,14 @@ export function MapView({
         renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
       }
       renderIntentTrails(ctx, rp.intentTrails, currentDims, currentViewport);
-      renderNPCs(ctx, lerpedPlacements, true, rp.items, pulse, rp.sprites, now);
+      // Set de tiles con recursos activos para detectar cosecha
+      const resourceTileSet = new Set(
+        rp.world.resources.filter((r) => r.quantity > 0).map((r) => r.y * rp.world.width + r.x),
+      );
+      renderNPCs(
+        ctx, lerpedPlacements, true, rp.items, pulse, rp.sprites, now,
+        rp.npcStatuses, rp.intentTrails, resourceTileSet, rp.world.width,
+      );
       renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses);
 
       rafId = requestAnimationFrame(loop);
