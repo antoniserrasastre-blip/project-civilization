@@ -41,7 +41,6 @@ function all5Built() {
     CRAFTABLE.REFUGIO,
     CRAFTABLE.FOGATA_PERMANENTE,
     CRAFTABLE.PIEL_ROPA,
-    CRAFTABLE.HERRAMIENTA_SILEX,
     CRAFTABLE.DESPENSA,
   ]) {
     s = addStructure(s, k, { x: 0, y: 0 }, 0, s.length);

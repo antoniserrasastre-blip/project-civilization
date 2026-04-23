@@ -26,11 +26,11 @@ function stocked(overrides: Partial<{ wood: number; stone: number; game: number;
   });
 }
 
-describe('RECIPES — 5 crafteables (decisión #20)', () => {
-  it('lista los 5 exactos', () => {
+describe('RECIPES — 4 edificios (Sprint 9: HERRAMIENTA_SILEX → item-crafting)', () => {
+  it('lista los 4 exactos', () => {
     const ids = Object.values(CRAFTABLE).sort();
     expect(Object.keys(RECIPES).sort()).toEqual(ids);
-    expect(ids).toHaveLength(5);
+    expect(ids).toHaveLength(4);
   });
 
   it('Refugio: 15 wood + 8 stone + 3 game', () => {
@@ -56,7 +56,7 @@ describe('RECIPES — 5 crafteables (decisión #20)', () => {
     });
   });
 
-  it('Total mínimo clan: 32 wood + 34 stone + 5 game (tabla #20)', () => {
+  it('Total mínimo de edificios: 30 wood + 29 stone + 5 game (Sprint 9)', () => {
     let totalWood = 0;
     let totalStone = 0;
     let totalGame = 0;
@@ -65,8 +65,8 @@ describe('RECIPES — 5 crafteables (decisión #20)', () => {
       totalStone += r.inputs.stone ?? 0;
       totalGame += r.inputs.game ?? 0;
     }
-    expect(totalWood).toBe(32);
-    expect(totalStone).toBe(34);
+    expect(totalWood).toBe(30);
+    expect(totalStone).toBe(29);
     expect(totalGame).toBe(5);
   });
 });

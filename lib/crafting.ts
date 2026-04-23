@@ -18,7 +18,6 @@ export const CRAFTABLE = {
   REFUGIO: 'refugio',
   FOGATA_PERMANENTE: 'fogata_permanente',
   PIEL_ROPA: 'piel_ropa',
-  HERRAMIENTA_SILEX: 'herramienta_silex',
   DESPENSA: 'despensa',
 } as const;
 
@@ -33,7 +32,8 @@ export interface Recipe {
   minSkill: number;
 }
 
-/** Decisión #20 — costes B medios, ~12k ticks al monumento. */
+/** Decisión #20 — 4 estructuras umbral (HERRAMIENTA_SILEX migrado a
+ *  lib/item-crafting.ts en Sprint 9). Costes B medios. */
 export const RECIPES: Record<CraftableId, Recipe> = {
   [CRAFTABLE.REFUGIO]: {
     id: CRAFTABLE.REFUGIO,
@@ -52,12 +52,6 @@ export const RECIPES: Record<CraftableId, Recipe> = {
     inputs: { game: 2 },
     daysWork: 2,
     minSkill: 10,
-  },
-  [CRAFTABLE.HERRAMIENTA_SILEX]: {
-    id: CRAFTABLE.HERRAMIENTA_SILEX,
-    inputs: { wood: 2, stone: 5 },
-    daysWork: 2,
-    minSkill: 15,
   },
   [CRAFTABLE.DESPENSA]: {
     id: CRAFTABLE.DESPENSA,

@@ -17,11 +17,11 @@ import type { NPC } from './npcs';
 import type { VillageState } from './village';
 import { TICKS_PER_DAY } from './resources';
 
+// Sprint 9: HERRAMIENTA_SILEX migrado a items; los 4 edificios son el umbral.
 const REQUIRED_CRAFTABLES: CraftableId[] = [
   CRAFTABLE.REFUGIO,
   CRAFTABLE.FOGATA_PERMANENTE,
   CRAFTABLE.PIEL_ROPA,
-  CRAFTABLE.HERRAMIENTA_SILEX,
   CRAFTABLE.DESPENSA,
 ];
 
