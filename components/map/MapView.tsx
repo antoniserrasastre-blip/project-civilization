@@ -206,7 +206,21 @@ function professionColor(
 
 // spriteKeyFor y shouldShowCrown importados de @/lib/npc-sprite
 
-/** Dibuja un sprite con animación según estado de acción. */
+/** Rotación de tono (hue-rotate) por linaje — da identidad visual única
+ *  a cada NPC aunque use el mismo sprite base. Valores pequeños (±40°)
+ *  para no distorsionar los colores originales del sprite. */
+const LINAJE_HUE: Record<string, number> = {
+  tramuntana:  0,    // azul frío — base, sin rotación
+  llevant:     28,   // naranja cálido
+  migjorn:    -28,   // rojo
+  ponent:      200,  // azul-violeta
+  xaloc:       55,   // amarillo-verde
+  mestral:     110,  // verde
+  gregal:      170,  // cian/teal
+  garbi:      -50,   // marrón terroso
+};
+
+/** Dibuja un sprite con animación según estado de acción y tinte de linaje. */
 function drawSprite(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
@@ -216,9 +230,16 @@ function drawSprite(
   npcIndex: number,
   now: number,
   action: NpcActionState = 'idle',
+  linaje = 'tramuntana',
 ) {
   ctx.save();
   ctx.translate(cx, cy);
+
+  // Tinte de linaje: hue-rotate sutil para que cada NPC sea visualmente único.
+  const hue = LINAJE_HUE[linaje] ?? 0;
+  if (hue !== 0) {
+    ctx.filter = `hue-rotate(${hue}deg) saturate(1.15)`;
+  }
 
   switch (action) {
     case 'moving': {
@@ -241,19 +262,18 @@ function drawSprite(
       break;
     }
     case 'swimming': {
-      // Ondulación horizontal
       const wave = Math.sin(now / 300 + npcIndex * 1.3) * 0.1;
       ctx.rotate(wave);
       ctx.globalAlpha = 0.8;
-      // Tinte azul
+      // Tinte azul sobreescribe el de linaje en nadadores
       ctx.filter = 'hue-rotate(180deg) saturate(1.4)';
       break;
     }
     case 'critical': {
-      // Pulso rojo: escala oscilante
       const pulse = 0.85 + Math.abs(Math.sin(now / 180)) * 0.15;
       ctx.scale(pulse, pulse);
       ctx.globalAlpha = 0.7 + Math.abs(Math.sin(now / 180)) * 0.3;
+      // Tinte rojo sobreescribe el de linaje en estado crítico
       ctx.filter = 'saturate(2) hue-rotate(-20deg)';
       break;
     }
@@ -455,7 +475,7 @@ function renderNPCs(
     const img = sprites.get(spriteKey);
 
     if (img) {
-      drawSprite(ctx, img, cx, cy, spriteSize, i, now, action);
+      drawSprite(ctx, img, cx, cy, spriteSize, i, now, action, npc.linaje);
     } else {
       if (marker.shape === 'diamond') {
         drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
@@ -482,6 +502,21 @@ function renderNPCs(
       const offset = Math.max(1, Math.round(marker.size * 0.24));
       ctx.fillStyle = professionColor(npc, items);
       ctx.fillRect(Math.round(cx) + offset - 1, Math.round(cy) + offset - 1, 2, 2);
+    }
+
+    // Nombre flotante — visible a zoom alto (tilePx > 20) para distinguir
+    // NPCs superpuestos en el mismo tile.
+    if (tilePx >= 20) {
+      const firstName = npc.name.split(' ')[0];
+      const fontSize = Math.max(6, Math.min(10, tilePx * 0.28));
+      ctx.save();
+      ctx.font = `${fontSize}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(10,8,4,0.7)';
+      ctx.fillText(firstName, cx + 1, cy - spriteSize / 2 - 1);
+      ctx.fillStyle = marker.linajeBorderColor;
+      ctx.fillText(firstName, cx, cy - spriteSize / 2 - 2);
+      ctx.restore();
     }
   }
 }
@@ -1303,8 +1338,13 @@ export function MapView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
   // NPCs y el timestamp del último tick para calcular el factor de lerp.
-  const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(
+    new Map(npcs.map((n) => [n.id, { ...n.position }])),
+  );
   const lastTickMsRef = useRef<number>(performance.now());
+  // Ref que guarda los npcs del RENDER ANTERIOR — necesario para
+  // capturar las posiciones viejas ANTES de que npcs cambie.
+  const npcsSnapshotRef = useRef<readonly typeof npcs[0][]>(npcs);
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
@@ -1378,10 +1418,17 @@ export function MapView({
     [world.resources],
   );
 
-  // Captura posiciones anteriores cuando los NPCs cambian de posición.
+  // Captura posiciones ANTERIORES cuando npcs cambia.
+  // La clave: guardar el snapshot del render previo (npcsSnapshotRef)
+  // en prevNpcPosRef, no las posiciones nuevas.
   useEffect(() => {
-    prevNpcPosRef.current = new Map(npcs.map((n) => [n.id, { ...n.position }]));
+    prevNpcPosRef.current = new Map(
+      npcsSnapshotRef.current.map((n) => [n.id, { ...n.position }]),
+    );
     lastTickMsRef.current = performance.now();
+    // Actualizar snapshot con las posiciones actuales (serán las
+    // "anteriores" en el próximo tick).
+    npcsSnapshotRef.current = npcs;
   }, [npcs]);
 
   // Mantiene el ref de render actualizado sin reactivar el loop RAF.
