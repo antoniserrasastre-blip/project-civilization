@@ -28,6 +28,7 @@ import {
   FAITH_COST_SILENCE,
 } from '@/lib/faith';
 import type { VillageState } from '@/lib/village';
+import type { CraftableId } from '@/lib/crafting';
 import { useGratitudeFloaters } from '@/hooks/use-gratitude-floaters';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
@@ -48,6 +49,28 @@ const WHISPER_ES: Record<MessageChoice, string> = {
   [SILENCE]: 'Silencio',
 };
 
+const CRAFTABLE_ES: Record<CraftableId, string> = {
+  refugio: 'Refugio',
+  fogata_permanente: 'Fogata',
+  piel_ropa: 'Piel/ropa',
+  herramienta_silex: 'Herramienta',
+  despensa: 'Despensa',
+};
+
+const INVENTORY_ES = {
+  wood: 'madera',
+  stone: 'piedra',
+  berry: 'bayas',
+  game: 'caza',
+  fish: 'pescado',
+} as const;
+
+export interface BuildHudStatus {
+  next: CraftableId | null;
+  ready: boolean;
+  missing: Partial<Record<keyof typeof INVENTORY_ES, number>>;
+}
+
 export interface HUDProps {
   day: number;
   gratitude: number;
@@ -59,6 +82,7 @@ export interface HUDProps {
   monumentProgress: number;
   /** Opcional — habilita pulso animado + floater de gratitud. */
   village?: VillageState;
+  buildStatus?: BuildHudStatus;
   paused: boolean;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
@@ -140,6 +164,7 @@ export function HUD({
   monumentPhase,
   monumentProgress,
   village,
+  buildStatus,
   paused,
   onTogglePause,
   onOpenWhisper,
@@ -259,6 +284,37 @@ export function HUD({
         <strong>Monumento</strong> {PHASE_ES[monumentPhase]}
         {showProgress && ` (${pct(monumentProgress)}%)`}
       </div>
+      {buildStatus && (
+        <div
+          data-testid="hud-build"
+          style={{
+            marginTop: 6,
+            paddingTop: 6,
+            borderTop: '1px solid rgba(245,245,220,0.18)',
+          }}
+        >
+          <strong>Construcción</strong>{' '}
+          {buildStatus.next ? CRAFTABLE_ES[buildStatus.next] : 'completa'}
+          {buildStatus.next &&
+            (buildStatus.ready ? (
+              <span style={{ color: '#a7f3d0' }}> lista</span>
+            ) : (
+              <div
+                data-testid="hud-build-missing"
+                style={{ fontSize: '0.76rem', opacity: 0.78 }}
+              >
+                Falta:{' '}
+                {Object.entries(buildStatus.missing)
+                  .filter(([, amount]) => amount > 0)
+                  .map(
+                    ([key, amount]) =>
+                      `${INVENTORY_ES[key as keyof typeof INVENTORY_ES]} ${amount}`,
+                  )
+                  .join(', ')}
+              </div>
+            ))}
+        </div>
+      )}
       <button
         type="button"
         data-testid="whisper-open"

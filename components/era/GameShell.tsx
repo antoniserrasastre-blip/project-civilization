@@ -23,10 +23,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { MapView, type NpcIntentTrail } from '@/components/map/MapView';
+import type { NpcStatusVisual } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
-import { HUD } from '@/components/era/HUD';
+import { HUD, type BuildHudStatus } from '@/components/era/HUD';
 import { ChronicleFeed } from '@/components/era/ChronicleFeed';
-import { NpcSheet } from '@/components/era/NpcSheet';
+import {
+  NpcSheet,
+  type NpcOperationalStatus,
+} from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
@@ -40,9 +44,11 @@ import {
 } from '@/lib/simulation';
 import { summarizeClanState } from '@/lib/clan-context';
 import { grantMiracle, type MiracleId } from '@/lib/miracles';
-import { decideDestination } from '@/lib/needs';
+import { decideDestination, NEED_THRESHOLDS } from '@/lib/needs';
 import { firstStructureOfKind } from '@/lib/structures';
-import { CRAFTABLE } from '@/lib/crafting';
+import { clanInventoryTotal, CRAFTABLE, RECIPES } from '@/lib/crafting';
+import type { NPC, NPCInventory } from '@/lib/npcs';
+import { RESOURCE, TILE, type TileId } from '@/lib/world-state';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -51,6 +57,64 @@ const TICK_INTERVAL_MS = 250;
 
 function bootstrap(seed: number): GameState {
   return initialGameState(seed, makeDefaultClan(seed));
+}
+
+const TILE_LABEL: Record<TileId, string> = {
+  [TILE.WATER]: 'agua profunda',
+  [TILE.SHALLOW_WATER]: 'agua poco profunda',
+  [TILE.SHORE]: 'orilla',
+  [TILE.GRASS]: 'pradera',
+  [TILE.FOREST]: 'bosque',
+  [TILE.MOUNTAIN]: 'montaña',
+  [TILE.SAND]: 'arena',
+};
+
+function actionForDestination(
+  state: GameState,
+  npc: NPC,
+  destination: { x: number; y: number },
+): string {
+  if (
+    destination.x === npc.position.x &&
+    destination.y === npc.position.y
+  ) {
+    if (npc.stats.supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady) {
+      return 'recuperándose';
+    }
+    return 'quieto';
+  }
+  const fire = firstStructureOfKind(
+    state.structures,
+    CRAFTABLE.FOGATA_PERMANENTE,
+  );
+  if (
+    fire &&
+    destination.x === fire.position.x &&
+    destination.y === fire.position.y
+  ) {
+    return 'vuelve a la fogata';
+  }
+  const resource = state.world.resources.find(
+    (r) =>
+      r.quantity > 0 &&
+      r.x === destination.x &&
+      r.y === destination.y,
+  );
+  if (resource?.id === RESOURCE.WATER) return 'busca agua';
+  if (
+    resource?.id === RESOURCE.BERRY ||
+    resource?.id === RESOURCE.GAME ||
+    resource?.id === RESOURCE.FISH
+  ) {
+    return 'busca comida';
+  }
+  if (resource?.id === RESOURCE.WOOD || resource?.id === RESOURCE.STONE) {
+    return 'recolecta para construir';
+  }
+  if (npc.stats.socializacion < NEED_THRESHOLDS.socializacionLow) {
+    return 'busca al clan';
+  }
+  return 'se desplaza';
 }
 
 export interface GameShellProps {
@@ -103,6 +167,43 @@ export function GameShell({ seed }: GameShellProps) {
           trail.from.x !== trail.to.x || trail.from.y !== trail.to.y,
       );
   }, [state]);
+  const npcStatuses = useMemo<NpcStatusVisual[]>(() => {
+    return state.npcs
+      .filter((npc) => npc.alive)
+      .map((npc) => {
+        const tile =
+          state.world.tiles[npc.position.y * state.world.width + npc.position.x];
+        const badges: NpcStatusVisual['badges'] = [
+          ...(npc.stats.supervivencia <
+          NEED_THRESHOLDS.supervivenciaCritical
+            ? ['critical' as const]
+            : npc.stats.supervivencia <
+                NEED_THRESHOLDS.supervivenciaBuildReady
+              ? ['hungry' as const]
+              : []),
+          ...(npc.stats.socializacion < NEED_THRESHOLDS.socializacionLow
+            ? ['lonely' as const]
+            : []),
+          ...(tile === TILE.SHALLOW_WATER ? ['swimming' as const] : []),
+        ];
+        return { npcId: npc.id, badges };
+      })
+      .filter((status) => status.badges.length > 0);
+  }, [state.npcs, state.world]);
+  const buildStatus = useMemo<BuildHudStatus>(() => {
+    const next = nextBuildPriority(state) ?? null;
+    if (!next) return { next: null, ready: true, missing: {} };
+    const inv = clanInventoryTotal(state.npcs);
+    const recipe = RECIPES[next];
+    const missing: Partial<Record<keyof NPCInventory, number>> = {};
+    for (const [key, needed] of Object.entries(recipe.inputs) as Array<
+      [keyof NPCInventory, number]
+    >) {
+      const amount = Math.max(0, needed - inv[key]);
+      if (amount > 0) missing[key] = amount;
+    }
+    return { next, ready: Object.keys(missing).length === 0, missing };
+  }, [state]);
 
   useEffect(() => {
     if (state.era !== 'primigenia') return;
@@ -148,6 +249,35 @@ export function GameShell({ seed }: GameShellProps) {
         : null,
     [selectedNpcId, state.npcs],
   );
+  const selectedNpcStatus = useMemo<NpcOperationalStatus | undefined>(() => {
+    if (!selectedNpc) return undefined;
+    const fire = firstStructureOfKind(
+      state.structures,
+      CRAFTABLE.FOGATA_PERMANENTE,
+    );
+    const ctx = {
+      world: state.world,
+      npcs: state.npcs,
+      nextBuildPriority: nextBuildPriority(state),
+      firePosition: fire?.position,
+      currentTick: state.tick,
+      ticksPerDay: TICKS_PER_DAY,
+      isReachable: makeNpcReachabilityChecker(state),
+    };
+    const destination = decideDestination(selectedNpc, ctx);
+    const tile = state.world.tiles[
+      selectedNpc.position.y * state.world.width + selectedNpc.position.x
+    ] as TileId;
+    const badges =
+      npcStatuses.find((status) => status.npcId === selectedNpc.id)?.badges ??
+      [];
+    return {
+      action: actionForDestination(state, selectedNpc, destination),
+      destination,
+      tile: TILE_LABEL[tile],
+      badges,
+    };
+  }, [npcStatuses, selectedNpc, state]);
 
   const onGrantMiracle = (miracleId: MiracleId) => {
     if (!selectedNpcId) return;
@@ -174,6 +304,7 @@ export function GameShell({ seed }: GameShellProps) {
         npcs={state.npcs}
         structures={state.structures}
         intentTrails={intentTrails}
+        npcStatuses={npcStatuses}
         onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter}
       />
@@ -187,6 +318,7 @@ export function GameShell({ seed }: GameShellProps) {
         monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress}
         village={state.village}
+        buildStatus={buildStatus}
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
@@ -209,6 +341,7 @@ export function GameShell({ seed }: GameShellProps) {
         <NpcSheet
           npc={selectedNpc}
           village={state.village}
+          status={selectedNpcStatus}
           onClose={() => setSelectedNpcId(null)}
           onGrantMiracle={onGrantMiracle}
         />

@@ -84,6 +84,13 @@ export interface NpcIntentTrail {
   to: { x: number; y: number };
 }
 
+export type NpcStatusBadge = 'critical' | 'hungry' | 'lonely' | 'swimming';
+
+export interface NpcStatusVisual {
+  npcId: string;
+  badges: readonly NpcStatusBadge[];
+}
+
 interface MarkerPlacement {
   npc: NPC;
   marker: NpcMarker;
@@ -699,6 +706,54 @@ function renderIntentTrails(
   }
 }
 
+function badgeColor(badge: NpcStatusBadge): string {
+  switch (badge) {
+    case 'critical':
+      return '#c02a1d';
+    case 'hungry':
+      return '#d89b3a';
+    case 'lonely':
+      return '#6fa0c6';
+    case 'swimming':
+      return '#a8d7e8';
+  }
+}
+
+const STATUS_LEGEND: Array<{ badge: NpcStatusBadge; label: string }> = [
+  { badge: 'critical', label: 'crítico' },
+  { badge: 'hungry', label: 'hambre' },
+  { badge: 'lonely', label: 'aislado' },
+  { badge: 'swimming', label: 'nadando' },
+];
+
+function renderNpcStatusBadges(
+  ctx: CanvasRenderingContext2D,
+  placements: readonly MarkerPlacement[],
+  statuses: readonly NpcStatusVisual[],
+) {
+  if (statuses.length === 0) return;
+  const byNpc = new Map(statuses.map((s) => [s.npcId, s.badges]));
+  for (const placement of placements) {
+    const badges = byNpc.get(placement.npc.id);
+    if (!badges || badges.length === 0) continue;
+    const count = Math.min(3, badges.length);
+    const r = Math.max(2, Math.min(4, placement.marker.size * 0.22));
+    const y = placement.cy - placement.marker.size * 0.72;
+    const startX = placement.cx - ((count - 1) * r * 2.4) / 2;
+    for (let i = 0; i < count; i++) {
+      const x = startX + i * r * 2.4;
+      ctx.fillStyle = '#16110c';
+      ctx.beginPath();
+      ctx.arc(x, y, r + 1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = badgeColor(badges[i]);
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
 /** Hit-test: dado un punto del screen, devuelve el NPC cuyo marcador
  *  lo contiene (última coincidencia gana — orden de render). */
 function hitTest(
@@ -738,6 +793,8 @@ export interface MapViewProps {
   /** Rastros de intención calculados fuera del canvas con la misma
    *  decisión que usa el tick de simulación. */
   intentTrails?: readonly NpcIntentTrail[];
+  /** Badges compactos de estado vital sobre NPCs. */
+  npcStatuses?: readonly NpcStatusVisual[];
   /** Callback al clickear un NPC. Sprint FICHA-AVENTURERO lo
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
@@ -762,6 +819,7 @@ export function MapView({
   npcs = [],
   structures = [],
   intentTrails = [],
+  npcStatuses = [],
   onNpcClick,
   initialCenter,
 }: MapViewProps = {}) {
@@ -848,7 +906,17 @@ export function MapView({
     renderFogOverlay(ctx, fog, dims, viewport, world);
     renderIntentTrails(ctx, intentTrails, dims, viewport);
     renderNPCs(ctx, placements);
-  }, [dims, viewport, placements, structures, world, fog, intentTrails]);
+    renderNpcStatusBadges(ctx, placements, npcStatuses);
+  }, [
+    dims,
+    viewport,
+    placements,
+    structures,
+    world,
+    fog,
+    intentTrails,
+    npcStatuses,
+  ]);
 
   // Drag.
   const draggingRef = useRef<{ x: number; y: number; moved: boolean } | null>(
@@ -952,6 +1020,7 @@ export function MapView({
         data-resource-count={activeResourceCount}
         data-fog-enabled={fog ? 'true' : 'false'}
         data-intent-count={intentTrails.length}
+        data-status-count={npcStatuses.length}
         style={{ display: 'block', cursor, imageRendering: 'pixelated' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
@@ -983,6 +1052,44 @@ export function MapView({
           {hover.label}
         </div>
       )}
+      <div
+        data-testid="map-status-legend"
+        style={{
+          position: 'absolute',
+          left: 12,
+          bottom: 12,
+          display: 'flex',
+          gap: 8,
+          flexWrap: 'wrap',
+          maxWidth: 360,
+          padding: '6px 8px',
+          background: 'rgba(10, 8, 6, 0.72)',
+          border: '1px solid rgba(245,245,220,0.18)',
+          borderRadius: 8,
+          color: '#f5f5dc',
+          fontSize: 11,
+          pointerEvents: 'none',
+        }}
+      >
+        {STATUS_LEGEND.map((item) => (
+          <span
+            key={item.badge}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 999,
+                background: badgeColor(item.badge),
+                boxShadow: '0 0 0 1px #16110c',
+              }}
+            />
+            {item.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

@@ -18,6 +18,7 @@
 import type { NPC } from '@/lib/npcs';
 import type { VillageState } from '@/lib/village';
 import type { MiracleId } from '@/lib/miracles';
+import type { NpcStatusBadge } from '@/components/map/MapView';
 import {
   MAX_TRAITS_PER_NPC,
   MIRACLES_CATALOG,
@@ -35,9 +36,24 @@ function traitLabel(traitId: string): string {
   return TRAIT_LABEL[traitId] ?? traitId;
 }
 
+const BADGE_LABEL: Record<NpcStatusBadge, string> = {
+  critical: 'crítico',
+  hungry: 'busca comida',
+  lonely: 'aislado',
+  swimming: 'nadando',
+};
+
+export interface NpcOperationalStatus {
+  action: string;
+  destination: { x: number; y: number };
+  tile: string;
+  badges: readonly NpcStatusBadge[];
+}
+
 export interface NpcSheetProps {
   npc: NPC;
   village: VillageState;
+  status?: NpcOperationalStatus;
   onClose: () => void;
   onGrantMiracle: (miracleId: MiracleId) => void;
 }
@@ -45,6 +61,7 @@ export interface NpcSheetProps {
 export function NpcSheet({
   npc,
   village,
+  status,
   onClose,
   onGrantMiracle,
 }: NpcSheetProps) {
@@ -136,6 +153,47 @@ export function NpcSheet({
         </div>
         <div>
           Socialización: <strong>{Math.round(npc.stats.socializacion)}</strong>
+        </div>
+      </section>
+
+      <section
+        data-testid="npc-sheet-operational"
+        style={{
+          marginBottom: 10,
+          borderTop: '1px solid #242420',
+          borderBottom: '1px solid #242420',
+          padding: '8px 0',
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 4 }}>
+          Estado operativo
+        </div>
+        <div>
+          Acción: <strong>{status?.action ?? 'sin datos'}</strong>
+        </div>
+        {status && (
+          <>
+            <div>
+              Destino:{' '}
+              <strong>
+                ({status.destination.x}, {status.destination.y})
+              </strong>
+            </div>
+            <div>
+              Terreno: <strong>{status.tile}</strong>
+            </div>
+            <div>
+              Alertas:{' '}
+              {status.badges.length > 0
+                ? status.badges.map((b) => BADGE_LABEL[b]).join(', ')
+                : 'ninguna'}
+            </div>
+          </>
+        )}
+        <div style={{ marginTop: 6, opacity: 0.85 }}>
+          Inventario: madera {npc.inventory.wood}, piedra {npc.inventory.stone},
+          bayas {npc.inventory.berry}, caza {npc.inventory.game}, pescado{' '}
+          {npc.inventory.fish}
         </div>
       </section>
 
