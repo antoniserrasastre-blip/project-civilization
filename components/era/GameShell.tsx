@@ -53,6 +53,7 @@ import { RESOURCE, TILE, type TileId } from '@/lib/world-state';
 import { buildNpcBiography } from '@/lib/biography';
 import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
+import { computeActiveSynergies, type ActiveSynergy } from '@/lib/synergies';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -310,6 +311,11 @@ export function GameShell({ seed }: GameShellProps) {
     return computeRole(selectedNpc, item);
   }, [selectedNpc, state.items]);
 
+  const activeSynergies = useMemo<ActiveSynergy[]>(
+    () => computeActiveSynergies(state.npcs),
+    [state.npcs],
+  );
+
   const selectedNpcToolLabel = useMemo(() => {
     if (!selectedNpc) return undefined;
     const item = itemForNpc(selectedNpc, state.items);
@@ -360,6 +366,7 @@ export function GameShell({ seed }: GameShellProps) {
         village={state.village}
         buildStatus={buildStatus}
         communalInventory={communalInventory}
+        activeSynergies={activeSynergies}
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
