@@ -28,6 +28,26 @@ import type { EquippableItem } from './items';
 import { ITEM_DEFS } from './items';
 import { computeRole, intentFilter } from './roles';
 
+/** Penalty en tiles efectivos para recursos ya reclamados por otros NPCs.
+ *  Un NPC a distancia 12 prefiere un recurso libre a distancia 18 antes
+ *  que uno reclamado a distancia 5 (5 + 8 = 13 > 12). */
+const CLAIM_PENALTY = 8;
+
+/** Un NPC no abandona su destino actual a menos que el nuevo sea al
+ *  menos HYSTERESIS tiles más cercano. Evita oscilaciones por cambios
+ *  mínimos de stats o de cantidad de recurso. */
+const HYSTERESIS = 5;
+
+/** Pequeño jitter basado en el id del NPC. Desempata lexicográfico:
+ *  ante la misma distancia, NPC A preferirá el recurso X y NPC B el Y. */
+function npcTileJitter(npcId: string, rx: number, ry: number): number {
+  // Hash determinista: combina id con coordenadas del recurso.
+  let h = 0;
+  for (let i = 0; i < npcId.length; i++) h = (h * 31 + npcId.charCodeAt(i)) | 0;
+  h = (h ^ (rx * 1664525 + ry * 22695477)) >>> 0;
+  return (h % 3) - 1; // -1, 0 o +1 tile virtual
+}
+
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
   supervivenciaHungry: 40,
@@ -51,24 +71,14 @@ const COOKED_FOOD_SOCIAL_BONUS = 3;
 export interface DestinationContext {
   world: WorldMap;
   npcs: readonly NPC[];
-  /** Prioridad actual de construcción (si existe). Cuando está
-   *  presente, NPCs con stats OK van a recolectar los recursos
-   *  que falten para esa receta. */
   nextBuildPriority?: CraftableId;
-  /** Posición de la fogata permanente si existe — los NPCs vuelven
-   *  a ella durante la última cuarta parte del día (dusk). */
   firePosition?: { x: number; y: number };
-  /** Tick actual — para detectar dusk. */
   currentTick?: number;
-  /** Ticks por día del mundo. */
   ticksPerDay?: number;
-  /** Filtro opcional de alcanzabilidad. Si existe, los recursos
-   *  inalcanzables no se eligen como destino. */
   isReachable?: (from: Position, to: Position) => boolean;
-  /** Items del clan. Si está presente, `decideDestination` usa el
-   *  item equipado del NPC para computar su rol activo y sesgar
-   *  la elección de recursos (Sprint 10 — Pilar 1). */
   items?: readonly EquippableItem[];
+  /** Tiles ya reclamados por otros NPCs en este tick (anti-apilamiento). */
+  claimedTiles?: ReadonlySet<string>;
 }
 
 export interface Position {
@@ -85,10 +95,11 @@ function nearestResource(
   resources: readonly ResourceSpawn[],
   acceptable: (id: ResourceId) => boolean,
   isReachable?: (from: Position, to: Position) => boolean,
-  /** Peso aditivo por recurso (filtro de intención del rol). El peso
-   *  se resta de la distancia efectiva: `score = d - weight`. Con
-   *  weight=0 el comportamiento es idéntico al anterior. */
   intentWeight?: (id: ResourceId) => number,
+  /** Tiles ya reclamados por otros NPCs en este tick — aplica CLAIM_PENALTY. */
+  claimedTiles?: ReadonlySet<string>,
+  /** Id del NPC — introduce jitter determinista para romper empates. */
+  npcId?: string,
 ): Position | null {
   let best: { score: number; x: number; y: number } | null = null;
   for (const r of resources) {
@@ -98,12 +109,10 @@ function nearestResource(
     if (isReachable && !isReachable(from, pos)) continue;
     const d = manhattan(from.x, from.y, r.x, r.y);
     const w = intentWeight ? intentWeight(r.id) : 0;
-    const score = d - w;
-    if (
-      !best ||
-      score < best.score ||
-      (score === best.score && (r.x < best.x || (r.x === best.x && r.y < best.y)))
-    ) {
+    const claimed = claimedTiles?.has(`${r.x},${r.y}`) ? CLAIM_PENALTY : 0;
+    const jitter = npcId ? npcTileJitter(npcId, r.x, r.y) : 0;
+    const score = d - w + claimed + jitter;
+    if (!best || score < best.score) {
       best = { score, x: r.x, y: r.y };
     }
   }
@@ -185,6 +194,28 @@ export function decideDestination(
   ctx: DestinationContext,
 ): Position {
   const { supervivencia, socializacion } = npc.stats;
+  const claimed = ctx.claimedTiles;
+  const id = npc.id;
+
+  // Helper: aplica histéresis al destino candidato.
+  // Si el NPC ya tenía un destino committed y la nueva opción no es
+  // HYSTERESIS tiles más cercana, mantiene el destino anterior.
+  function withHysteresis(candidate: Position | null): Position | null {
+    if (!candidate) return null;
+    const prev = npc.destination;
+    if (!prev) return candidate;
+    // Solo aplicar histéresis si el destino anterior aún tiene recursos.
+    const prevHasResource = ctx.world.resources.some(
+      (r) => r.x === prev.x && r.y === prev.y && r.quantity > 0,
+    );
+    if (!prevHasResource) return candidate;
+    const distPrev = manhattan(npc.position.x, npc.position.y, prev.x, prev.y);
+    const distNew = manhattan(npc.position.x, npc.position.y, candidate.x, candidate.y);
+    // Mantener destino anterior si el nuevo no supera la inercia por suficiente margen.
+    return distNew + HYSTERESIS < distPrev ? candidate : prev;
+  }
+
+  // Si está sobre un recurso de recuperación y aún lo necesita, quedarse.
   const currentRecovery = recoveryResourceAtPosition(npc.position, ctx.world);
   if (currentRecovery) {
     const leaveThreshold =
@@ -194,45 +225,47 @@ export function decideDestination(
     if (supervivencia < leaveThreshold) return npc.position;
   }
 
-  // Dusk → vuelve a la fogata si existe y el NPC no está crítico.
-  // Garantiza que el contador de noches consecutivas (Sprint 4.6)
-  // pueda arrancar: NPCs vuelven a casa al caer la noche.
+  // Dusk → fuerza gravitatoria gradual hacia la fogata.
+  // No es un switch binario: la fuerza crece a lo largo del crepúsculo.
+  // En dusk temprano (70-85%) solo atrae si el NPC está saciado.
+  // En dusk profundo (>85%) atrae a cualquier NPC con comida o saciado.
   if (
     ctx.firePosition &&
     ctx.currentTick !== undefined &&
-    ctx.ticksPerDay !== undefined &&
-    (supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady ||
-      carriedFood(npc) > 0)
+    ctx.ticksPerDay !== undefined
   ) {
-    const duskStart = Math.floor(ctx.ticksPerDay * 0.75);
     const posInDay = ctx.currentTick % ctx.ticksPerDay;
-    if (posInDay >= duskStart) {
+    const duskEarly = Math.floor(ctx.ticksPerDay * 0.70);
+    const duskDeep  = Math.floor(ctx.ticksPerDay * 0.85);
+    const isEarlyDusk = posInDay >= duskEarly && posInDay < duskDeep;
+    const isDeepDusk  = posInDay >= duskDeep;
+
+    if (isDeepDusk && (supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady || carriedFood(npc) > 0)) {
+      return ctx.firePosition;
+    }
+    if (isEarlyDusk && supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady) {
       return ctx.firePosition;
     }
   }
 
+  // Supervivencia crítica → agua inmediata (sin histéresis — es urgente).
   if (supervivencia < NEED_THRESHOLDS.supervivenciaCritical) {
     const water = nearestResource(
-      npc.position,
-      ctx.world.resources,
-      (id) => id === RESOURCE.WATER,
-      ctx.isReachable,
+      npc.position, ctx.world.resources,
+      (rid) => rid === RESOURCE.WATER,
+      ctx.isReachable, undefined, claimed, id,
     );
     if (water) return water;
   }
 
-  if (
-    supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady &&
-    carriedFood(npc) === 0
-  ) {
+  // Hambre → buscar comida con histéresis para evitar oscilación.
+  if (supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady && carriedFood(npc) === 0) {
     const food = nearestResource(
-      npc.position,
-      ctx.world.resources,
-      (id) => FOOD_IDS.includes(id),
-      ctx.isReachable,
-      buildIntentWeight(npc, ctx.items),
+      npc.position, ctx.world.resources,
+      (rid) => FOOD_IDS.includes(rid),
+      ctx.isReachable, buildIntentWeight(npc, ctx.items), claimed, id,
     );
-    if (food) return food;
+    if (food) return withHysteresis(food) ?? food;
   }
 
   if (socializacion < NEED_THRESHOLDS.socializacionLow) {
@@ -240,29 +273,21 @@ export function decideDestination(
     if (c) return c;
   }
 
-  // Recolección proactiva para el próximo crafteable (Pilar 2 —
-  // el mundo cambia sin tocarlo). Solo si el NPC está bien de
-  // stats o lleva comida; sino forrajear tiene prioridad para no
-  // convertir trayectos largos de piedra/leña en muertes evitables.
+  // Recolección proactiva para crafteable.
   if (ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
     const missing = missingResourceFor(recipe, ctx.npcs);
     if (missing) {
       const spawn = nearestResource(
-        npc.position,
-        ctx.world.resources,
-        (id) => matchesMissing(id, missing),
-        ctx.isReachable,
-        buildIntentWeight(npc, ctx.items),
+        npc.position, ctx.world.resources,
+        (rid) => matchesMissing(rid, missing),
+        ctx.isReachable, buildIntentWeight(npc, ctx.items), claimed, id,
       );
-      if (spawn) return spawn;
+      if (spawn) return withHysteresis(spawn) ?? spawn;
     }
   }
 
-  // Sprint 9b — NPC saciado y sin prioridad de construcción:
-  // la herramienta en mano le da un destino afín (cazador busca
-  // caza, recolector busca bayas, etc.). Ignora si no hay items
-  // en ctx o si el NPC no lleva herramienta.
+  // Herramienta en mano da propósito cuando el NPC está saciado.
   if (ctx.items && npc.equippedItemId) {
     const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
     if (equipped) {
@@ -270,12 +295,11 @@ export function decideDestination(
       const preferred = TOOL_PREFERRED_RESOURCES[affinity] ?? [];
       if (preferred.length > 0) {
         const intentTarget = nearestResource(
-          npc.position,
-          ctx.world.resources,
-          (id) => preferred.includes(id),
-          ctx.isReachable,
+          npc.position, ctx.world.resources,
+          (rid) => preferred.includes(rid),
+          ctx.isReachable, undefined, claimed, id,
         );
-        if (intentTarget) return intentTarget;
+        if (intentTarget) return withHysteresis(intentTarget) ?? intentTarget;
       }
     }
   }
