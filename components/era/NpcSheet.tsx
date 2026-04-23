@@ -16,6 +16,7 @@
  */
 
 import { useEffect, useRef } from 'react';
+import Image from 'next/image';
 import type { NPC } from '@/lib/npcs';
 import { CASTA } from '@/lib/npcs';
 import type { VillageState } from '@/lib/village';
@@ -51,12 +52,12 @@ const BADGE_LABEL: Record<NpcStatusBadge, string> = {
   swimming: 'nadando',
 };
 
-const SKILL_LABEL = {
-  hunting: 'Caza',
-  gathering: 'Recolección',
-  crafting: 'Artesanía',
-  fishing: 'Pesca',
-  healing: 'Sanación',
+const SKILL_INFO = {
+  hunting: { label: 'Caza', icon: 'hunt' },
+  gathering: { label: 'Recolección', icon: 'gather' },
+  crafting: { label: 'Artesanía', icon: 'craft' },
+  fishing: { label: 'Pesca', icon: 'fish' },
+  healing: { label: 'Sanación', icon: 'heal' },
 } as const;
 
 export interface NpcOperationalStatus {
@@ -66,8 +67,6 @@ export interface NpcOperationalStatus {
   badges: readonly NpcStatusBadge[];
 }
 
-/** Biografía resumida — la calcula el shell a partir del estado y la
- *  pasa materializada. El componente es tonto (no deriva nada). */
 export interface NpcBiography {
   bornDay: number;
   ageDays: number;
@@ -82,27 +81,15 @@ export interface NpcSheetProps {
   biography?: NpcBiography;
   role?: Role;
   toolLabel?: string;
-  /** Ítems en circulación — necesarios para retrato y sprite. */
   items?: readonly EquippableItem[];
   onClose: () => void;
   onGrantMiracle: (miracleId: MiracleId) => void;
 }
 
-// ── Retrato del NPC ────────────────────────────────────────────────────
-
-const ITEM_EMOJI: Record<string, string> = {
-  [ITEM_KIND.SPEAR]:       'lanza',
-  [ITEM_KIND.HAND_AXE]:    'hacha',
-  [ITEM_KIND.BONE_NEEDLE]: 'aguja',
-  [ITEM_KIND.BASKET]:      'cesta',
-  [ITEM_KIND.RELIC_CHARM]: 'reliquia',
-};
-
 function NpcPortrait({ npc, items = [] }: { npc: NPC; items?: readonly EquippableItem[] }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spriteUrl = spriteUrlFor(npc, items);
   const linajeBorder = LINAJE_COLORS[npc.linaje] ?? '#888';
-  const equippedItem = itemForNpc(npc, items);
   const isCrown = shouldShowCrown(npc);
   const SIZE = 96;
 
@@ -116,65 +103,49 @@ function NpcPortrait({ npc, items = [] }: { npc: NPC; items?: readonly Equippabl
     const cx = SIZE / 2;
     const cy = SIZE / 2;
 
-    // Fondo circular con color de linaje
-    ctx.beginPath();
-    ctx.arc(cx, cy, SIZE / 2 - 2, 0, Math.PI * 2);
-    ctx.fillStyle = '#16130c';
-    ctx.fill();
-    ctx.strokeStyle = linajeBorder;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    // Sprite
+    ctx.imageSmoothingEnabled = false;
     const img = new Image();
     img.onload = () => {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, SIZE / 2 - 5, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, cx - SIZE * 0.38, cy - SIZE * 0.4, SIZE * 0.76, SIZE * 0.76);
-      ctx.restore();
-
-      // Corona para Elegidos
-      if (isCrown) {
-        const u = SIZE / 20;
-        const top = cy - SIZE * 0.38 - u;
-        ctx.fillStyle = '#f0c030';
-        ctx.beginPath();
-        ctx.moveTo(cx - u * 2.5, top + u * 2);
-        ctx.lineTo(cx - u * 2.5, top);
-        ctx.lineTo(cx - u, top + u * 1.5);
-        ctx.lineTo(cx, top - u * 0.5);
-        ctx.lineTo(cx + u, top + u * 1.5);
-        ctx.lineTo(cx + u * 2.5, top);
-        ctx.lineTo(cx + u * 2.5, top + u * 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = '#7a5810';
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-      }
     };
     img.src = spriteUrl;
   }, [spriteUrl, linajeBorder, isCrown]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-      <canvas ref={canvasRef} width={SIZE} height={SIZE} style={{ imageRendering: 'pixelated' }} />
-      {equippedItem && (
-        <span style={{ fontSize: '0.72rem', color: '#a7f3d0', opacity: 0.9 }}>
-          {ITEM_EMOJI[equippedItem.kind] ?? equippedItem.kind}
-        </span>
-      )}
-      {isCrown && (
-        <span style={{ fontSize: '0.7rem', color: '#f0c030', letterSpacing: 1 }}>
-          ELEGIDO
-        </span>
-      )}
+    <div className="pixel-box-dark bg-wb-stone border-wb-gold p-1 w-24 h-24 flex flex-col items-center justify-center overflow-hidden">
+      <canvas ref={canvasRef} width={SIZE} height={SIZE} className="image-pixelated" />
     </div>
   );
 }
+
+const FamilyTree = ({ biography }: { biography?: NpcBiography }) => {
+  if (!biography) return null;
+
+  return (
+    <div className="flex flex-col gap-2 mt-2 p-2 bg-black/20 border-l-2 border-wb-gold">
+      <div className="flex items-center gap-2">
+         <div className="w-8 h-[2px] bg-wb-gold/30"></div>
+         <div className="text-[10px] text-wb-gold font-bold uppercase">Linaje de Sangre</div>
+      </div>
+      
+      <div className="flex justify-between items-center px-2">
+        <div className="flex flex-col items-center">
+          <div className="text-[9px] opacity-50 uppercase">Padres</div>
+          <div className="text-[11px] font-bold">
+            {biography.parentNames ? biography.parentNames.join(' + ') : 'Fundadores'}
+          </div>
+        </div>
+        
+        <div className="text-wb-gold">▼</div>
+        
+        <div className="flex flex-col items-center">
+          <div className="text-[9px] opacity-50 uppercase">Hijos</div>
+          <div className="text-[11px] font-bold">{biography.childrenCount}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export function NpcSheet({
   npc,
@@ -188,377 +159,120 @@ export function NpcSheet({
   onGrantMiracle,
 }: NpcSheetProps) {
   const atCap = npc.traits.length >= MAX_TRAITS_PER_NPC;
+  
   return (
     <aside
       data-testid="npc-sheet"
-      role="dialog"
-      aria-label={`Ficha de ${npc.id}`}
-      style={{
-        position: 'fixed',
-        top: 12,
-        right: 284,
-        width: 300,
-        maxHeight: '90vh',
-        overflowY: 'auto',
-        background: '#0e0e0e',
-        color: '#f5f5dc',
-        padding: '14px 16px',
-        borderRadius: 10,
-        border: '1px solid #1e1e1e',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.6)',
-        zIndex: 25,
-        fontSize: '0.85rem',
-        lineHeight: 1.4,
-      }}
+      className="pixel-box fixed top-4 right-72 w-80 max-h-[90vh] overflow-y-auto z-25 p-4 flex flex-col gap-4 text-wb-stone scrollbar-hide"
     >
-      {/* Cabecera: retrato + nombre + cerrar */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', marginBottom: 12 }}>
+      {/* Header */}
+      <div className="flex gap-4">
         <NpcPortrait npc={npc} items={items} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <h2 data-testid="npc-sheet-title" style={{ margin: 0, fontSize: '1.1rem' }}>
-              {npc.name}
-            </h2>
-            <button
-              type="button"
-              data-testid="npc-sheet-close"
-              onClick={onClose}
-              style={{ background: 'transparent', color: '#888', border: 'none', cursor: 'pointer', fontSize: '0.85rem' }}
-            >
-              cerrar
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+            <h2 className="text-lg font-bold truncate leading-tight">{npc.name}</h2>
+            <button onClick={onClose} className="text-[10px] font-bold uppercase text-wb-stone/50 hover:text-wb-stone">
+              [Cerrar]
             </button>
           </div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: 4 }}>
-            {npc.casta === CASTA.ELEGIDO ? 'Elegido' : 'Ciudadano'} · {npc.linaje}
+          <div className="text-[10px] font-bold uppercase text-wb-stone/60 mt-1">
+            {npc.casta} · {npc.linaje}
           </div>
           {role && (
-            <div style={{ fontSize: '0.75rem', color: '#a7f3d0', marginTop: 2 }}>
-              {roleLabel(role)}{toolLabel && toolLabel !== 'sin herramienta' ? ` · ${toolLabel}` : ''}
-            </div>
-          )}
-          {status?.action && (
-            <div style={{ fontSize: '0.72rem', opacity: 0.6, marginTop: 2, fontStyle: 'italic' }}>
-              {status.action}
+            <div className="text-xs text-wb-blood font-bold mt-2">
+              {roleLabel(role)}
             </div>
           )}
         </div>
       </div>
 
-      <section
-        data-testid="npc-sheet-identity"
-        style={{ marginBottom: 10, fontSize: '0.8rem', opacity: 0.85 }}
-      >
-        <div>
-          <span style={{ opacity: 0.7 }}>Linaje: </span>
-          <strong data-testid="npc-sheet-linaje">{npc.linaje}</strong>
-        </div>
-        <div>
-          <span style={{ opacity: 0.7 }}>Casta: </span>
-          {npc.casta}
-        </div>
-        {npc.archetype && (
-          <div>
-            <span style={{ opacity: 0.7 }}>Arquetipo: </span>
-            {npc.archetype}
-          </div>
-        )}
-        <div>
-          <span style={{ opacity: 0.7 }}>Sexo: </span>
-          {npc.sex}
+      {/* Stats Section */}
+      <section className="bg-black/5 p-2 border-b border-wb-stone/10">
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-2">Esencia Vital</h3>
+        <div className="grid grid-cols-2 gap-2">
+           <div className="flex flex-col">
+             <span className="text-[9px] opacity-60">Supervivencia</span>
+             <span className="text-sm font-bold">{Math.round(npc.stats.supervivencia)}</span>
+           </div>
+           <div className="flex flex-col">
+             <span className="text-[9px] opacity-60">Socialización</span>
+             <span className="text-sm font-bold">{Math.round(npc.stats.socializacion)}</span>
+           </div>
         </div>
       </section>
 
-      {(role || toolLabel) && (
-        <section
-          data-testid="npc-sheet-role"
-          style={{ marginBottom: 10, fontSize: '0.8rem' }}
-        >
-          <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.85rem' }}>
-            Oficio actual
-          </div>
-          {role && (
-            <div>
-              <span style={{ opacity: 0.7 }}>Rol: </span>
-              <strong data-testid="npc-sheet-role-name">
-                {roleLabel(role)}
-              </strong>
-            </div>
-          )}
-          {toolLabel && (
-            <div>
-              <span style={{ opacity: 0.7 }}>Herramienta: </span>
-              <strong data-testid="npc-sheet-tool">{toolLabel}</strong>
-            </div>
-          )}
-        </section>
-      )}
-
-      <section
-        data-testid="npc-sheet-stats"
-        style={{ marginBottom: 10 }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>Estadísticas</div>
-        <div>
-          Supervivencia: <strong>{Math.round(npc.stats.supervivencia)}</strong>
-        </div>
-        <div>
-          Socialización: <strong>{Math.round(npc.stats.socializacion)}</strong>
-        </div>
-      </section>
-
-      <section
-        data-testid="npc-sheet-skills"
-        style={{ marginBottom: 10 }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>
-          Habilidades
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 3,
-            fontSize: '0.8rem',
-          }}
-        >
-          {(Object.keys(SKILL_LABEL) as Array<keyof typeof SKILL_LABEL>).map(
-            (key) => {
-              const value = Math.round(npc.skills[key]);
-              const pct = Math.max(0, Math.min(100, value));
-              return (
-                <div
-                  key={key}
-                  data-testid={`npc-skill-${key}`}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '86px 1fr 28px',
-                    alignItems: 'center',
-                    columnGap: 6,
-                  }}
-                >
-                  <span style={{ opacity: 0.78 }}>{SKILL_LABEL[key]}</span>
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      position: 'relative',
-                      height: 4,
-                      background: '#1e1e1e',
-                      borderRadius: 3,
-                      overflow: 'hidden',
-                      border: '1px solid #2a2620',
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: 'block',
-                        height: '100%',
-                        width: `${pct}%`,
-                        background: '#a78b4b',
-                      }}
-                    />
-                  </span>
-                  <strong style={{ textAlign: 'right' }}>{value}</strong>
+      {/* Skills Section */}
+      <section>
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-3">Maestrías</h3>
+        <div className="flex flex-col gap-3">
+          {(Object.keys(SKILL_INFO) as Array<keyof typeof SKILL_INFO>).map((key) => {
+            const skill = SKILL_INFO[key];
+            const value = Math.round(npc.skills[key]);
+            const pct = Math.max(0, Math.min(100, value));
+            
+            return (
+              <div key={key} className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 relative">
+                      <Image 
+                        src={`/ui/skill_${skill.icon}.svg`} 
+                        alt="" 
+                        width={20} 
+                        height={20} 
+                        className="image-pixelated"
+                      />
+                    </div>
+                    <span className="text-xs font-bold">{skill.label}</span>
+                  </div>
+                  <span className="text-xs font-mono">{value}</span>
                 </div>
-              );
-            },
-          )}
+                <div className="pixel-bar-bg h-2">
+                  <div className="pixel-bar-fill bg-wb-slate" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      <section
-        data-testid="npc-sheet-biography"
-        style={{ marginBottom: 10, fontSize: '0.8rem' }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.85rem' }}>
-          Historia biográfica
+      {/* Biography & Family */}
+      <section>
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-2">Historia y Sangre</h3>
+        <div className="text-xs leading-relaxed">
+          Nacido el día <span className="font-bold">{biography?.bornDay ?? '?'}</span>.
+          Vive desde hace <span className="font-bold">{biography?.ageDays ?? '?'}</span> días.
         </div>
-        {biography ? (
-          <>
-            <div>
-              <span style={{ opacity: 0.7 }}>Nacido el </span>
-              <strong data-testid="npc-bio-born">
-                día {biography.bornDay}
-              </strong>
-              <span style={{ opacity: 0.7 }}> — </span>
-              <strong data-testid="npc-bio-age">
-                {biography.ageDays} día{biography.ageDays === 1 ? '' : 's'}
-              </strong>
-              <span style={{ opacity: 0.7 }}>
-                {npc.alive ? ' de vida' : ' al morir'}
-              </span>
-            </div>
-            <div>
-              <span style={{ opacity: 0.7 }}>Padres: </span>
-              {biography.parentNames ? (
-                <strong data-testid="npc-bio-parents">
-                  {biography.parentNames[0]} y {biography.parentNames[1]}
-                </strong>
-              ) : (
-                <em style={{ opacity: 0.65 }} data-testid="npc-bio-founder">
-                  fundador del clan
-                </em>
-              )}
-            </div>
-            <div>
-              <span style={{ opacity: 0.7 }}>Hijos: </span>
-              <strong data-testid="npc-bio-children">
-                {biography.childrenCount}
-              </strong>
-            </div>
-          </>
-        ) : (
-          <div style={{ opacity: 0.6, fontSize: '0.78rem' }}>
-            Historia no disponible.
-          </div>
-        )}
+        <FamilyTree biography={biography} />
       </section>
 
-      <section
-        data-testid="npc-sheet-operational"
-        style={{
-          marginBottom: 10,
-          borderTop: '1px solid #242420',
-          borderBottom: '1px solid #242420',
-          padding: '8px 0',
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>
-          Estado operativo
-        </div>
-        <div>
-          Acción: <strong>{status?.action ?? 'sin datos'}</strong>
-        </div>
-        {status && (
-          <>
-            <div>
-              Destino:{' '}
-              <strong>
-                ({status.destination.x}, {status.destination.y})
-              </strong>
-            </div>
-            <div>
-              Terreno: <strong>{status.tile}</strong>
-            </div>
-            <div>
-              Alertas:{' '}
-              {status.badges.length > 0
-                ? status.badges.map((b) => BADGE_LABEL[b]).join(', ')
-                : 'ninguna'}
-            </div>
-          </>
-        )}
-        <div style={{ marginTop: 6, opacity: 0.85 }}>
-          Inventario: madera {npc.inventory.wood}, piedra {npc.inventory.stone},
-          bayas {npc.inventory.berry}, caza {npc.inventory.game}, pescado{' '}
-          {npc.inventory.fish}, obsidiana {npc.inventory.obsidian}, concha{' '}
-          {npc.inventory.shell}
-        </div>
-      </section>
-
-      <section
-        data-testid="npc-sheet-traits"
-        style={{ marginBottom: 10 }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>
-          Rasgos ({npc.traits.length}/{MAX_TRAITS_PER_NPC})
-        </div>
-        {npc.traits.length === 0 ? (
-          <div style={{ opacity: 0.6, fontSize: '0.78rem' }}>
-            Sin rasgos aún.
-          </div>
-        ) : (
-          <ul
-            style={{
-              listStyle: 'none',
-              padding: 0,
-              margin: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            {npc.traits.map((t) => (
-              <li
-                key={t}
-                data-testid={`npc-trait-${t}`}
-                style={{
-                  borderLeft: '2px solid #6b5a1f',
-                  paddingLeft: 6,
-                }}
-              >
-                {traitLabel(t)}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section data-testid="npc-sheet-miracles">
-        <div style={{ fontWeight: 600, marginBottom: 6 }}>
-          Milagros disponibles (gratitud: {Math.floor(village.gratitude)})
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
+      {/* Miracles Section */}
+      <section className="mt-2 border-t border-wb-stone/10 pt-4">
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-3">Intervención Divina</h3>
+        <div className="flex flex-col gap-2">
           {Object.values(MIRACLES_CATALOG).map((m) => {
             const alreadyHas = npc.traits.includes(m.traitId);
             const noPool = village.gratitude < m.cost;
             const disabled = !npc.alive || alreadyHas || noPool || atCap;
-            const reason = !npc.alive
-              ? 'NPC muerto'
-              : alreadyHas
-                ? 'rasgo ya activo'
-                : atCap
-                  ? 'ya tiene 3 rasgos'
-                  : noPool
-                    ? `gratitud insuficiente (${m.cost})`
-                    : `coste ${m.cost}`;
+            
             return (
               <button
                 key={m.id}
-                type="button"
-                data-testid={`miracle-btn-${m.id}`}
                 disabled={disabled}
                 onClick={() => onGrantMiracle(m.id)}
-                title={reason}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: disabled ? '#17170e' : '#2a2a1c',
-                  color: disabled ? '#666' : '#f5f5dc',
-                  border: `1px solid ${disabled ? '#242420' : '#6b5a1f'}`,
-                  borderRadius: 6,
-                  padding: '6px 8px',
-                  fontSize: '0.82rem',
-                  cursor: disabled ? 'not-allowed' : 'pointer',
-                  textAlign: 'left',
-                }}
+                className={`pixel-button text-[10px] flex justify-between items-center ${
+                  disabled ? 'opacity-40 grayscale pointer-events-none' : 'hover:scale-[1.02]'
+                }`}
               >
                 <span>{m.nameCastellano}</span>
-                <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>
-                  {m.cost}
-                </span>
+                <div className="flex items-center gap-1">
+                  <Image src="/ui/ui_aura_faith.svg" alt="F" width={10} height={10} className="image-pixelated" />
+                  <span>{m.cost}</span>
+                </div>
               </button>
             );
           })}
         </div>
-        {atCap && (
-          <div
-            style={{
-              marginTop: 6,
-              fontSize: '0.72rem',
-              opacity: 0.65,
-            }}
-          >
-            Este NPC ya tiene {MAX_TRAITS_PER_NPC} rasgos. No puede
-            recibir más milagros.
-          </div>
-        )}
       </section>
     </aside>
   );

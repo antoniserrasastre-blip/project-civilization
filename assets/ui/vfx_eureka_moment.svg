@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Núcleo de luz (Bombilla primitiva) -->
+  <rect x="14" y="14" width="4" height="4" fill="#ffffff"/>
+  <rect x="12" y="12" width="8" height="8" fill="#ffd700" opacity="0.6"/>
+  <rect x="10" y="10" width="12" height="12" fill="#ffd700" opacity="0.3"/>
+  
+  <!-- Rayos de descubrimiento (Cian) -->
+  <rect x="15" y="4" width="2" height="4" fill="#00f2ff"/>
+  <rect x="15" y="24" width="2" height="4" fill="#00f2ff"/>
+  <rect x="4" y="15" width="4" height="2" fill="#00f2ff"/>
+  <rect x="24" y="15" width="4" height="2" fill="#00f2ff"/>
+  
+  <!-- Diagonales -->
+  <rect x="8" y="8" width="2" height="2" fill="#00f2ff"/>
+  <rect x="22" y="8" width="2" height="2" fill="#00f2ff"/>
+  <rect x="8" y="22" width="2" height="2" fill="#00f2ff"/>
+  <rect x="22" y="22" width="2" height="2" fill="#00f2ff"/>
+</svg>

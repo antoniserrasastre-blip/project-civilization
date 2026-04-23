@@ -108,6 +108,8 @@ Sprint 14.5: biomas bioclimáticos con 14 tipos de tile.
 | `assets/structures/struct_shelter_wood.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `bbb56d3ea8f88f87297790ce516d317e5db552475dfacf46e601df28ee80f6d0` |
 | `assets/structures/struct_stockpile_stone.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `2543b309199fe7b00514c87e94b22f174cbbc3a0710883cfd014af5a2b002339` |
 | `assets/structures/struct_stockpile_wood.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `d0f8a9f21fea928cb6cbc361e4cfbc7d258387ec3d9e7ba5cf3dd16c41d80f12` |
+| `assets/structures/struct_shaman_hut_1.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `1230ffe65b21cbc5c2d02ca1ebd2062051b7186efe69185422bf1e21e2f7a80d` |
+| `assets/structures/struct_shaman_hut_2.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `5a6e2b4de652851c18e1137b682c1672c781fea4a664e0b6c4614baf697d4cc4` |
 | `assets/structures/struct_village_center.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `141bfe3a97c8962ec425a179bbeba8457d5f0199d6416bbbb40cbc8c29d6f1ae` |
 | `assets/structures/struct_ruin_primitive.svg` | Proyecto Civilización (artista) | CC0 | Equipo interno | — | `c6b1facd12fb79d7430c1428dadc15d25b4dbebb0ece5cf69eef795be9919714` |
 | `assets/structures/struct_bridge_wood.svg` | Proyecto Civilización (artista) | CC0 | Equipo interno | — | `4649008364f0641f2475fd926ed063770cfbaae00c18b008feae137e5dbf82df` |
@@ -161,6 +163,13 @@ Sprint 14.5: biomas bioclimáticos con 14 tipos de tile.
 | `assets/ui/map_preview_archipelago.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `b89328a87fd1079bd11fcf06629d4856849d7606d8de2bf6f92eb95d3e3578b8` |
 | `assets/ui/map_preview_continents.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `1b4e5f52fba8b9bc57a4e92e37fde139ad353263687396b8c17e475eb4081602` |
 | `assets/ui/map_preview_pangea.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `b54db87e432c081eea4c6cecf7e5c7072accb4ad7d2707b0dc5d32e4e33bdcbb` |
+| `assets/ui/tech_agriculture.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `9c76136cfebb5b1418d781d63dae900f9c2ebe1cb9ff34a97a587de693b486de` |
+| `assets/ui/tech_masonry.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `16bf0aa96627d0f8725c6005eb90d3cd2c78afa66f1e9f40de8f5fa6f942142e` |
+| `assets/ui/tech_navigation.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `72b4ffe40f14ed0624dc52cbe99e833124efd24cefadc1fdf25948f4c1deed40` |
+| `assets/ui/tech_pottery.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `7e4b2d80dd3016155a3767f7882529b0ec76084bed8b10ab1a3e5f79a7458535` |
+| `assets/ui/tech_weaving.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `0fe995e82a00084307f1e42483c9b1002bf96d64273e807b44ceb07b405e112e` |
+| `assets/ui/ui_progress_frame.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `578331c306775aac9440fd23e72fb6ecd93cca21bddc9b9e886cf6c2ba067a73` |
+| `assets/ui/vfx_eureka_moment.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `a26c508b9f6902498e7e0562ad9ecff9b4a86178c5723bd517fc570d71327d0c` |
 | `assets/ui/fog_pixel.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `c92d4e1c1993565766100347a7e98d0c1c32a5d7dc3cb419a1730c5bc3067a18` |
 | `assets/ui/vfx_shadow_cast.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `4b7c6365d6fdefd8962513c95ae2ba0635502e79288b3ea28eb6db2e79303963` |
 | `assets/ui/ui_marker_history.svg` | Proyecto Civilización (artista) | CC0 | Equipo interno | — | `2cb6b0e47e9d9d3c1a2cd8084e7745bdaaba1332221c7e06ad211a169dc23f79` |
