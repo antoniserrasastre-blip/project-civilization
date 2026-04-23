@@ -19,10 +19,12 @@ import type { NPC } from '@/lib/npcs';
 import type { VillageState } from '@/lib/village';
 import type { MiracleId } from '@/lib/miracles';
 import type { NpcStatusBadge } from '@/components/map/MapView';
+import type { Role } from '@/lib/roles';
 import {
   MAX_TRAITS_PER_NPC,
   MIRACLES_CATALOG,
 } from '@/lib/miracles';
+import { roleLabel } from '@/lib/roles';
 
 const TRAIT_LABEL: Record<string, string> = {
   hambre_sagrada: 'Hambre sagrada',
@@ -72,6 +74,12 @@ export interface NpcSheetProps {
   village: VillageState;
   status?: NpcOperationalStatus;
   biography?: NpcBiography;
+  /** Rol activo derivado (Sprint 10). Si se omite, no se muestra
+   *  la sección de oficio. */
+  role?: Role;
+  /** Etiqueta legible de la herramienta equipada ('Lanza', 'Cesta',
+   *  etc.) o 'sin herramienta'. Se pasa ya resuelto por el shell. */
+  toolLabel?: string;
   onClose: () => void;
   onGrantMiracle: (miracleId: MiracleId) => void;
 }
@@ -81,6 +89,8 @@ export function NpcSheet({
   village,
   status,
   biography,
+  role,
+  toolLabel,
   onClose,
   onGrantMiracle,
 }: NpcSheetProps) {
@@ -161,6 +171,31 @@ export function NpcSheet({
           {npc.sex}
         </div>
       </section>
+
+      {(role || toolLabel) && (
+        <section
+          data-testid="npc-sheet-role"
+          style={{ marginBottom: 10, fontSize: '0.8rem' }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.85rem' }}>
+            Oficio actual
+          </div>
+          {role && (
+            <div>
+              <span style={{ opacity: 0.7 }}>Rol: </span>
+              <strong data-testid="npc-sheet-role-name">
+                {roleLabel(role)}
+              </strong>
+            </div>
+          )}
+          {toolLabel && (
+            <div>
+              <span style={{ opacity: 0.7 }}>Herramienta: </span>
+              <strong data-testid="npc-sheet-tool">{toolLabel}</strong>
+            </div>
+          )}
+        </section>
+      )}
 
       <section
         data-testid="npc-sheet-stats"
@@ -319,7 +354,8 @@ export function NpcSheet({
         <div style={{ marginTop: 6, opacity: 0.85 }}>
           Inventario: madera {npc.inventory.wood}, piedra {npc.inventory.stone},
           bayas {npc.inventory.berry}, caza {npc.inventory.game}, pescado{' '}
-          {npc.inventory.fish}
+          {npc.inventory.fish}, obsidiana {npc.inventory.obsidian}, concha{' '}
+          {npc.inventory.shell}
         </div>
       </section>
 

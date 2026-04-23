@@ -50,6 +50,9 @@ import { firstStructureOfKind } from '@/lib/structures';
 import { clanInventoryTotal, CRAFTABLE, RECIPES } from '@/lib/crafting';
 import type { NPC, NPCInventory } from '@/lib/npcs';
 import { RESOURCE, TILE, type TileId } from '@/lib/world-state';
+import { buildNpcBiography } from '@/lib/biography';
+import { computeRole } from '@/lib/roles';
+import { itemForNpc, itemLabel } from '@/lib/items';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -298,22 +301,20 @@ export function GameShell({ seed }: GameShellProps) {
 
   const selectedNpcBiography = useMemo<NpcBiography | undefined>(() => {
     if (!selectedNpc) return undefined;
-    const bornDay = Math.floor(selectedNpc.birthTick / TICKS_PER_DAY) + 1;
-    const ageTick = Math.max(0, state.tick - selectedNpc.birthTick);
-    const ageDays = Math.max(0, Math.floor(ageTick / TICKS_PER_DAY));
-    const parentNames = selectedNpc.parents
-      ? (() => {
-          const [pa, pb] = selectedNpc.parents!;
-          const a = state.npcs.find((n) => n.id === pa);
-          const b = state.npcs.find((n) => n.id === pb);
-          return [a?.name ?? pa, b?.name ?? pb] as [string, string];
-        })()
-      : null;
-    const childrenCount = state.npcs.filter(
-      (n) => n.parents && n.parents.includes(selectedNpc.id),
-    ).length;
-    return { bornDay, ageDays, parentNames, childrenCount };
+    return buildNpcBiography(selectedNpc, state.npcs, state.tick);
   }, [selectedNpc, state.npcs, state.tick]);
+
+  const selectedNpcRole = useMemo(() => {
+    if (!selectedNpc) return undefined;
+    const item = itemForNpc(selectedNpc, state.items);
+    return computeRole(selectedNpc, item);
+  }, [selectedNpc, state.items]);
+
+  const selectedNpcToolLabel = useMemo(() => {
+    if (!selectedNpc) return undefined;
+    const item = itemForNpc(selectedNpc, state.items);
+    return itemLabel(item);
+  }, [selectedNpc, state.items]);
 
   const onGrantMiracle = (miracleId: MiracleId) => {
     if (!selectedNpcId) return;
@@ -343,6 +344,7 @@ export function GameShell({ seed }: GameShellProps) {
         intentTrails={intentTrails}
         npcStatuses={npcStatuses}
         relations={state.relations}
+        items={state.items}
         onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter}
       />
@@ -382,6 +384,8 @@ export function GameShell({ seed }: GameShellProps) {
           village={state.village}
           status={selectedNpcStatus}
           biography={selectedNpcBiography}
+          role={selectedNpcRole}
+          toolLabel={selectedNpcToolLabel}
           onClose={() => setSelectedNpcId(null)}
           onGrantMiracle={onGrantMiracle}
         />
