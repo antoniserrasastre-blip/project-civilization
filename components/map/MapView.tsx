@@ -200,24 +200,31 @@ function renderNPCs(
   placements: readonly MarkerPlacement[],
   professionLayer: boolean,
   items: readonly EquippableItem[],
+  pulseAlpha = 1,
 ) {
-  // Pixel-art duro: sin antialias.
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'miter';
   for (const { npc, marker, cx, cy } of placements) {
     const { fill, outline, highlight } = marker.colors;
+
+    // Anillo de linaje — corona exterior de 1px en el color de la facción.
+    const ringR = marker.size / 2 + marker.outline + 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+    ctx.strokeStyle = marker.linajeBorderColor;
+    ctx.globalAlpha = 0.72 * pulseAlpha;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
     if (marker.shape === 'diamond') {
       drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
-      // Halo interior del Elegido — un pixel central de highlight
-      // para hacerlo resaltar sobre tiles variados.
       ctx.fillStyle = highlight;
       ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
     } else {
       drawCircle(ctx, cx, cy, marker.size, fill, outline, marker.outline);
     }
     if (professionLayer) {
-      // Píxel de oficio — pintado en el cuadrante inferior derecho
-      // del marcador para no pisar el halo central del Elegido.
       const offset = Math.max(1, Math.round(marker.size * 0.24));
       ctx.fillStyle = professionColor(npc, items);
       ctx.fillRect(Math.round(cx) + offset - 1, Math.round(cy) + offset - 1, 2, 2);
@@ -807,13 +814,23 @@ function renderIntentTrails(
 
     const midX = (fromX + toX) / 2;
     const midY = (fromY + toY) / 2;
+    // Primer segmento: sólido (posición conocida → mitad del camino).
     ctx.beginPath();
     ctx.moveTo(fromX, fromY);
     ctx.lineTo(midX, midY);
     ctx.stroke();
+    // Segundo segmento: punteado (mitad → destino, más especulativo).
+    ctx.setLineDash([3, 4]);
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(midX, midY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
 
     ctx.fillStyle = MAP_STYLE.intent.ember;
-    ctx.fillRect(Math.round(midX) - 1, Math.round(midY) - 1, 2, 2);
+    ctx.fillRect(Math.round(toX) - 1, Math.round(toY) - 1, 2, 2);
   }
 }
 
@@ -861,6 +878,49 @@ function renderNpcStatusBadges(
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+}
+
+/** Overlay semitransparente de influencia territorial.
+ *  Tiles con alta presencia → tono azul-verde; tiles con reserves = 0 → marrón rojizo. */
+function renderInfluenceOverlay(
+  ctx: CanvasRenderingContext2D,
+  world: WorldMap,
+  dims: ViewportDims,
+  viewport: ViewportState,
+) {
+  const { tileSize, screenWidth, screenHeight } = dims;
+  const tilePx = tileSize * viewport.zoom;
+  const influence = world.influence;
+  const reserves = world.reserves;
+  if (!influence && !reserves) return;
+
+  const startX = Math.max(0, Math.floor(-viewport.offsetX / tilePx));
+  const startY = Math.max(0, Math.floor(-viewport.offsetY / tilePx));
+  const endX = Math.min(world.width, Math.ceil((screenWidth - viewport.offsetX) / tilePx));
+  const endY = Math.min(world.height, Math.ceil((screenHeight - viewport.offsetY) / tilePx));
+
+  for (let ty = startY; ty < endY; ty++) {
+    for (let tx = startX; tx < endX; tx++) {
+      const idx = ty * world.width + tx;
+      const inf = influence ? influence[idx] ?? 0 : 0;
+      const res = reserves ? reserves[idx] : undefined;
+
+      const sx = Math.round(tx * tilePx + viewport.offsetX);
+      const sy = Math.round(ty * tilePx + viewport.offsetY);
+      const sz = Math.ceil(tilePx);
+
+      if (res === 0) {
+        // Tile agotado — overlay marrón rojizo
+        ctx.fillStyle = 'rgba(120, 40, 20, 0.38)';
+        ctx.fillRect(sx, sy, sz, sz);
+      } else if (inf > 30) {
+        // Zona activa — overlay azul-verde proporcional a la influencia
+        const a = Math.min(0.32, (inf / 1000) * 0.48);
+        ctx.fillStyle = `rgba(80, 200, 160, ${a.toFixed(3)})`;
+        ctx.fillRect(sx, sy, sz, sz);
+      }
     }
   }
 }
@@ -924,6 +984,10 @@ export interface MapViewProps {
    *  `defaultClanSpawn(seed)`. Si se omite, el MapView cae sobre
    *  el centro geométrico del mundo. */
   initialCenter?: { x: number; y: number };
+  /** Duración de un tick simulado en ms — define la ventana de
+   *  interpolación de movimiento. Debe coincidir con TICK_INTERVAL_MS
+   *  de GameShell. */
+  tickIntervalMs?: number;
 }
 
 interface HoverState {
@@ -945,10 +1009,21 @@ export function MapView({
   items = [],
   onNpcClick,
   initialCenter,
+  tickIntervalMs = 250,
 }: MapViewProps = {}) {
   const [relationsLayerOn, setRelationsLayerOn] = useState(false);
+  const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Interpolación de movimiento: guardamos posiciones anteriores de los
+  // NPCs y el timestamp del último tick para calcular el factor de lerp.
+  const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const lastTickMsRef = useRef<number>(performance.now());
+  // Refs de render state para el loop RAF (evita closures stale).
+  const renderPropsRef = useRef({
+    world, fog, structures, buildProject, intentTrails,
+    npcStatuses, relations, relationsLayerOn, items, npcs,
+  });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
     worldHeight: world.height,
@@ -1007,6 +1082,7 @@ export function MapView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialCenter, world.width, world.height]);
 
+  // Placements con posiciones reales (para hit-test).
   const placements = useMemo(
     () => placeMarkers(npcs, dims, viewport),
     [npcs, dims, viewport],
@@ -1016,39 +1092,80 @@ export function MapView({
     [world.resources],
   );
 
-  // Redibuja en cada cambio de dims/viewport/placements.
+  // Captura posiciones anteriores cuando los NPCs cambian de posición.
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    canvas.width = dims.screenWidth;
-    canvas.height = dims.screenHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    renderTiles(ctx, world, dims, viewport);
-    renderResources(ctx, world.resources, dims, viewport, world);
-    renderStructures(ctx, structures, dims, viewport);
-    renderBuildProject(ctx, buildProject, dims, viewport);
-    renderFogOverlay(ctx, fog, dims, viewport, world);
-    if (relationsLayerOn) {
-      renderRelationsLayer(ctx, relations, placements, dims);
-    }
-    renderIntentTrails(ctx, intentTrails, dims, viewport);
-    renderNPCs(ctx, placements, true, items);
-    renderNpcStatusBadges(ctx, placements, npcStatuses);
-  }, [
-    dims,
-    viewport,
-    placements,
-    structures,
-    buildProject,
-    world,
-    fog,
-    intentTrails,
-    npcStatuses,
-    relations,
-    relationsLayerOn,
-    items,
-  ]);
+    prevNpcPosRef.current = new Map(npcs.map((n) => [n.id, { ...n.position }]));
+    lastTickMsRef.current = performance.now();
+  }, [npcs]);
+
+  // Mantiene el ref de render actualizado sin reactivar el loop RAF.
+  useEffect(() => {
+    renderPropsRef.current = {
+      world, fog, structures, buildProject, intentTrails,
+      npcStatuses, relations, relationsLayerOn, items, npcs,
+    };
+  });
+
+  const influenceLayerOnRef = useRef(influenceLayerOn);
+  useEffect(() => { influenceLayerOnRef.current = influenceLayerOn; }, [influenceLayerOn]);
+
+  // Loop RAF: renderiza a 60fps interpolando posiciones entre ticks.
+  useEffect(() => {
+    let rafId: number;
+    const loop = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) { rafId = requestAnimationFrame(loop); return; }
+      const rp = renderPropsRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { rafId = requestAnimationFrame(loop); return; }
+
+      // Factor de interpolación 0→1 entre el tick anterior y el actual.
+      const elapsed = performance.now() - lastTickMsRef.current;
+      const alpha = Math.min(1, elapsed / tickIntervalMs);
+
+      // Pulso de vida: oscilación suave de la corona de linaje.
+      const pulse = 0.72 + 0.18 * Math.sin(performance.now() / 420);
+
+      // NPCs con posición lerpeada para render suave.
+      const lerpedNpcs = rp.npcs.map((npc) => {
+        const prev = prevNpcPosRef.current.get(npc.id);
+        if (!prev || (prev.x === npc.position.x && prev.y === npc.position.y)) return npc;
+        return {
+          ...npc,
+          position: {
+            x: prev.x + (npc.position.x - prev.x) * alpha,
+            y: prev.y + (npc.position.y - prev.y) * alpha,
+          },
+        };
+      });
+
+      const currentDims = dims;
+      const currentViewport = viewport;
+      const lerpedPlacements = placeMarkers(lerpedNpcs, currentDims, currentViewport);
+
+      canvas.width = currentDims.screenWidth;
+      canvas.height = currentDims.screenHeight;
+      renderTiles(ctx, rp.world, currentDims, currentViewport);
+      renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world);
+      renderStructures(ctx, rp.structures, currentDims, currentViewport);
+      renderBuildProject(ctx, rp.buildProject, currentDims, currentViewport);
+      renderFogOverlay(ctx, rp.fog, currentDims, currentViewport, rp.world);
+      if (influenceLayerOnRef.current) {
+        renderInfluenceOverlay(ctx, rp.world, currentDims, currentViewport);
+      }
+      if (rp.relationsLayerOn) {
+        renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
+      }
+      renderIntentTrails(ctx, rp.intentTrails, currentDims, currentViewport);
+      renderNPCs(ctx, lerpedPlacements, true, rp.items, pulse);
+      renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses);
+
+      rafId = requestAnimationFrame(loop);
+    };
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dims, viewport, tickIntervalMs]);
 
   // Drag.
   const draggingRef = useRef<{ x: number; y: number; moved: boolean } | null>(
@@ -1229,6 +1346,26 @@ export function MapView({
           }}
         >
           {relationsLayerOn ? '● Relaciones' : '○ Relaciones'}
+        </button>
+        <button
+          type="button"
+          data-testid="map-layer-influence-toggle"
+          onClick={() => setInfluenceLayerOn((v) => !v)}
+          aria-pressed={influenceLayerOn}
+          title={influenceLayerOn ? 'Ocultar territorio' : 'Mostrar influencia y reservas'}
+          style={{
+            background: influenceLayerOn ? '#1a2a1c' : '#1e1e1e',
+            color: '#f5f5dc',
+            border: `1px solid ${influenceLayerOn ? '#2d7a4f' : '#2f2f2f'}`,
+            borderRadius: 6,
+            padding: '3px 8px',
+            fontSize: 11,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            textAlign: 'left',
+          }}
+        >
+          {influenceLayerOn ? '● Territorio' : '○ Territorio'}
         </button>
       </div>
       <div

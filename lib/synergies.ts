@@ -120,6 +120,46 @@ export function computeActiveSynergies(npcs: readonly NPC[]): ActiveSynergy[] {
   return result;
 }
 
+/** Aplica los modificadores de las sinergias activas a los stats/skills
+ *  de un NPC. Pura — devuelve NPC nuevo. Los mods se suman linealmente
+ *  y se clamean a [0, 200] en skills, [0, 100] en stats. */
+export function applySynergyModifiers(npc: NPC, synergies: readonly ActiveSynergy[]): NPC {
+  if (synergies.length === 0) return npc;
+  let sv = npc.stats.supervivencia;
+  let so = npc.stats.socializacion;
+  let hunting = npc.skills.hunting;
+  let gathering = npc.skills.gathering;
+  let crafting = npc.skills.crafting;
+  let fishing = npc.skills.fishing;
+  let healing = npc.skills.healing;
+
+  for (const active of synergies) {
+    const m = SYNERGY_CATALOG[active.id].modifiers;
+    if (m.supervivencia) sv += m.supervivencia;
+    if (m.socializacion) so += m.socializacion;
+    if (m.hunting)       hunting += m.hunting;
+    if (m.gathering)     gathering += m.gathering;
+    if (m.crafting)      crafting += m.crafting;
+    if (m.fishing)       fishing += m.fishing;
+    if (m.healing)       healing += m.healing;
+  }
+
+  return {
+    ...npc,
+    stats: {
+      supervivencia: Math.max(0, Math.min(100, sv)),
+      socializacion: Math.max(0, Math.min(100, so)),
+    },
+    skills: {
+      hunting:  Math.max(0, Math.min(200, hunting)),
+      gathering: Math.max(0, Math.min(200, gathering)),
+      crafting:  Math.max(0, Math.min(200, crafting)),
+      fishing:   Math.max(0, Math.min(200, fishing)),
+      healing:   Math.max(0, Math.min(200, healing)),
+    },
+  };
+}
+
 function matchingNpcs(alive: readonly NPC[], req: SynergyRequirement): NPC[] {
   switch (req.kind) {
     case 'archetype':

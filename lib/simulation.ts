@@ -22,6 +22,7 @@ import { CASTA } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
+import { computeActiveSynergies, applySynergyModifiers } from './synergies';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
@@ -587,9 +588,15 @@ export function tick(state: GameState): GameState {
     nextVillage = resetGratitudeDailyTracking(nextVillage);
   }
 
+  // Aplicar sinergias activas como bono pasivo sobre los stats/skills.
+  const activeSynergies = computeActiveSynergies(npcsAfterRepro);
+  const npcsWithSynergies = activeSynergies.length > 0
+    ? npcsAfterRepro.map((n) => n.alive ? applySynergyModifiers(n, activeSynergies) : n)
+    : npcsAfterRepro;
+
   return {
     ...afterBuild,
-    npcs: npcsAfterRepro,
+    npcs: npcsWithSynergies,
     prng: prngAfterRepro,
     chronicle: chronicleAfterRepro,
     items: itemsAfterEureka,
