@@ -15,8 +15,16 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import worldMapJson from '@/lib/fixtures/world-map.v1.json';
-import type { WorldMap, TileId } from '@/lib/world-state';
+import {
+  RESOURCE,
+  type ResourceSpawn,
+  type WorldMap,
+  type TileId,
+} from '@/lib/world-state';
 import type { NPC } from '@/lib/npcs';
+import type { Structure } from '@/lib/structures';
+import type { FogState } from '@/lib/fog';
+import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { TILE_COLOR } from '@/lib/tile-colors';
 import {
@@ -32,6 +40,49 @@ import {
 const TILE_SIZE = 32;
 
 const WORLD = worldMapJson as unknown as WorldMap;
+
+const MAP_STYLE = {
+  resources: {
+    shadow: 'rgba(20, 14, 8, 0.36)',
+    berryLeaf: '#263d24',
+    berryFruit: '#8d2020',
+    stone: '#c1b49a',
+    stoneDark: '#5b5147',
+    wood: '#6b3f20',
+    woodLight: '#b9854c',
+    game: '#2a1b13',
+    fish: '#d7e1d5',
+    water: '#b8d8df',
+  },
+  structures: {
+    shadow: 'rgba(12, 8, 4, 0.45)',
+    wood: '#5a3219',
+    woodLight: '#b97b3f',
+    hide: '#c08a52',
+    hideDark: '#6d3f24',
+    stone: '#d4c5a1',
+    stoneDark: '#5c5348',
+    basket: '#8a5a2b',
+    basketLight: '#d2a35f',
+    fireOuter: '#ffb347',
+    fireInner: '#d43b1f',
+    thatch: '#c59a55',
+  },
+  fog: {
+    hidden: 'rgba(10, 8, 6, 0.82)',
+    seam: 'rgba(226, 199, 145, 0.08)',
+  },
+  intent: {
+    stroke: 'rgba(238, 205, 126, 0.55)',
+    ember: 'rgba(255, 179, 71, 0.78)',
+  },
+} as const;
+
+export interface NpcIntentTrail {
+  npcId: string;
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+}
 
 interface MarkerPlacement {
   npc: NPC;
@@ -134,6 +185,398 @@ function renderNPCs(
   }
 }
 
+function drawStructureShadow(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = MAP_STYLE.structures.shadow;
+  ctx.fillRect(
+    cx - size * 0.55,
+    cy + size * 0.34,
+    size * 1.1,
+    Math.max(2, size * 0.12),
+  );
+}
+
+function drawFireStructure(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  drawStructureShadow(ctx, cx, cy, size);
+  ctx.strokeStyle = MAP_STYLE.structures.wood;
+  ctx.lineWidth = Math.max(2, size * 0.12);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.45, cy + size * 0.28);
+  ctx.lineTo(cx + size * 0.45, cy + size * 0.38);
+  ctx.moveTo(cx + size * 0.42, cy + size * 0.28);
+  ctx.lineTo(cx - size * 0.42, cy + size * 0.38);
+  ctx.stroke();
+
+  ctx.fillStyle = MAP_STYLE.structures.fireOuter;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.56);
+  ctx.lineTo(cx + size * 0.38, cy + size * 0.22);
+  ctx.lineTo(cx - size * 0.38, cy + size * 0.22);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.structures.fireInner;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.22);
+  ctx.lineTo(cx + size * 0.2, cy + size * 0.22);
+  ctx.lineTo(cx - size * 0.2, cy + size * 0.22);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawShelterStructure(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  drawStructureShadow(ctx, cx, cy, size);
+  ctx.fillStyle = MAP_STYLE.structures.wood;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.58);
+  ctx.lineTo(cx + size * 0.58, cy + size * 0.34);
+  ctx.lineTo(cx - size * 0.58, cy + size * 0.34);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.structures.thatch;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.42);
+  ctx.lineTo(cx + size * 0.4, cy + size * 0.28);
+  ctx.lineTo(cx - size * 0.4, cy + size * 0.28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.structures.hideDark;
+  ctx.fillRect(cx - size * 0.14, cy + size * 0.02, size * 0.28, size * 0.32);
+}
+
+function drawToolStructure(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  drawStructureShadow(ctx, cx, cy, size);
+  ctx.strokeStyle = MAP_STYLE.structures.woodLight;
+  ctx.lineWidth = Math.max(2, size * 0.12);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.36, cy + size * 0.44);
+  ctx.lineTo(cx + size * 0.18, cy - size * 0.46);
+  ctx.stroke();
+
+  ctx.fillStyle = MAP_STYLE.structures.stoneDark;
+  ctx.beginPath();
+  ctx.moveTo(cx + size * 0.1, cy - size * 0.5);
+  ctx.lineTo(cx + size * 0.52, cy - size * 0.28);
+  ctx.lineTo(cx + size * 0.22, cy + size * 0.02);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.structures.stone;
+  ctx.fillRect(cx + size * 0.2, cy - size * 0.34, size * 0.16, size * 0.08);
+}
+
+function drawPantryStructure(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  drawStructureShadow(ctx, cx, cy, size);
+  ctx.strokeStyle = MAP_STYLE.structures.basketLight;
+  ctx.lineWidth = Math.max(2, size * 0.1);
+  ctx.beginPath();
+  ctx.arc(cx, cy - size * 0.18, size * 0.34, Math.PI, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = MAP_STYLE.structures.basket;
+  ctx.fillRect(cx - size * 0.46, cy - size * 0.08, size * 0.92, size * 0.48);
+  ctx.strokeStyle = MAP_STYLE.structures.basketLight;
+  ctx.lineWidth = 1;
+  for (const dx of [-0.24, 0, 0.24]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + dx * size, cy - size * 0.06);
+    ctx.lineTo(cx + dx * size, cy + size * 0.36);
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.38, cy + size * 0.12);
+  ctx.lineTo(cx + size * 0.38, cy + size * 0.12);
+  ctx.stroke();
+}
+
+function drawHideStructure(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  drawStructureShadow(ctx, cx, cy, size);
+  ctx.fillStyle = MAP_STYLE.structures.hideDark;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.5);
+  ctx.lineTo(cx + size * 0.38, cy - size * 0.24);
+  ctx.lineTo(cx + size * 0.48, cy + size * 0.22);
+  ctx.lineTo(cx + size * 0.18, cy + size * 0.48);
+  ctx.lineTo(cx, cy + size * 0.28);
+  ctx.lineTo(cx - size * 0.18, cy + size * 0.48);
+  ctx.lineTo(cx - size * 0.48, cy + size * 0.22);
+  ctx.lineTo(cx - size * 0.38, cy - size * 0.24);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.structures.hide;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.36);
+  ctx.lineTo(cx + size * 0.25, cy - size * 0.16);
+  ctx.lineTo(cx + size * 0.28, cy + size * 0.18);
+  ctx.lineTo(cx, cy + size * 0.16);
+  ctx.lineTo(cx - size * 0.28, cy + size * 0.18);
+  ctx.lineTo(cx - size * 0.25, cy - size * 0.16);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function renderStructures(
+  ctx: CanvasRenderingContext2D,
+  structures: readonly Structure[],
+  dims: ViewportDims,
+  state: ViewportState,
+) {
+  const tilePx = dims.tileSize * state.zoom;
+  for (const structure of structures) {
+    const x = structure.position.x * tilePx + state.offsetX;
+    const y = structure.position.y * tilePx + state.offsetY;
+    if (
+      x + tilePx < 0 ||
+      y + tilePx < 0 ||
+      x > dims.screenWidth ||
+      y > dims.screenHeight
+    ) {
+      continue;
+    }
+
+    const cx = x + tilePx / 2;
+    const cy = y + tilePx / 2;
+    const size = Math.max(9, Math.min(24, tilePx * 1.1));
+
+    switch (structure.kind) {
+      case CRAFTABLE.FOGATA_PERMANENTE:
+        drawFireStructure(ctx, cx, cy, size);
+        break;
+      case CRAFTABLE.REFUGIO:
+        drawShelterStructure(ctx, cx, cy, size);
+        break;
+      case CRAFTABLE.HERRAMIENTA_SILEX:
+        drawToolStructure(ctx, cx, cy, size);
+        break;
+      case CRAFTABLE.DESPENSA:
+        drawPantryStructure(ctx, cx, cy, size);
+        break;
+      case CRAFTABLE.PIEL_ROPA:
+        drawHideStructure(ctx, cx, cy, size);
+        break;
+    }
+  }
+}
+
+function visibleTileBounds(
+  dims: ViewportDims,
+  state: ViewportState,
+  world: WorldMap,
+) {
+  const tilePx = dims.tileSize * state.zoom;
+  const firstX = Math.max(0, Math.floor(-state.offsetX / tilePx));
+  const firstY = Math.max(0, Math.floor(-state.offsetY / tilePx));
+  const lastX = Math.min(
+    world.width,
+    Math.ceil((dims.screenWidth - state.offsetX) / tilePx),
+  );
+  const lastY = Math.min(
+    world.height,
+    Math.ceil((dims.screenHeight - state.offsetY) / tilePx),
+  );
+  return { firstX, firstY, lastX, lastY, tilePx };
+}
+
+function drawBerryGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  const r = Math.max(1, size * 0.12);
+  ctx.fillStyle = MAP_STYLE.resources.berryLeaf;
+  ctx.fillRect(cx - size * 0.28, cy - size * 0.1, size * 0.56, size * 0.28);
+  ctx.fillStyle = MAP_STYLE.resources.berryFruit;
+  ctx.beginPath();
+  ctx.arc(cx - size * 0.16, cy - size * 0.08, r, 0, Math.PI * 2);
+  ctx.arc(cx + size * 0.12, cy - size * 0.03, r, 0, Math.PI * 2);
+  ctx.arc(cx, cy + size * 0.13, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawStoneGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = MAP_STYLE.resources.stoneDark;
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.42, cy + size * 0.3);
+  ctx.lineTo(cx - size * 0.12, cy - size * 0.34);
+  ctx.lineTo(cx + size * 0.38, cy + size * 0.25);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = MAP_STYLE.resources.stone;
+  ctx.fillRect(cx - size * 0.08, cy - size * 0.12, size * 0.18, size * 0.12);
+}
+
+function drawWoodGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.lineWidth = Math.max(1, size * 0.12);
+  ctx.lineCap = 'square';
+  ctx.strokeStyle = MAP_STYLE.resources.wood;
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.35, cy + size * 0.28);
+  ctx.lineTo(cx + size * 0.34, cy - size * 0.22);
+  ctx.moveTo(cx - size * 0.28, cy - size * 0.22);
+  ctx.lineTo(cx + size * 0.32, cy + size * 0.28);
+  ctx.stroke();
+  ctx.strokeStyle = MAP_STYLE.resources.woodLight;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.25, cy + size * 0.18);
+  ctx.lineTo(cx + size * 0.22, cy - size * 0.15);
+  ctx.stroke();
+}
+
+function drawGameGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = MAP_STYLE.resources.game;
+  const r = Math.max(1, size * 0.1);
+  for (const [dx, dy] of [
+    [-0.18, -0.18],
+    [0.08, -0.05],
+    [-0.02, 0.18],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(cx + dx * size, cy + dy * size, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawFishGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.strokeStyle = MAP_STYLE.resources.fish;
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.34, cy);
+  ctx.lineTo(cx + size * 0.2, cy);
+  ctx.moveTo(cx - size * 0.08, cy - size * 0.15);
+  ctx.lineTo(cx + size * 0.08, cy + size * 0.15);
+  ctx.moveTo(cx + size * 0.2, cy);
+  ctx.lineTo(cx + size * 0.38, cy - size * 0.16);
+  ctx.moveTo(cx + size * 0.2, cy);
+  ctx.lineTo(cx + size * 0.38, cy + size * 0.16);
+  ctx.stroke();
+}
+
+function drawWaterGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.strokeStyle = MAP_STYLE.resources.water;
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.28, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function renderResourceGlyph(
+  ctx: CanvasRenderingContext2D,
+  resource: ResourceSpawn,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = MAP_STYLE.resources.shadow;
+  ctx.fillRect(
+    cx - size * 0.42,
+    cy + size * 0.32,
+    size * 0.84,
+    Math.max(1, size * 0.08),
+  );
+  switch (resource.id) {
+    case RESOURCE.BERRY:
+      drawBerryGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.STONE:
+      drawStoneGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.WOOD:
+      drawWoodGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.GAME:
+      drawGameGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.FISH:
+      drawFishGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.WATER:
+      drawWaterGlyph(ctx, cx, cy, size);
+      break;
+  }
+}
+
+function renderResources(
+  ctx: CanvasRenderingContext2D,
+  resources: readonly ResourceSpawn[],
+  dims: ViewportDims,
+  state: ViewportState,
+  world: WorldMap,
+) {
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
+    dims,
+    state,
+    world,
+  );
+  const size = Math.max(7, Math.min(20, tilePx * 1.05));
+  for (const resource of resources) {
+    if (resource.quantity <= 0) continue;
+    if (
+      resource.x < firstX ||
+      resource.x >= lastX ||
+      resource.y < firstY ||
+      resource.y >= lastY
+    ) {
+      continue;
+    }
+    const cx = resource.x * tilePx + state.offsetX + tilePx / 2;
+    const cy = resource.y * tilePx + state.offsetY + tilePx / 2;
+    renderResourceGlyph(ctx, resource, cx, cy, size);
+  }
+}
+
 function renderTiles(
   ctx: CanvasRenderingContext2D,
   world: WorldMap,
@@ -145,16 +588,10 @@ function renderTiles(
 
   // Determinar qué tiles caen dentro del viewport para evitar
   // iterar los 262k del mapa completo cada frame.
-  const tilePx = tileSize * state.zoom;
-  const firstX = Math.max(0, Math.floor(-state.offsetX / tilePx));
-  const firstY = Math.max(0, Math.floor(-state.offsetY / tilePx));
-  const lastX = Math.min(
-    world.width,
-    Math.ceil((screenWidth - state.offsetX) / tilePx),
-  );
-  const lastY = Math.min(
-    world.height,
-    Math.ceil((screenHeight - state.offsetY) / tilePx),
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
+    dims,
+    state,
+    world,
   );
 
   for (let y = firstY; y < lastY; y++) {
@@ -168,6 +605,97 @@ function renderTiles(
         Math.ceil(tilePx),
       );
     }
+  }
+}
+
+function decodeFogBitmap(bitmap: string): Uint8Array | null {
+  if (typeof atob !== 'function') return null;
+  const raw = atob(bitmap);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    bytes[i] = raw.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function fogDiscovered(
+  bytes: Uint8Array,
+  width: number,
+  x: number,
+  y: number,
+): boolean {
+  const idx = y * width + x;
+  return (bytes[idx >> 3] & (1 << (idx & 7))) !== 0;
+}
+
+function renderFogOverlay(
+  ctx: CanvasRenderingContext2D,
+  fog: FogState | undefined,
+  dims: ViewportDims,
+  state: ViewportState,
+  world: WorldMap,
+) {
+  if (!fog) return;
+  const bytes = decodeFogBitmap(fog.bitmap);
+  if (!bytes) return;
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
+    dims,
+    state,
+    world,
+  );
+
+  ctx.fillStyle = MAP_STYLE.fog.hidden;
+  for (let y = firstY; y < lastY; y++) {
+    for (let x = firstX; x < lastX; x++) {
+      if (fogDiscovered(bytes, fog.width, x, y)) continue;
+      const sx = x * tilePx + state.offsetX;
+      const sy = y * tilePx + state.offsetY;
+      ctx.fillRect(sx, sy, Math.ceil(tilePx), Math.ceil(tilePx));
+      if ((x + y) % 7 === 0 && tilePx >= 6) {
+        ctx.fillStyle = MAP_STYLE.fog.seam;
+        ctx.fillRect(sx, sy, Math.ceil(tilePx), 1);
+        ctx.fillStyle = MAP_STYLE.fog.hidden;
+      }
+    }
+  }
+}
+
+function renderIntentTrails(
+  ctx: CanvasRenderingContext2D,
+  trails: readonly NpcIntentTrail[],
+  dims: ViewportDims,
+  state: ViewportState,
+) {
+  if (trails.length === 0) return;
+  const tilePx = dims.tileSize * state.zoom;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = MAP_STYLE.intent.stroke;
+  ctx.lineWidth = Math.max(1, Math.min(3, tilePx * 0.12));
+  for (const trail of trails) {
+    if (trail.from.x === trail.to.x && trail.from.y === trail.to.y) continue;
+    const fromX = trail.from.x * tilePx + state.offsetX + tilePx / 2;
+    const fromY = trail.from.y * tilePx + state.offsetY + tilePx / 2;
+    const toX = trail.to.x * tilePx + state.offsetX + tilePx / 2;
+    const toY = trail.to.y * tilePx + state.offsetY + tilePx / 2;
+    if (
+      (fromX < 0 && toX < 0) ||
+      (fromY < 0 && toY < 0) ||
+      (fromX > dims.screenWidth && toX > dims.screenWidth) ||
+      (fromY > dims.screenHeight && toY > dims.screenHeight)
+    ) {
+      continue;
+    }
+
+    const midX = (fromX + toX) / 2;
+    const midY = (fromY + toY) / 2;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(midX, midY);
+    ctx.stroke();
+
+    ctx.fillStyle = MAP_STYLE.intent.ember;
+    ctx.fillRect(Math.round(midX) - 1, Math.round(midY) - 1, 2, 2);
   }
 }
 
@@ -195,10 +723,21 @@ function hitTest(
 }
 
 export interface MapViewProps {
+  /** Mundo activo. Si se omite, se usa la fixture canónica para
+   *  tests/smoke; en partida real llega desde GameState. */
+  world?: WorldMap;
+  /** Niebla de guerra descubierta por visión de NPCs. */
+  fog?: FogState;
   /** NPCs a renderizar encima del mapa. Vacío si solo mostramos el
    *  tablero. Elegidos como diamante amarillo; Ciudadanos como
    *  círculo blanco. */
   npcs?: readonly NPC[];
+  /** Crafteables materializados en el mundo: fogata, refugio,
+   *  despensa, etc. Se pintan bajo los NPCs. */
+  structures?: readonly Structure[];
+  /** Rastros de intención calculados fuera del canvas con la misma
+   *  decisión que usa el tick de simulación. */
+  intentTrails?: readonly NpcIntentTrail[];
   /** Callback al clickear un NPC. Sprint FICHA-AVENTURERO lo
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
@@ -218,15 +757,19 @@ interface HoverState {
 }
 
 export function MapView({
+  world = WORLD,
+  fog,
   npcs = [],
+  structures = [],
+  intentTrails = [],
   onNpcClick,
   initialCenter,
 }: MapViewProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dims, setDims] = useState<ViewportDims>({
-    worldWidth: WORLD.width,
-    worldHeight: WORLD.height,
+    worldWidth: world.width,
+    worldHeight: world.height,
     tileSize: TILE_SIZE,
     screenWidth: 1024,
     screenHeight: 768,
@@ -249,6 +792,8 @@ export function MapView({
       const rect = el.getBoundingClientRect();
       const nextDims: ViewportDims = {
         ...dims,
+        worldWidth: world.width,
+        worldHeight: world.height,
         screenWidth: rect.width,
         screenHeight: rect.height,
       };
@@ -278,11 +823,15 @@ export function MapView({
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialCenter]);
+  }, [initialCenter, world.width, world.height]);
 
   const placements = useMemo(
     () => placeMarkers(npcs, dims, viewport),
     [npcs, dims, viewport],
+  );
+  const activeResourceCount = useMemo(
+    () => world.resources.reduce((n, r) => n + (r.quantity > 0 ? 1 : 0), 0),
+    [world.resources],
   );
 
   // Redibuja en cada cambio de dims/viewport/placements.
@@ -293,9 +842,13 @@ export function MapView({
     canvas.height = dims.screenHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    renderTiles(ctx, WORLD, dims, viewport);
+    renderTiles(ctx, world, dims, viewport);
+    renderResources(ctx, world.resources, dims, viewport, world);
+    renderStructures(ctx, structures, dims, viewport);
+    renderFogOverlay(ctx, fog, dims, viewport, world);
+    renderIntentTrails(ctx, intentTrails, dims, viewport);
     renderNPCs(ctx, placements);
-  }, [dims, viewport, placements]);
+  }, [dims, viewport, placements, structures, world, fog, intentTrails]);
 
   // Drag.
   const draggingRef = useRef<{ x: number; y: number; moved: boolean } | null>(
@@ -395,6 +948,10 @@ export function MapView({
         ref={canvasRef}
         data-testid="map-view-canvas"
         data-npc-count={placements.length}
+        data-structure-count={structures.length}
+        data-resource-count={activeResourceCount}
+        data-fog-enabled={fog ? 'true' : 'false'}
+        data-intent-count={intentTrails.length}
         style={{ display: 'block', cursor, imageRendering: 'pixelated' }}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}

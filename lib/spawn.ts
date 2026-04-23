@@ -60,6 +60,10 @@ function tileAt(world: WorldMap, x: number, y: number): number {
   return world.tiles[y * world.width + x];
 }
 
+function isLandTile(tile: number): boolean {
+  return tile !== TILE.WATER && tile !== TILE.SHALLOW_WATER;
+}
+
 /** 4-vecinos flood-fill. Conectividad diagonal explícitamente
  *  excluida (dos tiles sólo cuentan como una isla si comparten
  *  arista, no esquina). */
@@ -70,7 +74,7 @@ export function findIslands(world: WorldMap): Island[] {
 
   for (let start = 0; start < tiles.length; start++) {
     if (visited[start]) continue;
-    if (tiles[start] === TILE.WATER) continue;
+    if (!isLandTile(tiles[start])) continue;
 
     const queue: number[] = [start];
     visited[start] = 1;
@@ -104,7 +108,7 @@ export function findIslands(world: WorldMap): Island[] {
         if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
         const nIdx = ny * width + nx;
         if (visited[nIdx]) continue;
-        if (tiles[nIdx] === TILE.WATER) continue;
+        if (!isLandTile(tiles[nIdx])) continue;
         visited[nIdx] = 1;
         queue.push(nIdx);
       }
@@ -113,7 +117,7 @@ export function findIslands(world: WorldMap): Island[] {
     const cx = Math.round(sumX / members.length);
     const cy = Math.round(sumY / members.length);
     let centroid: Position = { x: cx, y: cy };
-    if (!inside(world, cx, cy) || tileAt(world, cx, cy) === TILE.WATER) {
+    if (!inside(world, cx, cy) || !isLandTile(tileAt(world, cx, cy))) {
       // Miembro más cercano al centroide matemático (Manhattan).
       let bestD = Infinity;
       let best = members[0];
@@ -170,7 +174,7 @@ export function pickLandCells(
 ): Position[] {
   if (
     !inside(world, center.x, center.y) ||
-    tileAt(world, center.x, center.y) === TILE.WATER
+    !isLandTile(tileAt(world, center.x, center.y))
   ) {
     throw new Error(
       `pickLandCells: centro (${center.x},${center.y}) no es tierra`,
@@ -194,7 +198,7 @@ export function pickLandCells(
       if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) continue;
       const nIdx = ny * world.width + nx;
       if (visited[nIdx]) continue;
-      if (world.tiles[nIdx] === TILE.WATER) continue;
+      if (!isLandTile(world.tiles[nIdx])) continue;
       visited[nIdx] = 1;
       queue.push(nIdx);
     }

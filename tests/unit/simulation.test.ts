@@ -13,6 +13,7 @@ import { makeTestNPC } from '@/lib/npcs';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 import type { NPC } from '@/lib/npcs';
 import { isDiscovered } from '@/lib/fog';
+import { CRAFTABLE } from '@/lib/crafting';
 
 function mkFlatWorld(w = 32, h = 32): WorldMap {
   return {
@@ -117,6 +118,85 @@ describe('tick — movimiento hacia comida', () => {
     const endD =
       Math.abs(s.npcs[0].position.x - 10) + Math.abs(s.npcs[0].position.y - 10);
     expect(endD).toBeLessThan(startD);
+  });
+
+  it('NPC puede nadar lento en agua poco profunda para pescar', () => {
+    const world = mkFlatWorld(5, 3);
+    world.tiles[1] = TILE.SHALLOW_WATER;
+    world.tiles[2] = TILE.SHALLOW_WATER;
+    world.resources.push({
+      id: RESOURCE.FISH,
+      x: 2,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'swimmer',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 30, socializacion: 80 },
+    });
+    let s = initialGameState(1, [npc], world);
+
+    s = tick(s);
+    expect(s.npcs[0].position).toEqual({ x: 1, y: 0 });
+    s = tick(s);
+    expect(s.npcs[0].position).toEqual({ x: 1, y: 0 });
+    s = tick(s);
+    expect(s.npcs[0].position).toEqual({ x: 1, y: 0 });
+    s = tick(s);
+    expect(s.npcs[0].position).toEqual({ x: 2, y: 0 });
+    expect(s.npcs[0].inventory.fish).toBeGreaterThan(0);
+  });
+
+  it('NPC no puede cruzar agua profunda', () => {
+    const world = mkFlatWorld(5, 3);
+    world.tiles[1] = TILE.WATER;
+    world.tiles[6] = TILE.WATER;
+    world.tiles[11] = TILE.WATER;
+    world.tiles[2] = TILE.SHALLOW_WATER;
+    world.resources.push({
+      id: RESOURCE.FISH,
+      x: 2,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'blocked',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 30, socializacion: 80 },
+    });
+    let s = initialGameState(1, [npc], world);
+    for (let i = 0; i < 5; i++) s = tick(s);
+
+    expect(s.npcs[0].position).toEqual({ x: 0, y: 0 });
+    expect(s.npcs[0].inventory.fish).toBe(0);
+  });
+});
+
+describe('tick — prioridad estricta de construcción', () => {
+  it('no construye un crafteable posterior si el primero pendiente aún no puede construirse', () => {
+    const npc = makeTestNPC({
+      id: 'builder',
+      inventory: { wood: 0, stone: 0, berry: 0, game: 5, fish: 0 },
+      stats: { supervivencia: 90, socializacion: 90 },
+    });
+    const s = initialGameState(1, [npc], mkFlatWorld());
+
+    const after = tick(s);
+
+    // Antes esto construía piel_ropa porque era asequible, saltándose
+    // fogata_permanente. La prioridad debe reservar materiales para
+    // el primer crafteable pendiente.
+    expect(after.structures.map((x) => x.kind)).not.toContain(
+      CRAFTABLE.PIEL_ROPA,
+    );
+    expect(after.structures).toHaveLength(0);
   });
 });
 

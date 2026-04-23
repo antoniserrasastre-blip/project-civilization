@@ -22,7 +22,7 @@ function sha(w: WorldMap): string {
 }
 
 function isLand(t: TileId): boolean {
-  return t !== TILE.WATER;
+  return t !== TILE.WATER && t !== TILE.SHALLOW_WATER;
 }
 
 /** BFS 4-conex sobre tiles de tierra desde (sx, sy). Devuelve tiles
@@ -169,6 +169,12 @@ describe('generateWorld — distribución de recursos (§3.5 primigenia)', () =>
     }
   });
 
+  it('genera aguas profundas y poco profundas', () => {
+    const w = generateWorld(CANONICAL_SEED);
+    expect(w.tiles.includes(TILE.WATER)).toBe(true);
+    expect(w.tiles.includes(TILE.SHALLOW_WATER)).toBe(true);
+  });
+
   it('cantidades dentro de rangos sanos', () => {
     const w = generateWorld(CANONICAL_SEED);
     // Un mapa 512×512 debe tener entre 30 y 2000 spawns totales —
@@ -184,12 +190,12 @@ describe('generateWorld — distribución de recursos (§3.5 primigenia)', () =>
     }
   });
 
-  it('wood y berry solo sobre tierra; fish solo sobre agua', () => {
+  it('wood y berry solo sobre tierra; fish solo sobre agua poco profunda', () => {
     const w = generateWorld(CANONICAL_SEED);
     for (const r of w.resources) {
       const tile = w.tiles[r.y * w.width + r.x];
       if (r.id === RESOURCE.FISH) {
-        expect(tile).toBe(TILE.WATER);
+        expect(tile).toBe(TILE.SHALLOW_WATER);
       } else if (r.id === RESOURCE.WOOD || r.id === RESOURCE.BERRY) {
         expect(isLand(tile as TileId)).toBe(true);
       }

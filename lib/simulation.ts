@@ -46,10 +46,105 @@ import {
   type CraftableId,
 } from './crafting';
 import { addStructure } from './structures';
+import { TILE, type TileId } from './world-state';
 
 /** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
 const HUNGER_ESCAPE_LOW = 20;
 const HUNGER_ESCAPE_RECOVERY = 40;
+const SWIM_TICK_INTERVAL = 3;
+
+function tileAt(state: GameState, x: number, y: number): TileId {
+  return state.world.tiles[y * state.world.width + x] as TileId;
+}
+
+function isMovementPassable(tile: TileId): boolean {
+  // Primigenia: pueden nadar solo en aguas poco profundas.
+  // El coste temporal se aplica después del pathfinding para
+  // mantener A* entero y determinista.
+  return tile !== TILE.WATER;
+}
+
+export function canReachByNpcMovement(
+  state: GameState,
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+): boolean {
+  return reachableTilesByNpcMovement(state, from).has(
+    to.y * state.world.width + to.x,
+  );
+}
+
+function reachableTilesByNpcMovement(
+  state: GameState,
+  from: { x: number; y: number },
+): Set<number> {
+  const { world } = state;
+  const start = from.y * world.width + from.x;
+  const seen = new Set<number>();
+  if (
+    from.x < 0 ||
+    from.y < 0 ||
+    from.x >= world.width ||
+    from.y >= world.height ||
+    !isMovementPassable(world.tiles[start] as TileId)
+  ) {
+    return seen;
+  }
+  const queue: number[] = [start];
+  let head = 0;
+  seen.add(start);
+  while (head < queue.length) {
+    const cur = queue[head++];
+    const x = cur % world.width;
+    const y = Math.floor(cur / world.width);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) {
+        continue;
+      }
+      const idx = ny * world.width + nx;
+      if (seen.has(idx)) continue;
+      if (!isMovementPassable(world.tiles[idx] as TileId)) continue;
+      seen.add(idx);
+      queue.push(idx);
+    }
+  }
+  return seen;
+}
+
+export function makeNpcReachabilityChecker(
+  state: GameState,
+): (from: { x: number; y: number }, to: { x: number; y: number }) => boolean {
+  const cache = new Map<string, Set<number>>();
+  return (from, to) => {
+    const key = `${from.x},${from.y}`;
+    let reachable = cache.get(key);
+    if (!reachable) {
+      reachable = reachableTilesByNpcMovement(state, from);
+      cache.set(key, reachable);
+    }
+    return reachable.has(to.y * state.world.width + to.x);
+  };
+}
+
+function canMoveThisTick(
+  state: GameState,
+  npc: NPC,
+  nextStep: { x: number; y: number },
+): boolean {
+  const currentTile = tileAt(state, npc.position.x, npc.position.y);
+  const nextTile = tileAt(state, nextStep.x, nextStep.y);
+  const swimming =
+    currentTile === TILE.SHALLOW_WATER || nextTile === TILE.SHALLOW_WATER;
+  if (!swimming) return true;
+  return state.tick % SWIM_TICK_INTERVAL === 0;
+}
 
 /**
  * Diffs prev/post un tick de NPCs para detectar transiciones
@@ -113,29 +208,27 @@ const BUILD_PRIORITY: CraftableId[] = [
 function tryAutoBuild(state: GameState): GameState {
   const existing = new Set(state.structures.map((s) => s.kind));
   const inv = clanInventoryTotal(state.npcs);
-  for (const kind of BUILD_PRIORITY) {
-    if (existing.has(kind)) continue;
-    const recipe = RECIPES[kind];
-    if (!canBuild(recipe, inv)) continue;
-    const npcs = consumeForRecipe(state.npcs, recipe);
-    // Posición: el primer NPC vivo (determinista). La plaza real
-    // del clan la decidiremos con diseño mejorado; por ahora el
-    // asentamiento no tiene "centro" canónico.
-    const anchor =
-      state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
-    const structures = addStructure(
-      state.structures,
-      kind,
-      anchor.position,
-      state.tick,
-      state.structures.length,
-    );
-    return { ...state, npcs, structures };
-  }
-  return state;
+  const kind = BUILD_PRIORITY.find((k) => !existing.has(k));
+  if (!kind) return state;
+  const recipe = RECIPES[kind];
+  if (!canBuild(recipe, inv)) return state;
+  const npcs = consumeForRecipe(state.npcs, recipe);
+  // Posición: el primer NPC vivo (determinista). La plaza real
+  // del clan la decidiremos con diseño mejorado; por ahora el
+  // asentamiento no tiene "centro" canónico.
+  const anchor =
+    state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
+  const structures = addStructure(
+    state.structures,
+    kind,
+    anchor.position,
+    state.tick,
+    state.structures.length,
+  );
+  return { ...state, npcs, structures };
 }
 
-function nextBuildPriority(state: GameState): CraftableId | undefined {
+export function nextBuildPriority(state: GameState): CraftableId | undefined {
   const existing = new Set(state.structures.map((s) => s.kind));
   for (const kind of BUILD_PRIORITY) {
     if (!existing.has(kind)) return kind;
@@ -155,6 +248,7 @@ export function tick(state: GameState): GameState {
     firePosition: fire?.position,
     currentTick: state.tick,
     ticksPerDay: TICKS_PER_DAY,
+    isReachable: makeNpcReachabilityChecker(state),
   };
   const newNPCs: NPC[] = [];
   let prng = state.prng;
@@ -176,7 +270,7 @@ export function tick(state: GameState): GameState {
       npc.position,
       dest,
       prng,
-      { maxExpand: 2000 },
+      { maxExpand: 2000, passable: isMovementPassable },
     );
     prng = r.next;
     if (!r.path || r.path.length < 2) {
@@ -186,6 +280,11 @@ export function tick(state: GameState): GameState {
       continue;
     }
     const nextStep = r.path[1];
+    if (!canMoveThisTick(state, npc, nextStep)) {
+      newNPCs.push(npc);
+      fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
+      continue;
+    }
     const moved: NPC = { ...npc, position: { ...nextStep } };
     newNPCs.push(moved);
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);

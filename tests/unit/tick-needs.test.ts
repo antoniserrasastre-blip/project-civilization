@@ -94,7 +94,42 @@ describe('Recovery on-the-spot', () => {
       stats: { supervivencia: 60, socializacion: 60 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    expect(after.stats.supervivencia).toBeGreaterThan(60);
+    expect(after.stats.supervivencia).toBe(70);
+  });
+
+  it('NPC sobre caza recupera más que sobre baya', () => {
+    const berryWorld = mkWorld();
+    berryWorld.resources.push({
+      id: RESOURCE.BERRY,
+      x: 5,
+      y: 5,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const gameWorld = mkWorld();
+    gameWorld.resources.push({
+      id: RESOURCE.GAME,
+      x: 5,
+      y: 5,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 5, y: 5 },
+      stats: { supervivencia: 40, socializacion: 60 },
+    });
+
+    const [berry] = tickNeeds([npc], { world: berryWorld, npcs: [npc] });
+    const [game] = tickNeeds([npc], { world: gameWorld, npcs: [npc] });
+
+    expect(game.stats.supervivencia).toBeGreaterThan(
+      berry.stats.supervivencia,
+    );
   });
 
   it('clamp superior en 100', () => {
@@ -115,6 +150,153 @@ describe('Recovery on-the-spot', () => {
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc] });
     expect(after.stats.supervivencia).toBe(100);
+  });
+});
+
+describe('Consumo de comida en inventario', () => {
+  it('NPC con baya en inventario consume 1 y recupera supervivencia', () => {
+    const world = mkWorld();
+    const npc = makeTestNPC({
+      id: 'n',
+      stats: { supervivencia: 35, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0 },
+    });
+
+    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+
+    expect(after.inventory.berry).toBe(1);
+    expect(after.stats.supervivencia).toBe(45);
+  });
+
+  it('consume comida en orden berry → fish → game de forma determinista', () => {
+    const world = mkWorld();
+    const npc = makeTestNPC({
+      id: 'n',
+      stats: { supervivencia: 35, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 1 },
+    });
+
+    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+
+    expect(after.inventory).toMatchObject({ berry: 0, game: 1, fish: 0 });
+  });
+
+  it('no come automáticamente si la supervivencia aún está holgada', () => {
+    const world = mkWorld();
+    const npc = makeTestNPC({
+      id: 'n',
+      stats: { supervivencia: 70, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0 },
+    });
+
+    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+
+    expect(after.inventory.berry).toBe(2);
+    expect(after.stats.supervivencia).toBe(
+      70 - NEED_TICK_RATES.supervivenciaDecay,
+    );
+  });
+
+  it('game llena más que fish y fish más que berry', () => {
+    const world = mkWorld();
+    const berry = makeTestNPC({
+      id: 'berry',
+      stats: { supervivencia: 30, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+    });
+    const fish = makeTestNPC({
+      id: 'fish',
+      stats: { supervivencia: 30, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 1 },
+    });
+    const game = makeTestNPC({
+      id: 'game',
+      stats: { supervivencia: 30, socializacion: 60 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 0 },
+    });
+
+    const [afterBerry, afterFish, afterGame] = tickNeeds(
+      [berry, fish, game],
+      { world, npcs: [berry, fish, game] },
+    );
+
+    expect(afterFish.stats.supervivencia).toBeGreaterThan(
+      afterBerry.stats.supervivencia,
+    );
+    expect(afterGame.stats.supervivencia).toBeGreaterThan(
+      afterFish.stats.supervivencia,
+    );
+  });
+
+  it('con fogata la comida cocinada llena más y sube socialización', () => {
+    const world = mkWorld();
+    const npc = makeTestNPC({
+      id: 'n',
+      stats: { supervivencia: 35, socializacion: 40 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+    });
+
+    const [raw] = tickNeeds([npc], { world, npcs: [npc] });
+    const [cooked] = tickNeeds([npc], {
+      world,
+      npcs: [npc],
+      firePosition: { x: 0, y: 0 },
+    });
+
+    expect(cooked.stats.supervivencia).toBeGreaterThan(
+      raw.stats.supervivencia,
+    );
+    expect(cooked.stats.socializacion).toBeGreaterThan(raw.stats.socializacion);
+  });
+
+  it('un NPC hambriento recibe comida de un compañero cercano', () => {
+    const world = mkWorld();
+    const hungry = makeTestNPC({
+      id: 'hungry',
+      position: { x: 5, y: 5 },
+      stats: { supervivencia: 35, socializacion: 40 },
+    });
+    const donor = makeTestNPC({
+      id: 'donor',
+      position: { x: 6, y: 5 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+    });
+
+    const [afterHungry, afterDonor] = tickNeeds([hungry, donor], {
+      world,
+      npcs: [hungry, donor],
+    });
+
+    expect(afterHungry.stats.supervivencia).toBeGreaterThan(35);
+    expect(afterDonor.inventory.berry).toBe(0);
+  });
+
+  it('con fogata el reparto de comida es comunal aunque estén lejos', () => {
+    const world = mkWorld();
+    const hungry = makeTestNPC({
+      id: 'hungry',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 35, socializacion: 40 },
+    });
+    const donor = makeTestNPC({
+      id: 'donor',
+      position: { x: 19, y: 19 },
+      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0 },
+    });
+
+    const [withoutFire] = tickNeeds([hungry, donor], {
+      world,
+      npcs: [hungry, donor],
+    });
+    const [withFire, donorAfterFire] = tickNeeds([hungry, donor], {
+      world,
+      npcs: [hungry, donor],
+      firePosition: { x: 10, y: 10 },
+    });
+
+    expect(withoutFire.stats.supervivencia).toBeLessThan(35);
+    expect(withFire.stats.supervivencia).toBeGreaterThan(35);
+    expect(donorAfterFire.inventory.berry).toBe(0);
   });
 });
 

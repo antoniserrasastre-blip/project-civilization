@@ -18,4 +18,5 @@ export const TILE_COLOR: Record<TileId, string> = {
   [TILE.FOREST]: '#2f5132',
   [TILE.MOUNTAIN]: '#7a6a5a',
   [TILE.SAND]: '#e7d8a8',
+  [TILE.SHALLOW_WATER]: '#5f8eb1',
 };

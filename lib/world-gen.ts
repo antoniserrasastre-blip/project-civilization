@@ -166,6 +166,40 @@ function markShore(tiles: TileId[], width: number, height: number): void {
   for (const idx of toShore) tiles[idx] = TILE.SHORE;
 }
 
+function markShallowWater(
+  tiles: TileId[],
+  width: number,
+  height: number,
+  depth: number,
+): void {
+  for (let step = 0; step < depth; step++) {
+    const toShallow: number[] = [];
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        if (tiles[idx] !== TILE.WATER) continue;
+        const left = x > 0 ? tiles[idx - 1] : TILE.WATER;
+        const right = x < width - 1 ? tiles[idx + 1] : TILE.WATER;
+        const up = y > 0 ? tiles[idx - width] : TILE.WATER;
+        const down = y < height - 1 ? tiles[idx + width] : TILE.WATER;
+        if (
+          left === TILE.SHORE ||
+          right === TILE.SHORE ||
+          up === TILE.SHORE ||
+          down === TILE.SHORE ||
+          left === TILE.SHALLOW_WATER ||
+          right === TILE.SHALLOW_WATER ||
+          up === TILE.SHALLOW_WATER ||
+          down === TILE.SHALLOW_WATER
+        ) {
+          toShallow.push(idx);
+        }
+      }
+    }
+    for (const idx of toShallow) tiles[idx] = TILE.SHALLOW_WATER;
+  }
+}
+
 function placeClusters(
   prngIn: PRNGState,
   tiles: TileId[],
@@ -219,7 +253,7 @@ function spawnResources(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const tile = tiles[y * width + x];
-      if (tile === TILE.WATER) continue;
+      if (tile === TILE.WATER || tile === TILE.SHALLOW_WATER) continue;
       const r = prngNext(prng);
       prng = r.next;
       if (tile === TILE.FOREST && r.value < 0.15) {
@@ -300,7 +334,7 @@ function spawnFish(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
-      if (tiles[idx] !== TILE.WATER) continue;
+      if (tiles[idx] !== TILE.SHALLOW_WATER) continue;
       let hasShore = false;
       if (x > 0 && tiles[idx - 1] === TILE.SHORE) hasShore = true;
       else if (x < width - 1 && tiles[idx + 1] === TILE.SHORE)
@@ -351,6 +385,7 @@ export function generateWorld(
   const tiles: TileId[] = new Array<TileId>(width * height).fill(TILE.WATER);
   fillTerrain(tiles, width, height, placed.islands);
   markShore(tiles, width, height);
+  markShallowWater(tiles, width, height, 2);
 
   // Cluster counts escalados al tamaño del mapa. Densidad baja para
   // mantener recursos totales ≤ 2000 en el default 512×512.
@@ -404,4 +439,3 @@ export function generateWorld(
     },
   };
 }
-

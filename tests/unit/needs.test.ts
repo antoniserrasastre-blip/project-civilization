@@ -14,6 +14,7 @@ import {
   NEED_THRESHOLDS,
   type DestinationContext,
 } from '@/lib/needs';
+import { CRAFTABLE } from '@/lib/crafting';
 import { makeTestNPC } from '@/lib/npcs';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 
@@ -129,6 +130,98 @@ describe('decideDestination — prioridades', () => {
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r).toEqual({ x: 7, y: 7 });
+  });
+
+  it('supervivencia baja con comida en inventario no bloquea construcción', () => {
+    const world = mkWorld(20, 20);
+    world.resources.push({
+      id: RESOURCE.STONE,
+      x: 10,
+      y: 10,
+      quantity: 20,
+      initialQuantity: 20,
+      regime: 'depletable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 35, socializacion: 90 },
+      inventory: { wood: 5, stone: 0, berry: 3, game: 0, fish: 0 },
+    });
+    const ctx: DestinationContext = {
+      world,
+      npcs: [npc],
+      nextBuildPriority: CRAFTABLE.FOGATA_PERMANENTE,
+    };
+
+    expect(decideDestination(npc, ctx)).toEqual({ x: 10, y: 10 });
+  });
+
+  it('si ya está recuperándose en agua, no alterna hacia comida al cruzar crítico', () => {
+    const world = mkWorld(20, 20);
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 3,
+      y: 3,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.GAME,
+      x: 3,
+      y: 8,
+      quantity: 5,
+      initialQuantity: 5,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 3, y: 3 },
+      stats: { supervivencia: 21, socializacion: 80 },
+    });
+
+    expect(decideDestination(npc, mkCtx(world, [npc]))).toEqual({
+      x: 3,
+      y: 3,
+    });
+  });
+
+  it('si ya está recuperándose en comida, espera hasta estar listo', () => {
+    const world = mkWorld(20, 20);
+    world.resources.push({
+      id: RESOURCE.BERRY,
+      x: 2,
+      y: 2,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.STONE,
+      x: 10,
+      y: 10,
+      quantity: 20,
+      initialQuantity: 20,
+      regime: 'depletable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 2, y: 2 },
+      stats: { supervivencia: 45, socializacion: 90 },
+    });
+    const ctx: DestinationContext = {
+      world,
+      npcs: [npc],
+      nextBuildPriority: CRAFTABLE.FOGATA_PERMANENTE,
+    };
+
+    expect(decideDestination(npc, ctx)).toEqual({ x: 2, y: 2 });
   });
 });
 

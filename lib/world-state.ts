@@ -15,6 +15,7 @@ export const TILE = {
   FOREST: 3,
   MOUNTAIN: 4,
   SAND: 5,
+  SHALLOW_WATER: 6,
 } as const;
 
 export type TileId = (typeof TILE)[keyof typeof TILE];

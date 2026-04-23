@@ -22,7 +22,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { MapView } from '@/components/map/MapView';
+import { MapView, type NpcIntentTrail } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
 import { HUD } from '@/components/era/HUD';
 import { ChronicleFeed } from '@/components/era/ChronicleFeed';
@@ -33,9 +33,16 @@ import { initialGameState } from '@/lib/game-state';
 import { defaultClanSpawn, makeDefaultClan } from '@/lib/default-clan';
 import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
-import { tick as tickSim } from '@/lib/simulation';
+import {
+  makeNpcReachabilityChecker,
+  nextBuildPriority,
+  tick as tickSim,
+} from '@/lib/simulation';
 import { summarizeClanState } from '@/lib/clan-context';
 import { grantMiracle, type MiracleId } from '@/lib/miracles';
+import { decideDestination } from '@/lib/needs';
+import { firstStructureOfKind } from '@/lib/structures';
+import { CRAFTABLE } from '@/lib/crafting';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -69,6 +76,33 @@ export function GameShell({ seed }: GameShellProps) {
     () => summarizeClanState(state.npcs, state.tick),
     [state.npcs, state.tick],
   );
+  const intentTrails = useMemo<NpcIntentTrail[]>(() => {
+    const fire = firstStructureOfKind(
+      state.structures,
+      CRAFTABLE.FOGATA_PERMANENTE,
+    );
+    const isReachable = makeNpcReachabilityChecker(state);
+    const ctx = {
+      world: state.world,
+      npcs: state.npcs,
+      nextBuildPriority: nextBuildPriority(state),
+      firePosition: fire?.position,
+      currentTick: state.tick,
+      ticksPerDay: TICKS_PER_DAY,
+      isReachable,
+    };
+    return state.npcs
+      .filter((npc) => npc.alive)
+      .map((npc) => ({
+        npcId: npc.id,
+        from: npc.position,
+        to: decideDestination(npc, ctx),
+      }))
+      .filter(
+        (trail) =>
+          trail.from.x !== trail.to.x || trail.from.y !== trail.to.y,
+      );
+  }, [state]);
 
   useEffect(() => {
     if (state.era !== 'primigenia') return;
@@ -135,7 +169,11 @@ export function GameShell({ seed }: GameShellProps) {
       style={{ margin: 0, padding: 0, height: '100vh', overflow: 'hidden' }}
     >
       <MapView
+        world={state.world}
+        fog={state.fog}
         npcs={state.npcs}
+        structures={state.structures}
+        intentTrails={intentTrails}
         onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter}
       />

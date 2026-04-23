@@ -38,7 +38,7 @@ export interface FindPathResult {
 const DEFAULT_MAX_EXPAND = 10_000;
 
 function defaultPassable(tile: TileId): boolean {
-  return tile !== TILE.WATER;
+  return tile !== TILE.WATER && tile !== TILE.SHALLOW_WATER;
 }
 
 interface Node {

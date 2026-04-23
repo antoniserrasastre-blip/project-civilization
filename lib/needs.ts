@@ -28,8 +28,22 @@ import type { CraftableId } from './crafting';
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
   supervivenciaHungry: 40,
+  /** Por debajo de este valor comen si llevan comida. 55 con
+   *  decay=1/tick produce ~2-3 comidas/día con bayas. */
+  supervivenciaEatFromInventory: 55,
+  /** Sin comida cargada, no aceptan trabajos largos si están bajos. */
+  supervivenciaBuildReady: 55,
   socializacionLow: 30,
 } as const;
+
+const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
+  berry: 10,
+  fish: 14,
+  game: 22,
+};
+
+const COOKED_FOOD_MULTIPLIER = 1.5;
+const COOKED_FOOD_SOCIAL_BONUS = 3;
 
 export interface DestinationContext {
   world: WorldMap;
@@ -45,6 +59,9 @@ export interface DestinationContext {
   currentTick?: number;
   /** Ticks por día del mundo. */
   ticksPerDay?: number;
+  /** Filtro opcional de alcanzabilidad. Si existe, los recursos
+   *  inalcanzables no se eligen como destino. */
+  isReachable?: (from: Position, to: Position) => boolean;
 }
 
 export interface Position {
@@ -60,11 +77,14 @@ function nearestResource(
   from: Position,
   resources: readonly ResourceSpawn[],
   acceptable: (id: ResourceId) => boolean,
+  isReachable?: (from: Position, to: Position) => boolean,
 ): Position | null {
   let best: { d: number; x: number; y: number } | null = null;
   for (const r of resources) {
     if (r.quantity <= 0) continue;
     if (!acceptable(r.id)) continue;
+    const pos = { x: r.x, y: r.y };
+    if (isReachable && !isReachable(from, pos)) continue;
     const d = manhattan(from.x, from.y, r.x, r.y);
     if (
       !best ||
@@ -93,11 +113,42 @@ function centroidOfAlive(npcs: readonly NPC[]): Position | null {
 
 const FOOD_IDS: ResourceId[] = [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH];
 
+function carriedFood(npc: NPC): number {
+  return npc.inventory.berry + npc.inventory.game + npc.inventory.fish;
+}
+
+function recoveryResourceAtPosition(
+  position: Position,
+  world: WorldMap,
+): ResourceId | null {
+  for (const r of world.resources) {
+    if (r.x !== position.x || r.y !== position.y) continue;
+    if (r.quantity <= 0) continue;
+    if (
+      r.id === RESOURCE.BERRY ||
+      r.id === RESOURCE.GAME ||
+      r.id === RESOURCE.FISH ||
+      r.id === RESOURCE.WATER
+    ) {
+      return r.id;
+    }
+  }
+  return null;
+}
+
 export function decideDestination(
   npc: NPC,
   ctx: DestinationContext,
 ): Position {
   const { supervivencia, socializacion } = npc.stats;
+  const currentRecovery = recoveryResourceAtPosition(npc.position, ctx.world);
+  if (currentRecovery) {
+    const leaveThreshold =
+      currentRecovery === RESOURCE.WATER
+        ? NEED_THRESHOLDS.supervivenciaHungry
+        : NEED_THRESHOLDS.supervivenciaBuildReady;
+    if (supervivencia < leaveThreshold) return npc.position;
+  }
 
   // Dusk → vuelve a la fogata si existe y el NPC no está crítico.
   // Garantiza que el contador de noches consecutivas (Sprint 4.6)
@@ -106,7 +157,8 @@ export function decideDestination(
     ctx.firePosition &&
     ctx.currentTick !== undefined &&
     ctx.ticksPerDay !== undefined &&
-    supervivencia >= NEED_THRESHOLDS.supervivenciaCritical
+    (supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady ||
+      carriedFood(npc) > 0)
   ) {
     const duskStart = Math.floor(ctx.ticksPerDay * 0.75);
     const posInDay = ctx.currentTick % ctx.ticksPerDay;
@@ -120,15 +172,20 @@ export function decideDestination(
       npc.position,
       ctx.world.resources,
       (id) => id === RESOURCE.WATER,
+      ctx.isReachable,
     );
     if (water) return water;
   }
 
-  if (supervivencia < NEED_THRESHOLDS.supervivenciaHungry) {
+  if (
+    supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady &&
+    carriedFood(npc) === 0
+  ) {
     const food = nearestResource(
       npc.position,
       ctx.world.resources,
       (id) => FOOD_IDS.includes(id),
+      ctx.isReachable,
     );
     if (food) return food;
   }
@@ -140,7 +197,8 @@ export function decideDestination(
 
   // Recolección proactiva para el próximo crafteable (Pilar 2 —
   // el mundo cambia sin tocarlo). Solo si el NPC está bien de
-  // stats; sino las necesidades personales tienen prioridad.
+  // stats o lleva comida; sino forrajear tiene prioridad para no
+  // convertir trayectos largos de piedra/leña en muertes evitables.
   if (ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
     const missing = missingResourceFor(recipe, ctx.npcs);
@@ -149,6 +207,7 @@ export function decideDestination(
         npc.position,
         ctx.world.resources,
         (id) => matchesMissing(id, missing),
+        ctx.isReachable,
       );
       if (spawn) return spawn;
     }
@@ -205,23 +264,68 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
 }
 
-function isOnRecoverySpawn(
-  npc: NPC,
-  world: WorldMap,
-): boolean {
-  for (const r of world.resources) {
-    if (r.x !== npc.position.x || r.y !== npc.position.y) continue;
-    if (r.quantity <= 0) continue;
+function consumeInventoryFood(npc: NPC): {
+  npc: NPC;
+  nutrition: number;
+  kind: 'berry' | 'fish' | 'game' | null;
+} {
+  const inventory = { ...npc.inventory };
+  let kind: 'berry' | 'fish' | 'game' | null = null;
+  if (inventory.berry > 0) {
+    inventory.berry -= 1;
+    kind = 'berry';
+  } else if (inventory.fish > 0) {
+    inventory.fish -= 1;
+    kind = 'fish';
+  } else if (inventory.game > 0) {
+    inventory.game -= 1;
+    kind = 'game';
+  } else {
+    return { npc, nutrition: 0, kind: null };
+  }
+  return {
+    npc: { ...npc, inventory },
+    nutrition: FOOD_NUTRITION[kind],
+    kind,
+  };
+}
+
+function donorDistance(a: NPC, b: NPC): number {
+  return (
+    Math.abs(a.position.x - b.position.x) +
+    Math.abs(a.position.y - b.position.y)
+  );
+}
+
+function findFoodDonorIndex(
+  hungry: NPC,
+  npcs: readonly NPC[],
+  communal: boolean,
+): number {
+  let best = -1;
+  for (let i = 0; i < npcs.length; i++) {
+    const donor = npcs[i];
+    if (!donor.alive || donor.id === hungry.id || carriedFood(donor) === 0) {
+      continue;
+    }
     if (
-      r.id === RESOURCE.BERRY ||
-      r.id === RESOURCE.GAME ||
-      r.id === RESOURCE.FISH ||
-      r.id === RESOURCE.WATER
+      !communal &&
+      donorDistance(hungry, donor) > NEED_TICK_RATES.socialRadius
     ) {
-      return true;
+      continue;
+    }
+    if (best === -1) {
+      best = i;
+      continue;
+    }
+    const currentBest = npcs[best];
+    const d = donorDistance(hungry, donor);
+    const bestD = donorDistance(hungry, currentBest);
+    if (d < bestD || (d === bestD && donor.id < currentBest.id)) {
+      best = i;
     }
   }
-  return false;
+  return best;
 }
 
 function companionsInRadius(npc: NPC, npcs: readonly NPC[]): number {
@@ -247,13 +351,51 @@ export function tickNeeds(
   npcs: readonly NPC[],
   ctx: DestinationContext,
 ): NPC[] {
-  return npcs.map((n) => {
-    if (!n.alive) return n;
-    let sv = n.stats.supervivencia;
+  const out = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
+  for (let i = 0; i < out.length; i++) {
+    const n = out[i];
+    if (!n.alive) continue;
+    let npc = n;
+    let sv = npc.stats.supervivencia;
     let so = n.stats.socializacion;
 
-    if (isOnRecoverySpawn(n, ctx.world)) {
+    const recoveryResource = recoveryResourceAtPosition(npc.position, ctx.world);
+    if (recoveryResource === RESOURCE.WATER) {
       sv += NEED_TICK_RATES.supervivenciaRecover;
+    } else if (recoveryResource === RESOURCE.BERRY) {
+      sv += FOOD_NUTRITION.berry;
+    } else if (recoveryResource === RESOURCE.FISH) {
+      sv += FOOD_NUTRITION.fish;
+    } else if (recoveryResource === RESOURCE.GAME) {
+      sv += FOOD_NUTRITION.game;
+    } else if (
+      sv < NEED_THRESHOLDS.supervivenciaEatFromInventory &&
+      carriedFood(npc) > 0
+    ) {
+      const meal = consumeInventoryFood(npc);
+      npc = meal.npc;
+      const cooked = ctx.firePosition !== undefined;
+      sv += cooked
+        ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER)
+        : meal.nutrition;
+      if (cooked && meal.kind) so += COOKED_FOOD_SOCIAL_BONUS;
+    } else if (sv < NEED_THRESHOLDS.supervivenciaEatFromInventory) {
+      const donorIndex = findFoodDonorIndex(
+        npc,
+        out,
+        ctx.firePosition !== undefined,
+      );
+      if (donorIndex !== -1) {
+        const meal = consumeInventoryFood(out[donorIndex]);
+        out[donorIndex] = meal.npc;
+        const cooked = ctx.firePosition !== undefined;
+        sv += cooked
+          ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER)
+          : meal.nutrition;
+        so += cooked ? COOKED_FOOD_SOCIAL_BONUS : 1;
+      } else {
+        sv -= NEED_TICK_RATES.supervivenciaDecay;
+      }
     } else {
       sv -= NEED_TICK_RATES.supervivenciaDecay;
     }
@@ -283,10 +425,11 @@ export function tickNeeds(
     so = clamp(so, 0, 100);
     const alive = sv > 0;
 
-    return {
-      ...n,
+    out[i] = {
+      ...npc,
       stats: { supervivencia: sv, socializacion: so },
       alive,
     };
-  });
+  }
+  return out;
 }
