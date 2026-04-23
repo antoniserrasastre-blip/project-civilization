@@ -81,13 +81,17 @@ export interface Position {
 /** Inventario personal del NPC. Enteros; cap por tipo en
  *  INVENTORY_CAP_PER_TYPE (constante viva en lib/harvest.ts).
  *  Agua no se guarda — se consume on-the-spot (recovery vía
- *  tickNeeds). */
+ *  tickNeeds).
+ *  Sprint 9: obsidiana (montaña) y concha (costa) para recetas
+ *  de Lanza y Cesta respectivamente — fuerzan nomadismo. */
 export interface NPCInventory {
   wood: number;
   stone: number;
   berry: number;
   game: number;
   fish: number;
+  obsidian: number;
+  shell: number;
 }
 
 /** NPC = entero individual del clan. Incluye Elegidos, Ciudadanos y
@@ -152,7 +156,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     traits: [],
     birthTick: 0,
     alive: true,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
     equippedItemId: null,
     lastReproducedTick: null,
     ...overrides,

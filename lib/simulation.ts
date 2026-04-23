@@ -54,7 +54,7 @@ import { CHRONICLE_MAX } from './game-state';
 import { narrate } from './chronicle';
 import { ITEM_KIND, type EquippableItem } from './items';
 import { canCraftItem, craftItem, ITEM_RECIPES } from './item-crafting';
-import { checkEureka } from './eureka';
+import { checkEureka, detectUnlockTrigger, canAutoCraft } from './eureka';
 import { transferLegacyItem } from './legacy';
 
 /** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
@@ -284,6 +284,7 @@ export function tick(state: GameState): GameState {
     currentTick: state.tick,
     ticksPerDay: TICKS_PER_DAY,
     isReachable: makeNpcReachabilityChecker(state),
+    items: state.items ?? [],
   };
   const newNPCs: NPC[] = [];
   let prng = state.prng;
@@ -384,6 +385,14 @@ export function tick(state: GameState): GameState {
     }
   }
 
+  // Detección de triggers de desbloqueo Eureka (primera herida / exceso wood).
+  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy);
+  const newlyUnlocked = detectUnlockTrigger(state.npcs, npcsAfterLegacy, clanInvForTrigger);
+  const unlockedSet = new Set([
+    ...(afterBuild.unlockedItemKinds ?? []),
+    ...newlyUnlocked,
+  ]);
+
   // Item auto-craft — un item por tick, orden por ITEM_KIND. Similar al
   // auto-build de estructuras pero produce EquippableItem, no Structure.
   const existingKinds = new Set(itemsAfterLegacy.map((i) => i.kind));
@@ -397,6 +406,7 @@ export function tick(state: GameState): GameState {
   let itemsAfterItemCraft = itemsAfterLegacy;
   for (const kind of itemCraftPriority) {
     if (existingKinds.has(kind)) continue;
+    if (!canAutoCraft(kind, unlockedSet)) continue;
     if (!canCraftItem(kind, npcsAfterItemCraft)) continue;
     const anchor = npcsAfterItemCraft.find((n) => n.alive) ?? null;
     const result = craftItem(
@@ -560,6 +570,7 @@ export function tick(state: GameState): GameState {
     prng: prngAfterRepro,
     chronicle: chronicleAfterRepro,
     items: itemsAfterEureka,
+    unlockedItemKinds: Array.from(unlockedSet),
     relations: state.relations,
     village: nextVillage,
   };

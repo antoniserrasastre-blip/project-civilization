@@ -280,6 +280,32 @@ function spawnResources(
           regime: 'depletable',
           depletedAtTick: null,
         });
+      } else if (tile === TILE.MOUNTAIN && r.value >= 0.2 && r.value < 0.26) {
+        // Obsidiana — rara, en montaña, depletable. Requiere nomadismo.
+        const q = nextInt(prng, 5, 20);
+        prng = q.next;
+        spawns.push({
+          id: RESOURCE.OBSIDIAN,
+          x,
+          y,
+          quantity: q.value,
+          initialQuantity: q.value,
+          regime: 'depletable',
+          depletedAtTick: null,
+        });
+      } else if (tile === TILE.SHORE && r.value >= 0.02 && r.value < 0.06) {
+        // Conchas — en costa, regenerables con las mareas.
+        const q = nextInt(prng, 5, 15);
+        prng = q.next;
+        spawns.push({
+          id: RESOURCE.SHELL,
+          x,
+          y,
+          quantity: q.value,
+          initialQuantity: q.value,
+          regime: 'regenerable',
+          depletedAtTick: null,
+        });
       } else if (tile === TILE.GRASS && r.value < 0.012) {
         const q = nextInt(prng, 5, 15);
         prng = q.next;

@@ -15,34 +15,44 @@ export interface ItemRecipe {
   inputs: Partial<Record<keyof NPCInventory, number>>;
   /** Días-hombre para construir la herramienta. */
   daysWork: number;
+  /** Si es true, la receta está bloqueada hasta un evento Eureka
+   *  (primera herida → Lanza; exceso de inventario → Cesta). */
+  requiresUnlock: boolean;
 }
 
-/** Recetas de herramientas. Costes calibrados para primigenia. */
+/** Recetas de herramientas. Costes calibrados para primigenia.
+ *  Lanza requiere obsidiana (montaña); Cesta requiere concha (costa).
+ *  Ambas necesitan evento Eureka previo para desbloquearse. */
 export const ITEM_RECIPES: Record<ItemKind, ItemRecipe> = {
   [ITEM_KIND.BASKET]: {
     kind: ITEM_KIND.BASKET,
-    inputs: { wood: 3 },
+    inputs: { wood: 2, shell: 1 },
     daysWork: 1,
+    requiresUnlock: true,
   },
   [ITEM_KIND.SPEAR]: {
     kind: ITEM_KIND.SPEAR,
-    inputs: { wood: 3, stone: 2 },
+    inputs: { wood: 2, obsidian: 1 },
     daysWork: 2,
+    requiresUnlock: true,
   },
   [ITEM_KIND.HAND_AXE]: {
     kind: ITEM_KIND.HAND_AXE,
     inputs: { stone: 3 },
     daysWork: 1,
+    requiresUnlock: false,
   },
   [ITEM_KIND.BONE_NEEDLE]: {
     kind: ITEM_KIND.BONE_NEEDLE,
     inputs: { game: 1, stone: 1 },
     daysWork: 1,
+    requiresUnlock: false,
   },
   [ITEM_KIND.RELIC_CHARM]: {
     kind: ITEM_KIND.RELIC_CHARM,
     inputs: { stone: 5, game: 3, wood: 2 },
     daysWork: 4,
+    requiresUnlock: false,
   },
 };
 

@@ -159,10 +159,11 @@ describe('generateWorld — distribución de recursos (§3.5 primigenia)', () =>
     expect(ids.has(RESOURCE.FISH)).toBe(true);
   });
 
-  it('régimen correcto por recurso (#21)', () => {
+  it('régimen correcto por recurso (#21, Sprint 9)', () => {
     const w = generateWorld(CANONICAL_SEED);
     for (const r of w.resources) {
-      if (r.id === RESOURCE.STONE) expect(r.regime).toBe('depletable');
+      if (r.id === RESOURCE.STONE || r.id === RESOURCE.OBSIDIAN)
+        expect(r.regime).toBe('depletable');
       else if (r.id === RESOURCE.WATER || r.id === RESOURCE.FISH)
         expect(r.regime).toBe('continuous');
       else expect(r.regime).toBe('regenerable');

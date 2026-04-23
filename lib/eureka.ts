@@ -10,10 +10,15 @@
  */
 
 import { next as prngNext, type PRNGState } from './prng';
-import { CASTA, type NPC } from './npcs';
+import { CASTA, type NPC, type NPCInventory } from './npcs';
 import { ITEM_KIND, ITEM_DEFS, type ItemKind } from './items';
 import { ITEM_RECIPES, canCraftItem } from './item-crafting';
-import type { NPCInventory } from './npcs';
+
+/** Caída de supervivencia en un tick que dispara desbloqueo de SPEAR. */
+export const WOUND_UNLOCK_DROP = 20;
+
+/** Wood acumulado en el clan que dispara desbloqueo de BASKET. */
+export const WOOD_EXCESS_THRESHOLD = 15;
 
 /** Supervivencia máxima para activar el trigger de Eureka. */
 export const EUREKA_NEED_THRESHOLD = 30;
@@ -85,4 +90,54 @@ export function checkEureka(
   prng = idxRoll.next;
   const idx = Math.floor(idxRoll.value * candidates.length);
   return { discovered: candidates[idx], prng };
+}
+
+/**
+ * Detecta eventos detonantes que desbloquean recetas bloqueadas.
+ * Puro, sin PRNG — los eventos son deterministas dado prev/next.
+ *
+ * Triggers:
+ *   - Primera herida (caída ≥ WOUND_UNLOCK_DROP en un tick) → SPEAR.
+ *   - Exceso de madera (clan wood > WOOD_EXCESS_THRESHOLD) → BASKET.
+ *
+ * Devuelve array de ItemKind recién desbloqueados (puede ser vacío).
+ */
+export function detectUnlockTrigger(
+  prevNpcs: readonly NPC[],
+  nextNpcs: readonly NPC[],
+  clanInventory: NPCInventory,
+): ItemKind[] {
+  const unlocked: ItemKind[] = [];
+
+  // Primera herida → SPEAR
+  const byId = new Map<string, NPC>();
+  for (const n of nextNpcs) byId.set(n.id, n);
+  for (const prev of prevNpcs) {
+    const next = byId.get(prev.id);
+    if (!next || !prev.alive || !next.alive) continue;
+    const drop = prev.stats.supervivencia - next.stats.supervivencia;
+    if (drop >= WOUND_UNLOCK_DROP) {
+      if (!unlocked.includes(ITEM_KIND.SPEAR)) unlocked.push(ITEM_KIND.SPEAR);
+    }
+  }
+
+  // Exceso de madera → BASKET
+  if (clanInventory.wood > WOOD_EXCESS_THRESHOLD) {
+    if (!unlocked.includes(ITEM_KIND.BASKET)) unlocked.push(ITEM_KIND.BASKET);
+  }
+
+  return unlocked;
+}
+
+/**
+ * Comprueba si un item puede crafteare automáticamente.
+ * Las recetas con requiresUnlock=true necesitan estar en unlockedKinds.
+ */
+export function canAutoCraft(
+  kind: ItemKind,
+  unlockedKinds: ReadonlySet<string>,
+): boolean {
+  const recipe = ITEM_RECIPES[kind];
+  if (!recipe.requiresUnlock) return true;
+  return unlockedKinds.has(kind);
 }

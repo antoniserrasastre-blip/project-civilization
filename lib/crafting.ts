@@ -69,6 +69,8 @@ export function clanInventoryTotal(npcs: readonly NPC[]): NPCInventory {
     berry: 0,
     game: 0,
     fish: 0,
+    obsidian: 0,
+    shell: 0,
   };
   for (const n of npcs) {
     if (!n.alive) continue;
@@ -77,6 +79,8 @@ export function clanInventoryTotal(npcs: readonly NPC[]): NPCInventory {
     total.berry += n.inventory.berry;
     total.game += n.inventory.game;
     total.fish += n.inventory.fish;
+    total.obsidian += n.inventory.obsidian;
+    total.shell += n.inventory.shell;
   }
   return total;
 }

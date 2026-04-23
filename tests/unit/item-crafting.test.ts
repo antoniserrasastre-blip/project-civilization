@@ -24,7 +24,7 @@ import { seedState } from '../../lib/prng';
 function stockedNpc(id: string, inv: Partial<Record<string, number>> = {}) {
   return makeTestNPC({
     id,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, ...inv },
+    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, ...inv },
   });
 }
 

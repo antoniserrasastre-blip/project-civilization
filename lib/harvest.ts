@@ -28,6 +28,8 @@ const INVENTORY_KEYS: Record<string, keyof NPCInventory | null> = {
   [RESOURCE.GAME]: 'game',
   [RESOURCE.FISH]: 'fish',
   [RESOURCE.WATER]: null,
+  [RESOURCE.OBSIDIAN]: 'obsidian',
+  [RESOURCE.SHELL]: 'shell',
 };
 
 function inventoryKeyFor(id: ResourceId): keyof NPCInventory | null {

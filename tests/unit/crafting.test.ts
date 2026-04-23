@@ -12,17 +12,13 @@ import {
 } from '@/lib/crafting';
 import { makeTestNPC } from '@/lib/npcs';
 
-function stocked(overrides: Partial<{ wood: number; stone: number; game: number; berry: number; fish: number }>) {
+function stocked(overrides: Partial<{ wood: number; stone: number; game: number; berry: number; fish: number; obsidian: number; shell: number }>) {
   return makeTestNPC({
     id: 'x',
     inventory: {
-      wood: 0,
-      stone: 0,
-      berry: 0,
-      game: 0,
-      fish: 0,
+      wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0,
       ...overrides,
-    },
+    } as import('@/lib/npcs').NPCInventory,
   });
 }
 
@@ -78,21 +74,21 @@ describe('clanInventoryTotal', () => {
     const dead = makeTestNPC({
       id: 'dead',
       alive: false,
-      inventory: { wood: 100, stone: 0, berry: 0, game: 0, fish: 0 },
+      inventory: { wood: 100, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
     const t = clanInventoryTotal([a, b, dead]);
-    expect(t).toEqual({ wood: 10, stone: 5, berry: 0, game: 2, fish: 0 });
+    expect(t).toEqual({ wood: 10, stone: 5, berry: 0, game: 2, fish: 0, obsidian: 0, shell: 0 });
   });
 });
 
 describe('canBuild', () => {
   it('true si pooled >= inputs', () => {
-    const clan = { wood: 20, stone: 20, berry: 0, game: 5, fish: 0 };
+    const clan = { wood: 20, stone: 20, berry: 0, game: 5, fish: 0, obsidian: 0, shell: 0 };
     expect(canBuild(RECIPES[CRAFTABLE.REFUGIO], clan)).toBe(true);
   });
 
   it('false si falta cualquier input', () => {
-    const clan = { wood: 20, stone: 0, berry: 0, game: 5, fish: 0 };
+    const clan = { wood: 20, stone: 0, berry: 0, game: 5, fish: 0, obsidian: 0, shell: 0 };
     expect(canBuild(RECIPES[CRAFTABLE.REFUGIO], clan)).toBe(false);
   });
 });

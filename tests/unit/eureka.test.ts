@@ -23,7 +23,7 @@ const prng0 = seedState(99);
 
 function ctxWith(overrides: Partial<EurekaContext>): EurekaContext {
   return {
-    clanInventory: { wood: 10, stone: 10, berry: 0, game: 5, fish: 0 },
+    clanInventory: { wood: 10, stone: 10, berry: 0, game: 5, fish: 0, obsidian: 5, shell: 5 },
     existingItemKinds: new Set(),
     currentTick: 100,
     ...overrides,
@@ -64,7 +64,7 @@ describe('checkEureka', () => {
       stats: { supervivencia: 5, socializacion: 50 },
     });
     const ctx = ctxWith({
-      clanInventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+      clanInventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
     const { discovered } = checkEureka(npc, ctx, prng0);
     expect(discovered).toBeNull();

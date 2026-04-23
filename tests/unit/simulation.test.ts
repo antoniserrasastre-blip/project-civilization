@@ -183,7 +183,7 @@ describe('tick — prioridad estricta de construcción', () => {
   it('no construye un crafteable posterior si el primero pendiente aún no puede construirse', () => {
     const npc = makeTestNPC({
       id: 'builder',
-      inventory: { wood: 0, stone: 0, berry: 0, game: 5, fish: 0 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 5, fish: 0, obsidian: 0, shell: 0 },
       stats: { supervivencia: 90, socializacion: 90 },
     });
     const s = initialGameState(1, [npc], mkFlatWorld());
@@ -202,7 +202,7 @@ describe('tick — prioridad estricta de construcción', () => {
   it('inicia una obra antes de materializar la estructura', () => {
     const npc = makeTestNPC({
       id: 'builder',
-      inventory: { wood: 5, stone: 15, berry: 0, game: 0, fish: 0 },
+      inventory: { wood: 5, stone: 15, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
       stats: { supervivencia: 90, socializacion: 90 },
     });
     const after = tick(initialGameState(1, [npc], mkFlatWorld()));
@@ -219,8 +219,8 @@ describe('tick — prioridad estricta de construcción', () => {
         id: `builder-${i}`,
         inventory:
           i === 0
-            ? { wood: 5, stone: 15, berry: 0, game: 0, fish: 0 }
-            : { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+            ? { wood: 5, stone: 15, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 }
+            : { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
         stats: { supervivencia: 90, socializacion: 90 },
       }),
     );

@@ -48,6 +48,9 @@ export interface GameState {
   buildProject: BuildProject | null;
   /** Herramientas y reliquias equipables en circulación — Sprint 9. */
   items: EquippableItem[];
+  /** Tipos de item cuya receta ha sido desbloqueada por Eureka. Las
+   *  recetas con requiresUnlock=true no se craftean hasta aparecer aquí. */
+  unlockedItemKinds: string[];
   relations: Edge[];
   village: VillageState;
   monument: MonumentState;
@@ -78,6 +81,7 @@ export function initialGameState(
     structures: [],
     buildProject: null,
     items: [],
+    unlockedItemKinds: [],
     relations: [],
     village: initialVillageState(),
     monument: initialMonumentState(),

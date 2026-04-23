@@ -71,7 +71,7 @@ describe('tickHarvests — cap de inventario', () => {
         stone: 0,
         berry: INVENTORY_CAP_PER_TYPE,
         game: 0,
-        fish: 0,
+        fish: 0, obsidian: 0, shell: 0,
       },
     });
     const s = spawn({ id: RESOURCE.BERRY, x: 5, y: 5, quantity: 10 });

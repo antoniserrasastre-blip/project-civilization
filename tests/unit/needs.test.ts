@@ -147,7 +147,7 @@ describe('decideDestination — prioridades', () => {
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 35, socializacion: 90 },
-      inventory: { wood: 5, stone: 0, berry: 3, game: 0, fish: 0 },
+      inventory: { wood: 5, stone: 0, berry: 3, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
     const ctx: DestinationContext = {
       world,
