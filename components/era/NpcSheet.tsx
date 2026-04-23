@@ -104,7 +104,7 @@ function NpcPortrait({ npc, items = [] }: { npc: NPC; items?: readonly Equippabl
     const cy = SIZE / 2;
 
     ctx.imageSmoothingEnabled = false;
-    const img = new Image();
+    const img = new window.Image();
     img.onload = () => {
       ctx.drawImage(img, cx - SIZE * 0.38, cy - SIZE * 0.4, SIZE * 0.76, SIZE * 0.76);
     };
