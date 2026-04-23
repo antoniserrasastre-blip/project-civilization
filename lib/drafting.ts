@@ -30,6 +30,7 @@ import {
   type TraitId,
 } from './traits';
 import { type ScenarioId, applyScenario } from './scenarios';
+import type { MapType } from './world-gen';
 
 export const TRAIT_BUDGET_DRAFT = TRAIT_BUDGET;
 
@@ -63,6 +64,8 @@ export interface DraftState {
   traitSelections: TraitId[][];
   /** Escenario de arranque. null = sin escenario (sandbox / tests). */
   scenarioId: ScenarioId | null;
+  /** Geografía del archipiélago. */
+  mapType: MapType;
 }
 
 export function startDraft(seed: number): DraftState {
@@ -75,6 +78,7 @@ export function startDraft(seed: number): DraftState {
     budgetRemaining: CHOSEN_BUDGET,
     traitSelections: Array.from({ length: CHOSEN_SLOTS }, () => []),
     scenarioId: null,
+    mapType: 'archipelago',
   };
 }
 
@@ -168,6 +172,14 @@ export function pickScenario(
   scenarioId: ScenarioId,
 ): DraftState {
   return { ...draft, scenarioId };
+}
+
+/** Selecciona el tipo de geografía del mundo. */
+export function pickMapType(
+  draft: DraftState,
+  mapType: MapType,
+): DraftState {
+  return { ...draft, mapType };
 }
 
 /** Añade un rasgo a un slot. Lanza si se supera TRAIT_BUDGET_DRAFT

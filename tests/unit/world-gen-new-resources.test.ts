@@ -20,11 +20,11 @@ describe('RESOURCE.OBSIDIAN en world-gen', () => {
     expect(obs.length).toBeGreaterThan(0);
   });
 
-  it('la obsidiana spawnea sobre tiles MOUNTAIN', () => {
+  it('la obsidiana spawnea sobre tiles de montaña (MOUNTAIN o MOUNTAIN_VOLCANO)', () => {
     const obs = world.resources.filter((r) => r.id === RESOURCE.OBSIDIAN);
     for (const r of obs) {
       const tile = world.tiles[r.y * world.width + r.x];
-      expect(tile).toBe(TILE.MOUNTAIN);
+      expect([TILE.MOUNTAIN, TILE.MOUNTAIN_SNOW, TILE.MOUNTAIN_VOLCANO]).toContain(tile);
     }
   });
 

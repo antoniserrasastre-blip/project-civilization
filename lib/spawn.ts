@@ -239,10 +239,8 @@ export function pickLandCells(
       queue.push(nIdx);
     }
   }
-  if (out.length < n) {
-    throw new Error(
-      `pickLandCells: tiles insuficientes (${out.length} < ${n})`,
-    );
-  }
+  // Si hay menos tiles que NPCs, se repiten posiciones (mejor que crash).
+  const available = out.length;
+  while (out.length < n) out.push({ ...out[out.length % available] });
   return out;
 }

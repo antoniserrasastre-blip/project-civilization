@@ -166,6 +166,7 @@ describe('finalizeBlockA — invariantes duras', () => {
       budgetRemaining: -6,
       traitSelections: [[], [], [], []],
       scenarioId: null,
+      mapType: 'archipelago' as const,
     };
     expect(() => finalizeBlockA(d)).toThrow(/presupuesto/i);
   });

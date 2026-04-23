@@ -35,6 +35,7 @@ import {
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
+import { generateWorld } from '@/lib/world-gen';
 import { defaultClanSpawn, makeDefaultClan } from '@/lib/default-clan';
 import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
@@ -144,7 +145,8 @@ export function GameShell({ seed }: GameShellProps) {
   const [paused, setPaused] = useState(false);
 
   const handleDraftStart = (result: DraftResult) => {
-    setState(initialGameState(result.seed, result.npcs));
+    const world = generateWorld(result.seed, { type: result.mapType });
+    setState(initialGameState(result.seed, result.npcs, world));
     setDraftDone(true);
   };
   const spawnCenter = useMemo(() => defaultClanSpawn(seed).center, [seed]);

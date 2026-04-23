@@ -31,8 +31,9 @@ describe('lib/fixtures/world-map.v1.json — coherencia con el generador', () =>
     expect(sha(fixture as WorldMap)).toBe(sha(live));
   });
 
-  it('fixture declara generatorVersion 2 (biomas bioclimáticos)', () => {
-    expect((fixture as WorldMap).meta.generatorVersion).toBe(2);
+  it('fixture declara generatorVersion actual del generador', () => {
+    const live = generateWorld(CANONICAL_SEED);
+    expect((fixture as WorldMap).meta.generatorVersion).toBe(live.meta.generatorVersion);
   });
 
   it('fixture tiene 512×512 tiles', () => {

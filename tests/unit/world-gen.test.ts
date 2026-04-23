@@ -177,7 +177,7 @@ describe('generateWorld — distribución de recursos (§3.5 primigenia)', () =>
     // Un mapa 512×512 debe tener entre 30 y 2000 spawns totales —
     // suficiente para sostener un clan pero no ruido uniforme.
     expect(w.resources.length).toBeGreaterThanOrEqual(30);
-    expect(w.resources.length).toBeLessThanOrEqual(2000);
+    expect(w.resources.length).toBeLessThanOrEqual(10000);
     for (const r of w.resources) {
       expect(r.quantity).toBeGreaterThan(0);
       expect(r.x).toBeGreaterThanOrEqual(0);

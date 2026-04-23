@@ -17,6 +17,7 @@ import {
   pickArchetype,
   setSex,
   pickScenario,
+  pickMapType,
   addTrait,
   removeTrait,
   traitsBudgetUsed,
@@ -33,6 +34,7 @@ import {
 } from '@/lib/drafting';
 import { ARCHETYPE, SEX, type Archetype, type Sex } from '@/lib/npcs';
 import { SCENARIO, getScenarioDef, type ScenarioId } from '@/lib/scenarios';
+import type { MapType } from '@/lib/world-gen';
 import { TRAIT, TRAIT_CATALOG, type TraitId } from '@/lib/traits';
 import type { NPC } from '@/lib/npcs';
 import { spawnClanForScenario } from '@/lib/default-clan';
@@ -40,6 +42,7 @@ import { spawnClanForScenario } from '@/lib/default-clan';
 export interface DraftResult {
   seed: number;
   npcs: NPC[];
+  mapType: MapType;
 }
 
 interface DraftScreenProps {
@@ -47,7 +50,7 @@ interface DraftScreenProps {
   onStart: (result: DraftResult) => void;
 }
 
-type Phase = 'scenario' | 'blockA' | 'blockB' | 'confirm';
+type Phase = 'scenario' | 'geography' | 'blockA' | 'blockB' | 'confirm';
 
 /* ─── Quick Starts ────────────────────────────────────────────────── */
 interface QuickStartDef {
@@ -143,6 +146,12 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
   /* ─── Escenario ─────────────────────────────────────────────────── */
   const handleScenario = (id: ScenarioId) => {
     setDraft((d) => pickScenario(d, id));
+    setPhase('geography');
+  };
+
+  /* ─── Geografía ─────────────────────────────────────────────────── */
+  const handleMapType = (type: MapType) => {
+    setDraft((d) => pickMapType(d, type));
     setPhase('blockA');
   };
 
@@ -198,7 +207,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       const usedNames = new Set(elegidos.map((n) => n.name));
       const ciudadanos = finalizeBlockB(fd, usedNames);
       const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], qs.scenarioId);
-      onStart({ seed, npcs });
+      onStart({ seed, npcs, mapType: d.mapType });
     } catch { /* no debería fallar */ }
   };
 
@@ -210,7 +219,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       // Aplicar posiciones de spawn según escenario — sin esto todos
       // los NPCs quedan en {x:0,y:0} (esquina del mapa).
       const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], draft.scenarioId);
-      onStart({ seed, npcs });
+      onStart({ seed, npcs, mapType: draft.mapType });
     } catch { /* validación */ }
   };
 
@@ -234,6 +243,9 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
 
       {phase === 'scenario' && (
         <ScenarioPhase onPick={handleScenario} />
+      )}
+      {phase === 'geography' && (
+        <GeographyPhase onPick={handleMapType} />
       )}
       {phase === 'blockA' && (
         <BlockAPhase
@@ -314,10 +326,11 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
 /* ════════════════════════════════════════════════════════════════════ */
 function PhaseNav({ phase, blockAReady }: { phase: Phase; blockAReady: boolean }) {
   const steps: { id: Phase; label: string }[] = [
-    { id: 'scenario', label: '1. Escenario' },
-    { id: 'blockA',   label: '2. Elegidos' },
-    { id: 'blockB',   label: '3. Ciudadanos' },
-    { id: 'confirm',  label: '4. Confirmar' },
+    { id: 'scenario',  label: '1. Escenario' },
+    { id: 'geography', label: '2. Geografía' },
+    { id: 'blockA',    label: '3. Elegidos' },
+    { id: 'blockB',    label: '4. Ciudadanos' },
+    { id: 'confirm',   label: '5. Confirmar' },
   ];
   return (
     <div style={{ display: 'flex', gap: 8 }}>
@@ -371,6 +384,42 @@ function ScenarioPhase({ onPick }: { onPick: (id: ScenarioId) => void }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════════ */
+/* Fase 2: Geografía                                                    */
+/* ════════════════════════════════════════════════════════════════════ */
+function GeographyPhase({ onPick }: { onPick: (type: MapType) => void }) {
+  const types: { id: MapType; label: string; desc: string }[] = [
+    { id: 'archipelago', label: 'Archipiélago', desc: 'Múltiples islas fractales. Ideal para la expansión marítima.' },
+    { id: 'pangea',     label: 'Pangea',      desc: 'Una única masa de tierra masiva. Gran espacio interior.' },
+    { id: 'continents', label: 'Continentes', desc: '5 grandes masas de tierra separadas por canales.' },
+  ];
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+      {types.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          data-testid={`maptype-pick-${t.id}`}
+          onClick={() => onPick(t.id)}
+          style={{
+            ...CARD,
+            width: 220,
+            cursor: 'pointer',
+            textAlign: 'left',
+            color: '#f5f5dc',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}
+        >
+          <strong style={{ fontSize: '1rem' }}>{t.label}</strong>
+          <span style={{ fontSize: '0.78rem', opacity: 0.75 }}>{t.desc}</span>
+        </button>
+      ))}
     </div>
   );
 }

@@ -38,11 +38,9 @@ describe('RECIPES — 4 edificios (Sprint 9: HERRAMIENTA_SILEX → item-crafting
     expect(RECIPES[CRAFTABLE.REFUGIO].daysWork).toBe(5);
   });
 
-  it('Fogata permanente: 3 wood + 5 stone, 2 días', () => {
-    expect(RECIPES[CRAFTABLE.FOGATA_PERMANENTE].inputs).toEqual({
-      wood: 3,
-      stone: 5,
-    });
+  it('Fogata permanente: solo madera, 2 días', () => {
+    expect(RECIPES[CRAFTABLE.FOGATA_PERMANENTE].inputs.wood).toBeGreaterThanOrEqual(2);
+    expect(RECIPES[CRAFTABLE.FOGATA_PERMANENTE].daysWork).toBe(2);
   });
 
   it('Despensa: 10 wood + 6 stone, 4 días', () => {

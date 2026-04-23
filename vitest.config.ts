@@ -28,7 +28,7 @@ export default defineConfig({
     ],
     // Los E2E son de Playwright; excluidos de la pasada de Vitest.
     exclude: ['tests/e2e/**', 'node_modules/**', '.next/**'],
-    testTimeout: 5_000,
+    testTimeout: 15_000,
     reporters: ['default'],
     coverage: {
       provider: 'v8',

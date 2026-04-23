@@ -201,10 +201,10 @@ describe('tick — prioridad estricta de construcción', () => {
   });
 
   it('inicia una obra antes de materializar la estructura', () => {
-    // Fogata: wood:3, stone:5 — el clan dona exactamente lo requerido
+    // Fogata: wood:4 — el clan dona exactamente lo requerido
     const npc = makeTestNPC({
       id: 'builder',
-      inventory: { wood: 3, stone: 5, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      inventory: { wood: 4, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
       stats: { supervivencia: 90, socializacion: 90 },
     });
     const after = tick(initialGameState(1, [npc], mkFlatWorld()));

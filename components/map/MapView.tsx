@@ -16,6 +16,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import worldMapJson from '@/lib/fixtures/world-map.v1.json';
 import {
+  TILE,
   RESOURCE,
   type ResourceSpawn,
   type WorldMap,
@@ -1035,6 +1036,24 @@ function getTileBitmap(tile: TileId | string, tileW: number, sprite: HTMLImageEl
   return bmp;
 }
 
+function getShoreRotation(x: number, y: number, world: WorldMap): number {
+  const neighbors = [
+    { dx: 0, dy: -1, angle: 0 },         // N
+    { dx: 1, dy: 0, angle: Math.PI / 2 }, // E
+    { dx: 0, dy: 1, angle: Math.PI },     // S
+    { dx: -1, dy: 0, angle: -Math.PI / 2 }, // W
+  ];
+
+  for (const n of neighbors) {
+    const nx = x + n.dx;
+    const ny = y + n.dy;
+    if (nx < 0 || nx >= world.width || ny < 0 || ny >= world.height) continue;
+    const t = world.tiles[ny * world.width + nx];
+    if (t === TILE.WATER || t === TILE.SHALLOW_WATER) return n.angle;
+  }
+  return 0;
+}
+
 function renderTiles(
   ctx: CanvasRenderingContext2D,
   world: WorldMap,
@@ -1072,7 +1091,16 @@ function renderTiles(
 
       const sprite = tileSprites?.get(variant);
       if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-        ctx.drawImage(getTileBitmap(variant, tileW, sprite), sx, sy);
+        if (tile === TILE.SHORE) {
+          const rotation = getShoreRotation(x, y, world);
+          ctx.save();
+          ctx.translate(sx + tileW / 2, sy + tileW / 2);
+          ctx.rotate(rotation);
+          ctx.drawImage(sprite, -tileW / 2, -tileW / 2, tileW, tileW);
+          ctx.restore();
+        } else {
+          ctx.drawImage(getTileBitmap(variant, tileW, sprite), sx, sy);
+        }
       } else {
         ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
         ctx.fillRect(sx, sy, tileW, tileW);
