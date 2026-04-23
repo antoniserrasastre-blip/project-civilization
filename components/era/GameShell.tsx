@@ -4,10 +4,18 @@
  * GameShell — shell React que mantiene el GameState vivo.
  *
  * Sprint Fase 5 #1: sustituye el pulso diario forzoso por el susurro
- * persistente (§3.7). El tick ahora corre **automáticamente** (un
- * tick cada `TICK_INTERVAL_MS` reales) y el jugador decide cuándo
- * abrir el selector de susurro desde el HUD. El susurro activo
- * persiste entre ticks; sólo se archiva al cambiar.
+ * persistente (§3.7). El tick corre automáticamente (un tick cada
+ * `TICK_INTERVAL_MS` reales) y el jugador decide cuándo abrir el
+ * selector de susurro desde el HUD.
+ *
+ * Sprint Fase 5 #2 (LEGIBILIDAD-MVP): pasa `ClanSummary` al selector
+ * y `chronicle` al feed lateral para que el jugador pueda responder
+ * *"¿por qué elegí Coraje?"* sin abrir la visión.
+ *
+ * Hotfix UX post-playtest PR #12: botón de pausa (+ barra
+ * espaciadora) — sin pausa es casi imposible clicar en un NPC en
+ * movimiento. No toca §A4 porque pausar sólo deja de llamar a
+ * `tickSim()`; el state sigue siendo el mismo.
  *
  * §A4 intacto — ninguna aleatoriedad sale del PRNG seedable; el
  * tick() sigue siendo puro y el state se pasa inmutable a React.
@@ -17,13 +25,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { MapView } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
 import { HUD } from '@/components/era/HUD';
+import { ChronicleFeed } from '@/components/era/ChronicleFeed';
+import { NpcSheet } from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
-import { makeDefaultClan } from '@/lib/default-clan';
+import { defaultClanSpawn, makeDefaultClan } from '@/lib/default-clan';
 import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { tick as tickSim } from '@/lib/simulation';
+import { summarizeClanState } from '@/lib/clan-context';
+import { grantMiracle, type MiracleId } from '@/lib/miracles';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -41,6 +53,9 @@ export interface GameShellProps {
 export function GameShell({ seed }: GameShellProps) {
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
   const [selectorOpen, setSelectorOpen] = useState(false);
+  const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
+  const [paused, setPaused] = useState(false);
+  const spawnCenter = useMemo(() => defaultClanSpawn(seed).center, [seed]);
 
   const day = useMemo(
     () => Math.floor(state.tick / TICKS_PER_DAY) + 1,
@@ -50,29 +65,65 @@ export function GameShell({ seed }: GameShellProps) {
     () => state.npcs.filter((n) => n.alive).length,
     [state.npcs],
   );
+  const clanSummary = useMemo(
+    () => summarizeClanState(state.npcs, state.tick),
+    [state.npcs, state.tick],
+  );
 
-  // Tick automático — el mundo corre solo, el jugador sólo susurra.
   useEffect(() => {
     if (state.era !== 'primigenia') return;
+    if (paused) return;
     const id = setInterval(() => {
       setState((prev) =>
         prev.era === 'primigenia' ? tickSim(prev) : prev,
       );
     }, TICK_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [state.era]);
+  }, [state.era, paused]);
+
+  // Barra espaciadora alterna pausa. Evita interceptar cuando el
+  // usuario está escribiendo en un input (no hay ninguno ahora, pero
+  // la guarda es trivial y robusta).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+      e.preventDefault();
+      setPaused((p) => !p);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const onChoose = (choice: MessageChoice) => {
     setState((prev) => {
       try {
         return { ...prev, village: applyPlayerIntent(prev.village, choice, prev.tick) };
       } catch {
-        // Fe insuficiente: no cambia el state; el selector marca
-        // el botón como disabled preventivamente.
         return prev;
       }
     });
     setSelectorOpen(false);
+  };
+
+  const selectedNpc = useMemo(
+    () =>
+      selectedNpcId
+        ? state.npcs.find((n) => n.id === selectedNpcId) ?? null
+        : null,
+    [selectedNpcId, state.npcs],
+  );
+
+  const onGrantMiracle = (miracleId: MiracleId) => {
+    if (!selectedNpcId) return;
+    setState((prev) => {
+      try {
+        return grantMiracle(prev, selectedNpcId, miracleId);
+      } catch {
+        return prev;
+      }
+    });
   };
 
   if (state.era === 'tribal') return <TribalPlaceholder />;
@@ -83,7 +134,11 @@ export function GameShell({ seed }: GameShellProps) {
       data-seed={seed}
       style={{ margin: 0, padding: 0, height: '100vh', overflow: 'hidden' }}
     >
-      <MapView npcs={state.npcs} />
+      <MapView
+        npcs={state.npcs}
+        onNpcClick={(id) => setSelectedNpcId(id)}
+        initialCenter={spawnCenter}
+      />
       <HUD
         day={day}
         gratitude={state.village.gratitude}
@@ -94,14 +149,30 @@ export function GameShell({ seed }: GameShellProps) {
         monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress}
         village={state.village}
+        paused={paused}
+        onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
+      />
+      <ChronicleFeed
+        activeMessage={state.village.activeMessage}
+        messageHistory={state.village.messageHistory}
+        chronicle={state.chronicle}
       />
       {selectorOpen && (
         <WhisperSelector
           activeMessage={state.village.activeMessage}
           faith={state.village.faith}
+          clan={clanSummary}
           onChoose={onChoose}
           onClose={() => setSelectorOpen(false)}
+        />
+      )}
+      {selectedNpc && (
+        <NpcSheet
+          npc={selectedNpc}
+          village={state.village}
+          onClose={() => setSelectedNpcId(null)}
+          onGrantMiracle={onGrantMiracle}
         />
       )}
     </main>

@@ -13,9 +13,17 @@
  *   - Bloque B: picks top de cada tier — 3 'excelente', 3 'bueno',
  *     2 'regular', 2 'malo' (decisión #3).
  *
+ * Sprint #5 Fase 5 SPAWN-COSTERO: el centro del clan deja de estar
+ * hardcoded. `lib/spawn.ts` detecta islas sobre el fixture y elige
+ * una por seed; dentro de esa isla toma un tile costero. Los 14
+ * NPCs se distribuyen BFS por tierra alrededor del centro — ya
+ * nunca aterrizan en agua.
+ *
  * Pura: mismo seed → mismos 14 NPCs.
  */
 
+import worldMapJson from './fixtures/world-map.v1.json';
+import type { WorldMap } from './world-state';
 import { ARCHETYPE, SEX, type NPC } from './npcs';
 import {
   finalizeBlockA,
@@ -27,6 +35,9 @@ import {
   startDraft,
   startFollowerDraft,
 } from './drafting';
+import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
+
+const WORLD = worldMapJson as unknown as WorldMap;
 
 /** Los 4 picks canónicos de Bloque A — budget 10 exacto. */
 const BLOCK_A_PICKS: Array<{
@@ -50,17 +61,14 @@ const FOLLOWER_PICKS: Array<{
   { tier: 'malo', count: 2 },
 ];
 
-/**
- * Spawn del clan en la isla visible del fixture `world-map.v1.json`.
- * Verificado con el fixture actual: grid 5×3 alrededor de (85, 73)
- * cae íntegramente en grass/mountain (no agua). Placeholder hasta
- * que llegue Sprint SPAWN-COSTERO con selección automática de costa.
- */
-export const SPAWN_CENTER = { x: 85, y: 73 } as const;
-
-/** Grid 5×3 para repartir 14 NPCs sin superposición. Determinista. */
-function spawnOffset(i: number): { x: number; y: number } {
-  return { x: (i % 5) - 2, y: Math.floor(i / 5) - 1 };
+/** Calcula el spawn del clan sobre el fixture canónico. Exportado
+ *  para que el shell pueda centrar el viewport al arrancar. */
+export function defaultClanSpawn(seed: number): {
+  islandIndex: number;
+  center: { x: number; y: number };
+} {
+  const islands = findIslands(WORLD);
+  return pickClanSpawn(seed, islands);
 }
 
 export function makeDefaultClan(seed: number): NPC[] {
@@ -78,16 +86,18 @@ export function makeDefaultClan(seed: number): NPC[] {
       draftB = pickFollower(draftB, candidates[i]);
     }
   }
-  const ciudadanos = finalizeBlockB(draftB);
+  const ciudadanos = finalizeBlockB(
+    draftB,
+    new Set(elegidos.map((n) => n.name)),
+  );
 
-  return [...elegidos, ...ciudadanos].map((npc, i) => {
-    const off = spawnOffset(i);
-    return {
-      ...npc,
-      position: {
-        x: SPAWN_CENTER.x + off.x,
-        y: SPAWN_CENTER.y + off.y,
-      },
-    };
-  });
+  // Selección de isla y centro costero por seed (§3.4 vision,
+  // Sprint #5). BFS sobre tierra para 14 celdas contiguas.
+  const { center } = defaultClanSpawn(seed);
+  const cells = pickLandCells(WORLD, center, 14);
+
+  return [...elegidos, ...ciudadanos].map((npc, i) => ({
+    ...npc,
+    position: { x: cells[i].x, y: cells[i].y },
+  }));
 }

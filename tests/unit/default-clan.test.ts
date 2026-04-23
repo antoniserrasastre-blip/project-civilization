@@ -43,4 +43,58 @@ describe('makeDefaultClan', () => {
     const rt = JSON.parse(JSON.stringify(clan));
     expect(rt).toEqual(clan);
   });
+
+  it('cada NPC tiene `name` no vacío y únicos entre sí (§9 voz)', () => {
+    const clan = makeDefaultClan(42);
+    for (const n of clan) {
+      expect(typeof n.name).toBe('string');
+      expect(n.name.length).toBeGreaterThan(0);
+    }
+    const names = clan.map((n) => n.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it('nombres salen del pool catalano-balear', async () => {
+    const { MALE_NAMES, FEMALE_NAMES } = await import('@/lib/names');
+    const pool = new Set([...MALE_NAMES, ...FEMALE_NAMES]);
+    const clan = makeDefaultClan(13);
+    for (const n of clan) {
+      expect(pool.has(n.name)).toBe(true);
+    }
+  });
+
+  it('nombre respeta el sexo del NPC', async () => {
+    const { MALE_NAMES, FEMALE_NAMES } = await import('@/lib/names');
+    const males = new Set(MALE_NAMES);
+    const females = new Set(FEMALE_NAMES);
+    const clan = makeDefaultClan(99);
+    for (const n of clan) {
+      if (n.sex === SEX.M) expect(males.has(n.name)).toBe(true);
+      if (n.sex === SEX.F) expect(females.has(n.name)).toBe(true);
+    }
+  });
+
+  it('todas las posiciones caen sobre tierra (no agua) — Sprint #5', async () => {
+    const { TILE } = await import('@/lib/world-state');
+    const fixture = (await import('@/lib/fixtures/world-map.v1.json')).default as unknown as {
+      tiles: number[];
+      width: number;
+    };
+    const clan = makeDefaultClan(42);
+    for (const n of clan) {
+      const t = fixture.tiles[n.position.y * fixture.width + n.position.x];
+      expect(t).not.toBe(TILE.WATER);
+    }
+  });
+
+  it('seeds distintos producen clanes en posiciones distintas (Sprint #5)', () => {
+    const a = makeDefaultClan(1);
+    const b = makeDefaultClan(2);
+    // Al menos un NPC cambia de posición entre seeds, porque el
+    // picker de isla ahora depende del seed.
+    const anyDiff = a.some((n, i) =>
+      n.position.x !== b[i].position.x || n.position.y !== b[i].position.y,
+    );
+    expect(anyDiff).toBe(true);
+  });
 });

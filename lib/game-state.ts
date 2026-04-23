@@ -25,6 +25,20 @@ import { initialMonumentState } from './monument';
 
 export type Era = 'primigenia' | 'tribal';
 
+/** Entrada persistida de crónica — narrativa ya evaluada, lista
+ *  para pintar. Se acumula en `GameState.chronicle` durante `tick()`.
+ *  String entero + día simplifica el feed sin perder determinismo. */
+export interface ChronicleEntry {
+  day: number;
+  tick: number;
+  text: string;
+}
+
+/** Cap de entradas conservadas — descarte FIFO para que el estado
+ *  no crezca sin límite durante partidas largas. Suficiente para
+ *  unas 25 días in-game típicos con eventos moderados. */
+export const CHRONICLE_MAX = 300;
+
 export interface GameState {
   world: WorldMap;
   npcs: NPC[];
@@ -33,6 +47,7 @@ export interface GameState {
   relations: Edge[];
   village: VillageState;
   monument: MonumentState;
+  chronicle: ChronicleEntry[];
   era: Era;
   tick: number;
   prng: PRNGState;
@@ -60,6 +75,7 @@ export function initialGameState(
     relations: [],
     village: initialVillageState(),
     monument: initialMonumentState(),
+    chronicle: [],
     era: 'primigenia',
     tick: 0,
     prng: seedState(seed),

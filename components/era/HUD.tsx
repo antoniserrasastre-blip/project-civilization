@@ -59,6 +59,8 @@ export interface HUDProps {
   monumentProgress: number;
   /** Opcional — habilita pulso animado + floater de gratitud. */
   village?: VillageState;
+  paused: boolean;
+  onTogglePause: () => void;
   onOpenWhisper: () => void;
 }
 
@@ -138,6 +140,8 @@ export function HUD({
   monumentPhase,
   monumentProgress,
   village,
+  paused,
+  onTogglePause,
   onOpenWhisper,
 }: HUDProps) {
   const showProgress =
@@ -181,8 +185,35 @@ export function HUD({
         fontFamily: 'var(--font-sans, system-ui)',
       }}
     >
-      <div data-testid="hud-day">
-        <strong>Día</strong> {day}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
+      >
+        <div data-testid="hud-day">
+          <strong>Día</strong> {day}
+        </div>
+        <button
+          type="button"
+          data-testid="pause-toggle"
+          onClick={onTogglePause}
+          title={paused ? 'Reanudar (Espacio)' : 'Pausar (Espacio)'}
+          style={{
+            background: paused ? '#2a2a1c' : '#1e1e1e',
+            color: '#f5f5dc',
+            border: `1px solid ${paused ? '#6b5a1f' : '#333'}`,
+            borderRadius: 6,
+            padding: '2px 8px',
+            fontSize: '0.78rem',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+          }}
+        >
+          {paused ? '▶ Reanudar' : '⏸ Pausar'}
+        </button>
       </div>
       <div data-testid="hud-faith">
         <strong>Fe</strong> {Math.floor(faith)} / {FAITH_CAP}

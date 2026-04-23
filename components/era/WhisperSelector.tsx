@@ -19,6 +19,7 @@
 import type { MessageChoice } from '@/lib/messages';
 import { MESSAGE_INTENTS, SILENCE, VALID_CHOICES } from '@/lib/messages';
 import { FAITH_COST_CHANGE, FAITH_COST_SILENCE } from '@/lib/faith';
+import { ClanContext, type ClanContextProps } from '@/components/era/ClanContext';
 
 const LABEL_ES: Record<MessageChoice, string> = {
   [MESSAGE_INTENTS.AUXILIO]: 'Auxilio',
@@ -30,9 +31,30 @@ const LABEL_ES: Record<MessageChoice, string> = {
   [SILENCE]: 'Silencio',
 };
 
+/** Texto de "tonalidad que empuja" (§3.7 vision-primigenia, columna 3
+ *  de la tabla de intenciones). Es el empujón que el jugador lee
+ *  antes de decidir. Condensado a 1-2 líneas para el tooltip. */
+const TONALITY_ES: Record<MessageChoice, string> = {
+  [MESSAGE_INTENTS.AUXILIO]:
+    'Supervivencia primero; reparto de recursos. Para clan hambriento, herido o cansado.',
+  [MESSAGE_INTENTS.CORAJE]:
+    'Acción, asumir riesgos, salir del confort. Para decisiones difíciles o caza arriesgada.',
+  [MESSAGE_INTENTS.PACIENCIA]:
+    'Aguardar, negociar, reparar antes que castigar. Para conflicto interno o deudas tensas.',
+  [MESSAGE_INTENTS.ENCUENTRO]:
+    'Buscar al otro: pairing y reconciliación. Para soledad o linajes desconectados.',
+  [MESSAGE_INTENTS.RENUNCIA]:
+    'Soltar, migrar, dejar ir. Para recursos agotados localmente o apego insostenible.',
+  [MESSAGE_INTENTS.ESPERANZA]:
+    'Mirar al futuro; reforzar fe, perseverar. Para baja moral o herejía incipiente.',
+  [SILENCE]:
+    'Sin empuje. El mundo corre sin voz. Pausa táctica o emergency-stop.',
+};
+
 export interface WhisperSelectorProps {
   activeMessage: MessageChoice | null;
   faith: number;
+  clan: ClanContextProps['summary'];
   onChoose: (choice: MessageChoice) => void;
   onClose: () => void;
 }
@@ -49,6 +71,7 @@ function costFor(
 export function WhisperSelector({
   activeMessage,
   faith,
+  clan,
   onChoose,
   onClose,
 }: WhisperSelectorProps) {
@@ -115,6 +138,7 @@ export function WhisperSelector({
           ? 'Tu primer susurro es gratuito — estrena la voz.'
           : 'Tu susurro resuena entre los Hijos. Cambiarlo cuesta Fe.'}
       </p>
+      <ClanContext summary={clan} />
       <div
         style={{
           display: 'grid',
@@ -133,6 +157,7 @@ export function WhisperSelector({
               data-testid={`whisper-option-${choice}`}
               disabled={disabled}
               onClick={() => onChoose(choice)}
+              title={TONALITY_ES[choice]}
               style={{
                 background: isActive ? '#2a2a1c' : '#1e1e1e',
                 color: disabled ? '#555' : '#f5f5dc',
@@ -153,6 +178,18 @@ export function WhisperSelector({
                 style={{ fontSize: '0.75rem', opacity: 0.7 }}
               >
                 {cost === 0 ? 'gratis' : `${cost} Fe`}
+              </div>
+              <div
+                data-testid={`whisper-option-${choice}-desc`}
+                style={{
+                  fontSize: '0.7rem',
+                  opacity: 0.6,
+                  marginTop: 4,
+                  lineHeight: 1.25,
+                  textAlign: 'left',
+                }}
+              >
+                {TONALITY_ES[choice]}
               </div>
             </button>
           );

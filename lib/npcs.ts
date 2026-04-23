@@ -94,6 +94,9 @@ export interface NPCInventory {
  *  Esclavos (si los hubiera — en drafting inicial no aparecen). */
 export interface NPC {
   id: string;
+  /** Nombre legible del pool catalano-balear §9 (Sprint #4 Fase 5).
+   *  El tooltip del mapa y la ficha lo usan en vez del `id` opaco. */
+  name: string;
   sex: Sex;
   casta: Casta;
   linaje: Linaje;
@@ -125,6 +128,7 @@ export interface NPC {
  *  overrides por nombre. No se usa en producción. */
 export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
   return {
+    name: overrides.id,
     sex: SEX.M,
     casta: CASTA.CIUDADANO,
     linaje: LINAJE.TRAMUNTANA,

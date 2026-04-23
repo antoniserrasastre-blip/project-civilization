@@ -203,6 +203,11 @@ export interface MapViewProps {
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
   onNpcClick?: (npcId: string) => void;
+  /** Tile del mundo sobre el que centrar el viewport al arrancar.
+   *  Sprint #5 SPAWN-COSTERO: lo pasa `GameShell` a partir de
+   *  `defaultClanSpawn(seed)`. Si se omite, el MapView cae sobre
+   *  el centro geométrico del mundo. */
+  initialCenter?: { x: number; y: number };
 }
 
 interface HoverState {
@@ -212,7 +217,11 @@ interface HoverState {
   y: number;
 }
 
-export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
+export function MapView({
+  npcs = [],
+  onNpcClick,
+  initialCenter,
+}: MapViewProps = {}) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [dims, setDims] = useState<ViewportDims>({
@@ -224,16 +233,15 @@ export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
   });
   const [viewport, setViewport] = useState<ViewportState>({
     zoom: 0.3,
-    // Viewport centrado sobre el spawn del clan (tile ~85,73 en el
-    // fixture actual). Con zoom 0.3 cada tile = 9.6px; offset negativo
-    // desplaza el mapa para que la isla del spawn quede en la mitad
-    // superior del canvas, por encima del DailyModal inferior.
-    offsetX: -300,
-    offsetY: -300,
+    // Placeholder — el useEffect de resize recomputa el offset
+    // inicial centrando sobre `initialCenter` (Sprint #5).
+    offsetX: 0,
+    offsetY: 0,
   });
   const [hover, setHover] = useState<HoverState | null>(null);
 
-  // Ajusta dims al tamaño real del contenedor.
+  // Ajusta dims al tamaño real del contenedor y centra el viewport
+  // sobre el spawn del clan cuando es el primer render.
   useEffect(() => {
     const resize = () => {
       const el = containerRef.current;
@@ -245,17 +253,32 @@ export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
         screenHeight: rect.height,
       };
       setDims(nextDims);
-      // Re-clampea y establece vista inicial centrada si es primer render.
       setViewport((prev) => {
         const z = clampZoom(nextDims, prev.zoom || minZoom(nextDims));
-        return clampOffset(nextDims, { ...prev, zoom: z });
+        // Centra sobre `initialCenter` si el offset todavía es el
+        // placeholder (0,0); si el usuario ya panneó, respeta su
+        // posición. El criterio "si todavía es placeholder" = ambos
+        // offsets son exactamente 0 — poco probable tras interacción.
+        const center = initialCenter;
+        const isFirst = prev.offsetX === 0 && prev.offsetY === 0;
+        if (!isFirst || !center) {
+          return clampOffset(nextDims, { ...prev, zoom: z });
+        }
+        const tilePx = nextDims.tileSize * z;
+        const offsetX = Math.round(
+          nextDims.screenWidth / 2 - center.x * tilePx - tilePx / 2,
+        );
+        const offsetY = Math.round(
+          nextDims.screenHeight / 2 - center.y * tilePx - tilePx / 2,
+        );
+        return clampOffset(nextDims, { zoom: z, offsetX, offsetY });
       });
     };
     resize();
     window.addEventListener('resize', resize);
     return () => window.removeEventListener('resize', resize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialCenter]);
 
   const placements = useMemo(
     () => placeMarkers(npcs, dims, viewport),
@@ -306,7 +329,7 @@ export function MapView({ npcs = [], onNpcClick }: MapViewProps = {}) {
         if (hover) setHover(null);
         return;
       }
-      const label = `${hit.npc.id}, ${hit.npc.linaje}`;
+      const label = `${hit.npc.name}, ${hit.npc.linaje}`;
       if (hover?.npcId === hit.npc.id && hover.x === hit.cx && hover.y === hit.cy) {
         return;
       }

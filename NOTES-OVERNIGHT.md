@@ -214,3 +214,20 @@ sandbox (vía `PLAYWRIGHT_CHROMIUM_PATH` override soportado por
   pnpm exec tsc --noEmit ✅ limpio
   pnpm exec eslint .     ✅ limpio
   pnpm build             ✅ prebuild + build OK
+
+## 2026-04-22 — Fase 5 sprint #1 cerrado, gate #1.5 pospuesto
+
+**Sprint #1 (refactor-susurro-fe)**: PR #12 abierto contra
+`claude/phase-5-blessings-traits-raeSH`. §A4 intacto. Gate verde
+(370 unit + 9 e2e + tsc + lint + build).
+
+**Gate humano #1.5 PLAYTEST-SUSURRO — pospuesto con autorización
+humana (2026-04-22)**. El Director indica que no puede hacer
+playtest ahora mismo y autoriza arrancar Sprint #2 LEGIBILIDAD-MVP
+en paralelo. Queda registrado como adelanto especulativo sobre
+balance no verificado; cualquier 🔴 finding en playtest posterior
+obliga a revertir o ajustar #2 antes de pasar a #3 FICHA-AVENTURERO.
+
+Sprint #2 arranca en rama `claude/sprint-02-legibilidad-mvp`
+partiendo de `claude/sprint-01-refactor-susurro-fe` (PR encadenado)
+para no mergear #1 prematuramente a la rama de fase.

@@ -113,6 +113,16 @@ describe('grantMiracle — cap de rasgos', () => {
     expect(t).toContain('medio');
     expect(t).toContain('reciente');
   });
+
+  it('3 milagros consecutivos dejan exactamente 3 rasgos', () => {
+    let s = setupState({ gratitude: 200 });
+    s = grantMiracle(s, 'a', MIRACLE.HAMBRE_SAGRADA);
+    s = grantMiracle(s, 'a', MIRACLE.OJO_DE_HALCON);
+    s = grantMiracle(s, 'a', MIRACLE.VOZ_DE_TODOS);
+    const t = s.npcs.find((n) => n.id === 'a')!.traits;
+    expect(t).toHaveLength(3);
+    expect(t).toEqual(['hambre_sagrada', 'ojo_de_halcon', 'voz_de_todos']);
+  });
 });
 
 describe('canGrantMiracle', () => {
