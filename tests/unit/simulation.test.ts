@@ -226,8 +226,8 @@ describe('tick — prioridad estricta de construcción', () => {
       }),
     );
     let s = initialGameState(1, npcs, mkFlatWorld());
-    // Con TICKS_PER_DAY=480: fogata = 3 días × 480 / 14 builders ≈ 103 ticks.
-    for (let i = 0; i < 200; i++) {
+    // Con TICKS_PER_DAY=480 y MAX_ACTIVE_BUILDERS=3: fogata = 3d×480/3 = 480 ticks.
+    for (let i = 0; i < 550; i++) {
       s = tick(s);
       if (s.structures.length > 0) break;
     }
