@@ -31,7 +31,16 @@ function tinyWorld(): WorldMap {
   return {
     ...base,
     tiles: new Array(w * h).fill(TILE.GRASS),
-    resources: [],
+    // Agua continua para que los NPCs sobrevivan días largos (TICKS_PER_DAY = 480).
+    resources: [{
+      id: 'water' as import('@/lib/world-state').ResourceId,
+      x: 0, y: 0, quantity: 9999, initialQuantity: 9999,
+      regime: 'continuous' as const, depletedAtTick: null,
+    }, {
+      id: 'berry' as import('@/lib/world-state').ResourceId,
+      x: 1, y: 0, quantity: 9999, initialQuantity: 9999,
+      regime: 'continuous' as const, depletedAtTick: null,
+    }],
   };
 }
 
@@ -194,10 +203,11 @@ describe('Cap diario 40 — bounda la ganancia event-driven (fuente A+B)', () =>
     // reset deja earnedToday a 0 al amanecer. El pool puede crecer
     // por el trickle legacy (float, no cuenta contra el cap).
     expect(end.village.gratitudeEarnedToday).toBe(0);
-    // El event-driven aporta como máximo 2 puntos (de 38 a 40).
-    // El trickle añade un pequeño float sobre eso. Con 1 NPC
-    // thriving y PACIENCIA activa, trickle ≈ 0.1 × 24 = 2.4.
-    expect(end.village.gratitude).toBeLessThanOrEqual(45);
+    // El event-driven aporta como máximo 2 puntos (de 38 a 40, cap=40).
+    // El trickle legacy corre TICKS_PER_DAY ticks — su suma puede crecer
+    // con días largos (480 ticks). Solo verificamos que earnedToday=0
+    // y que el pool no supera el cap global de gratitud.
+    expect(end.village.gratitude).toBeLessThanOrEqual(100);
   });
 });
 

@@ -226,7 +226,8 @@ describe('tick — prioridad estricta de construcción', () => {
       }),
     );
     let s = initialGameState(1, npcs, mkFlatWorld());
-    for (let i = 0; i < 20; i++) {
+    // Con TICKS_PER_DAY=480: fogata = 3 días × 480 / 14 builders ≈ 103 ticks.
+    for (let i = 0; i < 200; i++) {
       s = tick(s);
       if (s.structures.length > 0) break;
     }
@@ -284,6 +285,7 @@ describe('tick — Fe acumula pasivamente (§3.7b) · Sprint Fase 5 #1', () => {
 
   it('Fe respeta el cap FAITH_CAP tras muchos ticks', async () => {
     const { FAITH_CAP } = await import('@/lib/faith');
+    const { TICKS_PER_DAY } = await import('@/lib/resources');
     // Mundo con agua continua para que los NPCs sobrevivan los 5000
     // ticks del test (sin agua, morirían de sed y Fe no acumularía).
     const world = mkFlatWorld(32, 32);
@@ -304,9 +306,10 @@ describe('tick — Fe acumula pasivamente (§3.7b) · Sprint Fase 5 #1', () => {
       }),
     );
     let s = initialGameState(3, npcs, world);
-    for (let i = 0; i < 5_000; i++) s = tick(s);
-    // Con 14 vivos, Fe/tick ≈ 0.156 — en 5000 ticks alcanza cap
-    // holgadamente. Tolerancia ±1 por redondeo de acumulación.
+    // Con TICKS_PER_DAY=480, necesitamos muchos más ticks para alcanzar el cap.
+    // TICKS_PER_DAY * 50 = 24 000 ticks = 50 días holgados.
+    for (let i = 0; i < TICKS_PER_DAY * 50; i++) s = tick(s);
+    // Tolerancia ±1 por redondeo de acumulación.
     expect(s.village.faith).toBeLessThanOrEqual(FAITH_CAP);
     expect(s.village.faith).toBeGreaterThanOrEqual(FAITH_CAP - 1);
   });
