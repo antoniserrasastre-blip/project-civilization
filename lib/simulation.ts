@@ -47,6 +47,11 @@ import {
 } from './crafting';
 import { addStructure } from './structures';
 import { TILE, type TileId } from './world-state';
+import { tickReproduction } from './reproduction';
+import { applyEsclavoDrain, elegidoFaithBonusPerTick } from './casta-effects';
+import type { ChronicleEntry } from './game-state';
+import { CHRONICLE_MAX } from './game-state';
+import { narrate } from './chronicle';
 
 /** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
 const HUNGER_ESCAPE_LOW = 20;
@@ -350,19 +355,61 @@ export function tick(state: GameState): GameState {
       }
     : state.village;
 
+  // Esclavo drain — supervivencia cae pasivamente (§3.2 castas).
+  const npcsAfterCasta = applyEsclavoDrain(afterBuild.npcs);
+
+  // Reproducción — pairing + nacimientos. PRNG explícito (§A4).
+  const usedNames = new Set(afterBuild.npcs.map((n) => n.name));
+  const repro = tickReproduction(
+    npcsAfterCasta,
+    afterBuild.tick,
+    afterBuild.prng,
+    usedNames,
+  );
+  const npcsAfterRepro = repro.npcs;
+  let prngAfterRepro = repro.prng;
+
+  // Crónica y gratitud por nacimientos
+  let chronicleAfterRepro = afterBuild.chronicle;
+  let villageAfterRepro = nextVillage;
+  for (const born of repro.newBorns) {
+    const text = narrate({
+      type: 'birth',
+      childName: born.name,
+      parents: born.parents as [string, string],
+      tick: Math.floor(afterBuild.tick / TICKS_PER_DAY),
+    });
+    const entry: ChronicleEntry = {
+      day: Math.floor(afterBuild.tick / TICKS_PER_DAY),
+      tick: afterBuild.tick,
+      text,
+    };
+    chronicleAfterRepro = [
+      ...chronicleAfterRepro.slice(-(CHRONICLE_MAX - 1)),
+      entry,
+    ];
+    villageAfterRepro = applyGratitudeFromEvent(
+      villageAfterRepro,
+      { type: 'birth', npcId: born.id, position: born.position },
+      villageAfterRepro.activeMessage,
+    );
+  }
   // Fe pasiva (§3.7b) — sqrt(vivos) por día, distribuido por tick.
-  const aliveCount = afterBuild.npcs.reduce(
+  const aliveCount = npcsAfterRepro.reduce(
     (n, npc) => n + (npc.alive ? 1 : 0),
     0,
   );
-  nextVillage = applyFaithDelta(nextVillage, faithPerTick(aliveCount));
+  nextVillage = applyFaithDelta(villageAfterRepro, faithPerTick(aliveCount));
+
+  // Fe bonus de Elegidos vivos (Sprint 8 §3.2).
+  const elegidoBonus = elegidoFaithBonusPerTick(npcsAfterRepro);
+  if (elegidoBonus > 0) {
+    nextVillage = applyFaithDelta(nextVillage, elegidoBonus);
+  }
 
   // Gratitud legacy trickle (Sprint 5.3, rate 0.1 post Fase 5 #1).
-  // Conservada como ruta pasiva mientras el v2 event-driven es la
-  // ruta principal — ambas coexisten hasta que el playtest #1.5
-  // decida el balance final.
   const gratitudeDelta = computeGratitudeTickDelta(
-    afterBuild.npcs,
+    npcsAfterRepro,
     nextVillage.activeMessage,
   );
   if (gratitudeDelta !== 0) {
@@ -374,7 +421,7 @@ export function tick(state: GameState): GameState {
   nextVillage = applyGratitudeEventsForTick(
     nextVillage,
     state.npcs,
-    afterBuild.npcs,
+    npcsAfterRepro,
   );
 
   // Flujo de amanecer (tick > 0, múltiplo de TICKS_PER_DAY):
@@ -408,6 +455,9 @@ export function tick(state: GameState): GameState {
 
   return {
     ...afterBuild,
+    npcs: npcsAfterRepro,
+    prng: prngAfterRepro,
+    chronicle: chronicleAfterRepro,
     relations: state.relations,
     village: nextVillage,
   };
