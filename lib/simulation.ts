@@ -14,7 +14,7 @@
  * socialización) llegan en Sprint 4.1.
  */
 
-import { decideDestination, tickNeeds } from './needs';
+import { decideDestination, tickNeeds, NEED_THRESHOLDS } from './needs';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
@@ -211,8 +211,25 @@ const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.PIEL_ROPA,
 ];
 
+/** Número máximo de NPCs que participan activamente en una obra.
+ *  Más de 3 no aceleran: la cuadrilla óptima es pequeña y experta. */
+export const MAX_ACTIVE_BUILDERS = 3;
+
 function aliveWorkers(npcs: readonly NPC[]): number {
   return npcs.reduce((n, npc) => n + (npc.alive ? 1 : 0), 0);
+}
+
+/** Selecciona los NPCs que van a construir este tick.
+ *  Prioriza los que tienen más crafting y están saciados.
+ *  Máximo MAX_ACTIVE_BUILDERS. */
+function selectBuilders(
+  npcs: readonly NPC[],
+  supervivenciaMin: number,
+): NPC[] {
+  return [...npcs]
+    .filter((n) => n.alive && n.stats.supervivencia >= supervivenciaMin)
+    .sort((a, b) => b.skills.crafting - a.skills.crafting)
+    .slice(0, MAX_ACTIVE_BUILDERS);
 }
 
 /** El clan construye de forma autónoma si tiene recursos y la
@@ -221,7 +238,12 @@ function aliveWorkers(npcs: readonly NPC[]): number {
  *  Una construcción por tick. */
 function tryAutoBuild(state: GameState): GameState {
   if (state.buildProject) {
-    const progress = state.buildProject.progress + aliveWorkers(state.npcs);
+    // Solo los builders designados contribuyen al progreso.
+    const activeBuilders = selectBuilders(
+      state.npcs,
+      NEED_THRESHOLDS.supervivenciaBuildReady,
+    );
+    const progress = state.buildProject.progress + activeBuilders.length;
     if (progress < state.buildProject.required) {
       return {
         ...state,
@@ -278,10 +300,22 @@ export function tick(state: GameState): GameState {
     state.structures,
     CRAFTABLE.FOGATA_PERMANENTE,
   );
+  // Solo los mejores craftsmen se encargan de la construcción activa.
+  // Los demás siguen con sus roles (caza, pesca, recolección).
+  const buildPriority = nextBuildPriority(state);
+  const builderIds: ReadonlySet<string> = buildPriority
+    ? new Set(
+        selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady)
+          .map((n) => n.id),
+      )
+    : new Set();
+
   const ctx = {
     world: state.world,
     npcs: state.npcs,
-    nextBuildPriority: nextBuildPriority(state),
+    // Solo los builders designados ven la prioridad de construcción.
+    // Se inyecta por NPC en el loop de abajo.
+    nextBuildPriority: undefined as CraftableId | undefined,
     firePosition: fire?.position,
     currentTick: state.tick,
     ticksPerDay: TICKS_PER_DAY,
@@ -291,8 +325,6 @@ export function tick(state: GameState): GameState {
   const newNPCs: NPC[] = [];
   let prng = state.prng;
   let fog: FogState = state.fog;
-  // Claimed tiles: cada NPC que elige un destino lo añade aquí.
-  // Los NPCs procesados después ven ese tile con CLAIM_PENALTY → se dispersan.
   const claimedTiles = new Set<string>();
 
   for (const npc of state.npcs) {
@@ -300,7 +332,14 @@ export function tick(state: GameState): GameState {
       newNPCs.push(npc);
       continue;
     }
-    const dest = decideDestination(npc, { ...ctx, claimedTiles });
+    // Builders designados ven la prioridad de construcción;
+    // el resto ignora la obra y hace su propio rol.
+    const npcCtx = {
+      ...ctx,
+      claimedTiles,
+      nextBuildPriority: builderIds.has(npc.id) ? buildPriority : undefined,
+    };
+    const dest = decideDestination(npc, npcCtx);
     // Registrar destino como reclamado para los NPCs siguientes.
     claimedTiles.add(`${dest.x},${dest.y}`);
 
