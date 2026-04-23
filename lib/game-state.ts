@@ -72,9 +72,15 @@ export function initialGameState(
   // Influence arranca siempre en ceros — es estado dinámico, no vive en el
   // fixture estático (evita bundle de 262K ceros en webpack).
   const rawWorld = worldOverride ?? DEFAULT_WORLD;
+  // Reserves: suma de initialQuantity de cada spawn en su tile.
+  const reserves = new Array<number>(rawWorld.width * rawWorld.height).fill(0);
+  for (const spawn of rawWorld.resources) {
+    reserves[spawn.y * rawWorld.width + spawn.x] += spawn.initialQuantity;
+  }
   const world: WorldMap = {
     ...rawWorld,
     influence: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
+    reserves,
   };
   // Por ahora todos parten en (0, 0); la colocación real en el
   // spawn costero entra en un sprint posterior (decide por mapa).

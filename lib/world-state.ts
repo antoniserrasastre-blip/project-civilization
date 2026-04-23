@@ -78,6 +78,11 @@ export interface WorldMap {
    *  Opcional en el shape porque el fixture estático no lo incluye
    *  (siempre arranca en ceros; `initialGameState` lo inicializa). */
   influence?: number[];
+  /** Capacidad de cosecha restante por tile — Sprint 12. Arranca como
+   *  suma de `initialQuantity` de los ResourceSpawn en cada tile.
+   *  Disminuye con cada harvest y no se regenera (depleción acumulativa).
+   *  `initialGameState` lo inicializa; no vive en el fixture. */
+  reserves?: number[];
 }
 
 /** Devuelve un mundo vacío (toda agua, sin recursos) para tests de
