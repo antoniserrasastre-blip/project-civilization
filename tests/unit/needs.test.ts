@@ -257,6 +257,151 @@ describe('decideDestination — tie-break determinista', () => {
   });
 });
 
+describe('decideDestination — filtro de intención (Sprint 10)', () => {
+  it('CAZADOR con lanza prefiere game sobre berry a igual distancia', () => {
+    const world = mkWorld(20, 20);
+    // Dos opciones de comida a distancia 5 desde (0,0).
+    world.resources.push({
+      id: RESOURCE.BERRY,
+      x: 5,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.GAME,
+      x: 0,
+      y: 5,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 30, socializacion: 80 },
+      skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      equippedItemId: 'item-cazador',
+    });
+    // Con el item pasado vía ctx.items, la lanza orienta a GAME.
+    const ctx: DestinationContext = {
+      world,
+      npcs: [npc],
+      items: [
+        {
+          id: 'item-cazador',
+          kind: 'spear',
+          ownerNpcId: 'n',
+          durability: 80,
+          maxDurability: 80,
+          prestige: 0,
+          createdAtTick: 0,
+        },
+      ],
+    };
+    const r = decideDestination(npc, ctx);
+    expect(r).toEqual({ x: 0, y: 5 }); // GAME, no BERRY
+  });
+
+  it('PESCADOR prefiere fish aunque esté algo más lejos (dentro del bias)', () => {
+    const world = mkWorld(20, 20);
+    // Berry a distancia 5, fish a distancia 6: el bias aditivo
+    // (peso 2) empuja al pescador al pez sin que vuele mapa entero.
+    world.resources.push({
+      id: RESOURCE.BERRY,
+      x: 5,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.FISH,
+      x: 0,
+      y: 6,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 30, socializacion: 80 },
+      skills: { hunting: 10, gathering: 15, crafting: 10, fishing: 70, healing: 10 },
+      equippedItemId: null,
+    });
+    const r = decideDestination(npc, mkCtx(world, [npc]));
+    expect(r).toEqual({ x: 0, y: 6 });
+  });
+
+  it('filtro de intención NO anula la prioridad crítica (agua antes que rol)', () => {
+    const world = mkWorld(20, 20);
+    world.resources.push({
+      id: RESOURCE.WATER,
+      x: 8,
+      y: 0,
+      quantity: 999,
+      initialQuantity: 999,
+      regime: 'continuous',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.GAME,
+      x: 2,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 10, socializacion: 80 }, // crítica
+      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+    });
+    const r = decideDestination(npc, mkCtx(world, [npc]));
+    expect(r).toEqual({ x: 8, y: 0 }); // agua, aunque el cazador "quiere" game
+  });
+
+  it('filtro del rol no supera distancia grande (no viaja medio mapa)', () => {
+    const world = mkWorld(30, 30);
+    // Fish a distancia 2, game a distancia 20 — el cazador come fish
+    // porque el bias es pequeño (≤5) y no compensa un viaje brutal.
+    world.resources.push({
+      id: RESOURCE.FISH,
+      x: 2,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    world.resources.push({
+      id: RESOURCE.GAME,
+      x: 20,
+      y: 0,
+      quantity: 10,
+      initialQuantity: 10,
+      regime: 'regenerable',
+      depletedAtTick: null,
+    });
+    const npc = makeTestNPC({
+      id: 'n',
+      position: { x: 0, y: 0 },
+      stats: { supervivencia: 30, socializacion: 80 },
+      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+    });
+    const r = decideDestination(npc, mkCtx(world, [npc]));
+    expect(r).toEqual({ x: 2, y: 0 });
+  });
+});
+
 describe('decideDestination — pureza', () => {
   it('no muta npc ni ctx', () => {
     const world = mkWorld(10, 10);

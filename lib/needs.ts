@@ -24,6 +24,8 @@ import {
 } from './world-state';
 import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
+import type { EquippableItem } from './items';
+import { computeRole, intentFilter } from './roles';
 
 export const NEED_THRESHOLDS = {
   supervivenciaCritical: 20,
@@ -62,6 +64,10 @@ export interface DestinationContext {
   /** Filtro opcional de alcanzabilidad. Si existe, los recursos
    *  inalcanzables no se eligen como destino. */
   isReachable?: (from: Position, to: Position) => boolean;
+  /** Items del clan. Si está presente, `decideDestination` usa el
+   *  item equipado del NPC para computar su rol activo y sesgar
+   *  la elección de recursos (Sprint 10 — Pilar 1). */
+  items?: readonly EquippableItem[];
 }
 
 export interface Position {
@@ -78,20 +84,26 @@ function nearestResource(
   resources: readonly ResourceSpawn[],
   acceptable: (id: ResourceId) => boolean,
   isReachable?: (from: Position, to: Position) => boolean,
+  /** Peso aditivo por recurso (filtro de intención del rol). El peso
+   *  se resta de la distancia efectiva: `score = d - weight`. Con
+   *  weight=0 el comportamiento es idéntico al anterior. */
+  intentWeight?: (id: ResourceId) => number,
 ): Position | null {
-  let best: { d: number; x: number; y: number } | null = null;
+  let best: { score: number; x: number; y: number } | null = null;
   for (const r of resources) {
     if (r.quantity <= 0) continue;
     if (!acceptable(r.id)) continue;
     const pos = { x: r.x, y: r.y };
     if (isReachable && !isReachable(from, pos)) continue;
     const d = manhattan(from.x, from.y, r.x, r.y);
+    const w = intentWeight ? intentWeight(r.id) : 0;
+    const score = d - w;
     if (
       !best ||
-      d < best.d ||
-      (d === best.d && (r.x < best.x || (r.x === best.x && r.y < best.y)))
+      score < best.score ||
+      (score === best.score && (r.x < best.x || (r.x === best.x && r.y < best.y)))
     ) {
-      best = { d, x: r.x, y: r.y };
+      best = { score, x: r.x, y: r.y };
     }
   }
   return best ? { x: best.x, y: best.y } : null;
@@ -134,6 +146,24 @@ function recoveryResourceAtPosition(
     }
   }
   return null;
+}
+
+function equippedItem(
+  npc: NPC,
+  items: readonly EquippableItem[] | undefined,
+): EquippableItem | null {
+  if (!npc.equippedItemId || !items) return null;
+  return items.find((i) => i.id === npc.equippedItemId) ?? null;
+}
+
+function buildIntentWeight(
+  npc: NPC,
+  items: readonly EquippableItem[] | undefined,
+): (id: ResourceId) => number {
+  const item = equippedItem(npc, items);
+  const role = computeRole(npc, item);
+  const weights = intentFilter(role);
+  return (id: ResourceId) => weights[id] ?? 0;
 }
 
 export function decideDestination(
@@ -186,6 +216,7 @@ export function decideDestination(
       ctx.world.resources,
       (id) => FOOD_IDS.includes(id),
       ctx.isReachable,
+      buildIntentWeight(npc, ctx.items),
     );
     if (food) return food;
   }
@@ -208,6 +239,7 @@ export function decideDestination(
         ctx.world.resources,
         (id) => matchesMissing(id, missing),
         ctx.isReachable,
+        buildIntentWeight(npc, ctx.items),
       );
       if (spawn) return spawn;
     }
