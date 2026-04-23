@@ -415,6 +415,7 @@ function renderNPCs(
   intentTrails: readonly NpcIntentTrail[] = [],
   resourceTileSet: ReadonlySet<number> = new Set(),
   worldWidth = 512,
+  tilePx = 32,
 ) {
   const badgeMap = new Map(npcStatuses.map((s) => [s.npcId, s.badges]));
   const movingSet = new Set(
@@ -436,17 +437,19 @@ function renderNPCs(
     const tileIdx = npc.position.y * worldWidth + npc.position.x;
     const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
 
-    // Anillo de linaje con pulso
-    const ringR = marker.size / 2 + marker.outline + 2;
+    // spriteSize proporcional a tilePx — escala con el zoom igual que recursos.
+    // Sin mínimo fijo: a zoom bajo son pequeños, a zoom alto son grandes.
+    const spriteSize = Math.max(3, tilePx * 0.82);
+
+    // Anillo de linaje escalado con el sprite
+    const ringR = spriteSize / 2 + 1.5;
     ctx.beginPath();
     ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
     ctx.strokeStyle = marker.linajeBorderColor;
     ctx.globalAlpha = 0.72 * pulseAlpha;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(0.5, tilePx * 0.04);
     ctx.stroke();
     ctx.globalAlpha = 1;
-
-    const spriteSize = marker.size * 2.2;
     const spriteKey = spriteKeyFor(npc, items);
     const img = sprites.get(spriteKey);
 
@@ -1447,9 +1450,11 @@ export function MapView({
       const resourceTileSet = new Set(
         rp.world.resources.filter((r) => r.quantity > 0).map((r) => r.y * rp.world.width + r.x),
       );
+      const currentTilePx = currentDims.tileSize * currentViewport.zoom;
       renderNPCs(
         ctx, lerpedPlacements, true, rp.items, pulse, rp.sprites, now,
         rp.npcStatuses, rp.intentTrails, resourceTileSet, rp.world.width,
+        currentTilePx,
       );
       renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses);
 
