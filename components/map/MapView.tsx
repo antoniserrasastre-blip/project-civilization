@@ -29,7 +29,9 @@ import type { EquippableItem } from '@/lib/items';
 import { itemForNpc } from '@/lib/items';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
-import { computeRole, roleColor } from '@/lib/roles';
+import { computeRole, roleColor, ROLE } from '@/lib/roles';
+import { useUnitSprites, type SpriteMap, type UnitSpriteKey } from '@/hooks/use-unit-sprites';
+import { CASTA } from '@/lib/npcs';
 import { TILE_COLOR } from '@/lib/tile-colors';
 import {
   applyDrag,
@@ -195,19 +197,61 @@ function professionColor(
   return roleColor(computeRole(npc, item));
 }
 
+/** Elige el sprite key para un NPC según casta y rol activo. */
+function spriteKeyFor(
+  npc: NPC,
+  items: readonly EquippableItem[],
+): UnitSpriteKey {
+  if (npc.casta === CASTA.ELEGIDO) return 'ELEGIDO';
+  const role = computeRole(npc, itemForNpc(npc, items));
+  switch (role) {
+    case ROLE.CAZADOR:
+    case ROLE.RASTREADOR: return 'CAZADOR';
+    case ROLE.RECOLECTOR:
+    case ROLE.PESCADOR:   return 'RECOLECTOR';
+    case ROLE.TALLADOR:
+    case ROLE.TEJEDOR:
+    case ROLE.CURANDERO:  return 'ARTESANO';
+    default:              return 'GUERRERO';
+  }
+}
+
+/** Dibuja un sprite centrado en (cx,cy) con tamaño sz y wobble suave.
+ *  El wobble usa el índice del NPC para desincronizar las oscilaciones. */
+function drawSprite(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  cx: number,
+  cy: number,
+  sz: number,
+  npcIndex: number,
+  now: number,
+) {
+  const wobble = Math.sin(now / 480 + npcIndex * 0.9) * 0.07; // ±4°
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(wobble);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
+  ctx.restore();
+}
+
 function renderNPCs(
   ctx: CanvasRenderingContext2D,
   placements: readonly MarkerPlacement[],
   professionLayer: boolean,
   items: readonly EquippableItem[],
   pulseAlpha = 1,
+  sprites: SpriteMap = new Map(),
+  now = 0,
 ) {
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'miter';
-  for (const { npc, marker, cx, cy } of placements) {
+  for (let i = 0; i < placements.length; i++) {
+    const { npc, marker, cx, cy } = placements[i];
     const { fill, outline, highlight } = marker.colors;
 
-    // Anillo de linaje — corona exterior de 1px en el color de la facción.
+    // Anillo de linaje — corona exterior con pulso suave.
     const ringR = marker.size / 2 + marker.outline + 2;
     ctx.beginPath();
     ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
@@ -217,13 +261,22 @@ function renderNPCs(
     ctx.stroke();
     ctx.globalAlpha = 1;
 
-    if (marker.shape === 'diamond') {
-      drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
-      ctx.fillStyle = highlight;
-      ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
+    // Sprite o fallback geométrico.
+    const spriteKey = spriteKeyFor(npc, items);
+    const img = sprites.get(spriteKey);
+    if (img) {
+      drawSprite(ctx, img, cx, cy, marker.size * 1.1, i, now);
     } else {
-      drawCircle(ctx, cx, cy, marker.size, fill, outline, marker.outline);
+      if (marker.shape === 'diamond') {
+        drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
+        ctx.fillStyle = highlight;
+        ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
+      } else {
+        drawCircle(ctx, cx, cy, marker.size, fill, outline, marker.outline);
+      }
     }
+
+    // Píxel de oficio — siempre visible encima del sprite.
     if (professionLayer) {
       const offset = Math.max(1, Math.round(marker.size * 0.24));
       ctx.fillStyle = professionColor(npc, items);
@@ -1047,6 +1100,7 @@ export function MapView({
 }: MapViewProps = {}) {
   const [relationsLayerOn, setRelationsLayerOn] = useState(false);
   const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
+  const sprites = useUnitSprites();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
@@ -1056,7 +1110,7 @@ export function MapView({
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
-    npcStatuses, relations, relationsLayerOn, items, npcs,
+    npcStatuses, relations, relationsLayerOn, items, npcs, sprites,
   });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
@@ -1136,7 +1190,7 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs,
+      npcStatuses, relations, relationsLayerOn, items, npcs, sprites,
     };
   });
 
@@ -1154,11 +1208,12 @@ export function MapView({
       if (!ctx) { rafId = requestAnimationFrame(loop); return; }
 
       // Factor de interpolación 0→1 entre el tick anterior y el actual.
-      const elapsed = performance.now() - lastTickMsRef.current;
+      const now = performance.now();
+      const elapsed = now - lastTickMsRef.current;
       const alpha = Math.min(1, elapsed / tickIntervalMs);
 
       // Pulso de vida: oscilación suave de la corona de linaje.
-      const pulse = 0.72 + 0.18 * Math.sin(performance.now() / 420);
+      const pulse = 0.72 + 0.18 * Math.sin(now / 420);
 
       // NPCs con posición lerpeada para render suave.
       const lerpedNpcs = rp.npcs.map((npc) => {
@@ -1191,7 +1246,7 @@ export function MapView({
         renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
       }
       renderIntentTrails(ctx, rp.intentTrails, currentDims, currentViewport);
-      renderNPCs(ctx, lerpedPlacements, true, rp.items, pulse);
+      renderNPCs(ctx, lerpedPlacements, true, rp.items, pulse, rp.sprites, now);
       renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses);
 
       rafId = requestAnimationFrame(loop);
