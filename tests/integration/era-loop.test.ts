@@ -32,6 +32,7 @@ function buildRichWorld(): WorldMap {
     tiles,
     resources: [],
     meta: { generatorVersion: 1, shaHash: '', islandCount: 1 },
+    influence: [],
   };
   // Stones en columna.
   for (let y = 0; y < h; y += 2) {

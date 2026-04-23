@@ -26,6 +26,7 @@ function mkWorld(tiles: TileId[], width: number, height: number): WorldMap {
     tiles,
     resources: [],
     meta: { generatorVersion: 1, shaHash: '', islandCount: 0 },
+    influence: [],
   };
 }
 

@@ -20,6 +20,7 @@ import type { GameState } from './game-state';
 import type { NPC } from './npcs';
 import { CASTA } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
+import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
 import type { FogState } from './fog';
@@ -326,12 +327,24 @@ export function tick(state: GameState): GameState {
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }
 
-  const regen = tickResources(state.world.resources, state.tick + 1);
+  // Actualizar heatmap de influencia con posiciones post-movimiento.
+  const nextInfluence = tickInfluence(
+    state.world.influence,
+    newNPCs,
+    state.world.width,
+    state.world.height,
+  );
+  const regen = tickResources(
+    state.world.resources,
+    state.tick + 1,
+    nextInfluence,
+    state.world.width,
+  );
   // Recolección ANTES de tickNeeds para que el inventario post-harvest
   // pueda usarse en sprints siguientes. El estado "on-the-spot" de
   // needs también puede ver el mismo spawn antes de agotarse.
   const harvested = tickHarvests(newNPCs, regen, state.tick + 1);
-  const nextWorld = { ...state.world, resources: harvested.resources };
+  const nextWorld = { ...state.world, resources: harvested.resources, influence: nextInfluence };
   const npcsAfterNeeds = tickNeeds(harvested.npcs, {
     world: nextWorld,
     npcs: harvested.npcs,

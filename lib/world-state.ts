@@ -73,6 +73,9 @@ export interface WorldMap {
   tiles: TileId[];
   resources: ResourceSpawn[];
   meta: WorldMapMeta;
+  /** Heatmap de presencia territorial — Sprint 12. Array plano row-major
+   *  de enteros 0–1000. `influence[y * width + x]`. */
+  influence: number[];
 }
 
 /** Devuelve un mundo vacío (toda agua, sin recursos) para tests de
@@ -94,5 +97,6 @@ export function emptyWorldMap(
       shaHash: '',
       islandCount: 0,
     },
+    influence: new Array<number>(width * height).fill(0),
   };
 }

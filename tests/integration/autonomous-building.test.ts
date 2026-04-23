@@ -32,6 +32,7 @@ function buildRichWorld(): WorldMap {
     tiles,
     resources: [],
     meta: { generatorVersion: 1, shaHash: '', islandCount: 1 },
+    influence: [],
   };
   // Leña en una columna, piedra en otra, bayas cerca, caza, agua.
   for (let y = 0; y < h; y += 3) {
