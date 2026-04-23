@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="8" cy="15" rx="5" ry="1" fill="rgba(0,0,0,0.3)" shape-rendering="auto"/>
+  <!-- Cristal base (oscuro) -->
+  <rect x="4" y="8" width="4" height="6" fill="#1a0a30"/>
+  <rect x="3" y="9" width="2" height="4" fill="#1a0a30"/>
+  <rect x="7" y="7" width="3" height="7" fill="#1a0a30"/>
+  <!-- Cristal principal -->
+  <rect x="5" y="4" width="6" height="9" fill="#2a1050"/>
+  <rect x="4" y="6" width="8" height="7" fill="#2a1050"/>
+  <rect x="6" y="2" width="4" height="4" fill="#2a1050"/>
+  <!-- Faceta izquierda (más clara) -->
+  <rect x="5" y="4" width="3" height="9" fill="#3a1a68"/>
+  <rect x="6" y="2" width="2" height="4" fill="#3a1a68"/>
+  <!-- Filo / arista central -->
+  <rect x="7" y="1" width="2" height="12" fill="#4a2080"/>
+  <!-- Brillo superior -->
+  <rect x="7" y="2" width="2" height="2" fill="#8040c0"/>
+  <rect x="8" y="3" width="2" height="3" fill="#6030a8"/>
+  <!-- Destellos -->
+  <rect x="6" y="5" width="1" height="2" fill="#9050d0"/>
+  <rect x="9" y="7" width="1" height="1" fill="#7040b0"/>
+</svg>

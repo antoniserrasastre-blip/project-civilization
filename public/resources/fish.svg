@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Agua de fondo (el pez nada) -->
+  <rect x="0" y="10" width="16" height="6" fill="#2a70b0"/>
+  <rect x="0" y="9" width="16" height="2" fill="#3a88c8"/>
+  <!-- Aleta caudal (cola) -->
+  <rect x="12" y="6" width="2" height="2" fill="#2a6a90"/>
+  <rect x="13" y="5" width="2" height="4" fill="#2a6a90"/>
+  <rect x="14" y="4" width="2" height="6" fill="#3080a8"/>
+  <!-- Cuerpo del pez -->
+  <rect x="3" y="7" width="10" height="4" fill="#50a0c0"/>
+  <rect x="2" y="8" width="12" height="2" fill="#50a0c0"/>
+  <rect x="4" y="6" width="8" height="6" fill="#60b0d0"/>
+  <rect x="5" y="7" width="6" height="4" fill="#70c0e0"/>
+  <!-- Escamas (líneas) -->
+  <rect x="7" y="7" width="1" height="4" fill="#50a8c0"/>
+  <rect x="10" y="7" width="1" height="4" fill="#50a8c0"/>
+  <!-- Aleta dorsal -->
+  <rect x="6" y="5" width="5" height="2" fill="#3a8ab0"/>
+  <rect x="7" y="4" width="3" height="2" fill="#4090b8"/>
+  <!-- Ojo -->
+  <rect x="3" y="8" width="2" height="2" fill="#e8e8f0"/>
+  <rect x="3" y="8" width="1" height="1" fill="#1a1a2a"/>
+  <!-- Boca -->
+  <rect x="2" y="9" width="1" height="1" fill="#2a5a78"/>
+  <!-- Barriga (más clara) -->
+  <rect x="5" y="9" width="5" height="2" fill="#90d0e8"/>
+</svg>
