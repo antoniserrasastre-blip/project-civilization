@@ -94,17 +94,19 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
   };
 
   /* ─── Bloque A helpers ──────────────────────────────────────────── */
+  // El try/catch debe vivir DENTRO del updater: React invoca el updater
+  // durante el reconciliado (fuera del scope del try externo).
   const handleArchetype = (arch: Archetype) => {
-    try { setDraft((d) => pickArchetype(d, activeSlot, arch)); } catch { /* budget */ }
+    setDraft((d) => { try { return pickArchetype(d, activeSlot, arch); } catch { return d; } });
   };
   const handleSex = (sex: Sex) => {
     setDraft((d) => setSex(d, activeSlot, sex));
   };
   const handleAddTrait = (id: TraitId) => {
-    try { setDraft((d) => addTrait(d, activeSlot, id)); } catch { /* budget/dup */ }
+    setDraft((d) => { try { return addTrait(d, activeSlot, id); } catch { return d; } });
   };
   const handleRemoveTrait = (id: TraitId) => {
-    try { setDraft((d) => removeTrait(d, activeSlot, id)); } catch { /* not found */ }
+    setDraft((d) => { try { return removeTrait(d, activeSlot, id); } catch { return d; } });
   };
 
   const blockAReady = (() => {
@@ -116,7 +118,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
     generateCandidates(seed, tier, page);
 
   const handlePickFollower = (c: FollowerCandidate) => {
-    try { setFollowerDraft((d) => pickFollower(d, c)); } catch { /* 10 ya */ }
+    setFollowerDraft((d) => { try { return pickFollower(d, c); } catch { return d; } });
   };
 
   const blockBReady = followerDraft.picks.length === 10;
