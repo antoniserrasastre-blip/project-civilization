@@ -25,6 +25,7 @@ import {
 import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
+import { ITEM_DEFS } from './items';
 import { computeRole, intentFilter } from './roles';
 
 export const NEED_THRESHOLDS = {
@@ -124,6 +125,19 @@ function centroidOfAlive(npcs: readonly NPC[]): Position | null {
 }
 
 const FOOD_IDS: ResourceId[] = [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH];
+
+/** Recursos hacia los que la herramienta "tira" cuando el NPC está
+ *  saciado y no hay build priority. Es un destino **adicional**, no
+ *  un sesgo de desempate — complementa el filtro de intención por
+ *  rol (que afecta a la búsqueda de comida por hambre, Sprint 10).
+ *  Sprint 9b: herramienta en mano da propósito cuando no hay hambre. */
+const TOOL_PREFERRED_RESOURCES: Record<string, ResourceId[]> = {
+  hunting: [RESOURCE.GAME],
+  gathering: [RESOURCE.BERRY, RESOURCE.WOOD, RESOURCE.SHELL],
+  crafting: [RESOURCE.STONE, RESOURCE.WOOD, RESOURCE.OBSIDIAN],
+  fishing: [RESOURCE.FISH],
+  healing: [RESOURCE.BERRY, RESOURCE.WATER],
+};
 
 function carriedFood(npc: NPC): number {
   return npc.inventory.berry + npc.inventory.game + npc.inventory.fish;
@@ -242,6 +256,27 @@ export function decideDestination(
         buildIntentWeight(npc, ctx.items),
       );
       if (spawn) return spawn;
+    }
+  }
+
+  // Sprint 9b — NPC saciado y sin prioridad de construcción:
+  // la herramienta en mano le da un destino afín (cazador busca
+  // caza, recolector busca bayas, etc.). Ignora si no hay items
+  // en ctx o si el NPC no lleva herramienta.
+  if (ctx.items && npc.equippedItemId) {
+    const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
+    if (equipped) {
+      const affinity = ITEM_DEFS[equipped.kind].skillAffinity;
+      const preferred = TOOL_PREFERRED_RESOURCES[affinity] ?? [];
+      if (preferred.length > 0) {
+        const intentTarget = nearestResource(
+          npc.position,
+          ctx.world.resources,
+          (id) => preferred.includes(id),
+          ctx.isReachable,
+        );
+        if (intentTarget) return intentTarget;
+      }
     }
   }
 
