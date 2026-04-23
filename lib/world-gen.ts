@@ -463,6 +463,5 @@ export function generateWorld(
       shaHash: preHash,
       islandCount,
     },
-    influence: new Array<number>(width * height).fill(0),
   };
 }

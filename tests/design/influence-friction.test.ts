@@ -82,17 +82,19 @@ describe('tickResources con influencia — fricción territorial', () => {
 });
 
 describe('state.world.influence — integración en el shape del estado', () => {
-  it('WorldMap tiene campo influence de tipo number[]', async () => {
-    const { emptyWorldMap } = await import('@/lib/world-state');
-    const world = emptyWorldMap(1, W, H);
-    expect(Array.isArray(world.influence)).toBe(true);
-    expect(world.influence).toHaveLength(W * H);
-    expect(world.influence.every((v: number) => v === 0)).toBe(true);
+  it('initialGameState produce world.influence como number[] de tamaño correcto', async () => {
+    const { initialGameState } = await import('@/lib/game-state');
+    const { makeTestNPC } = await import('@/lib/npcs');
+    const state = initialGameState(1, [makeTestNPC({ id: 'n1' })]);
+    expect(Array.isArray(state.world.influence)).toBe(true);
+    expect(state.world.influence!.length).toBe(state.world.width * state.world.height);
+    expect(state.world.influence!.every((v: number) => v === 0)).toBe(true);
   });
 
-  it('round-trip JSON de WorldMap con influence', async () => {
-    const { emptyWorldMap } = await import('@/lib/world-state');
-    const world = emptyWorldMap(1, W, H);
-    expect(JSON.parse(JSON.stringify(world))).toEqual(world);
+  it('round-trip JSON del GameState con influence', async () => {
+    const { initialGameState } = await import('@/lib/game-state');
+    const { makeTestNPC } = await import('@/lib/npcs');
+    const state = initialGameState(1, [makeTestNPC({ id: 'n1' })]);
+    expect(JSON.parse(JSON.stringify(state.world))).toEqual(state.world);
   });
 });
