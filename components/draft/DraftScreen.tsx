@@ -50,16 +50,16 @@ type Phase = 'scenario' | 'blockA' | 'blockB' | 'confirm';
 
 const ARCHETYPE_LABEL: Record<Archetype, string> = {
   [ARCHETYPE.LIDER]:      'Líder (4pts)',
-  [ARCHETYPE.CAZADOR]:    'Caçador (3pts)',
+  [ARCHETYPE.CAZADOR]:    'Cazador (3pts)',
   [ARCHETYPE.CURANDERO]:  'Curandero (3pts)',
-  [ARCHETYPE.ARTESANO]:   'Artesà (3pts)',
-  [ARCHETYPE.RECOLECTOR]: 'Recol·lector (2pts)',
+  [ARCHETYPE.ARTESANO]:   'Artesano (3pts)',
+  [ARCHETYPE.RECOLECTOR]: 'Recolector (2pts)',
   [ARCHETYPE.SCOUT]:      'Explorador (2pts)',
-  [ARCHETYPE.TEJEDOR]:    'Teixidor (2pts)',
+  [ARCHETYPE.TEJEDOR]:    'Tejedor (2pts)',
   [ARCHETYPE.PESCADOR]:   'Pescador (2pts)',
 };
 
-const SEX_LABEL: Record<Sex, string> = { M: 'Mascle', F: 'Femella' };
+const SEX_LABEL: Record<Sex, string> = { M: 'Hombre', F: 'Mujer' };
 
 const CARD = {
   bg: '#16130c',
@@ -148,7 +148,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       }}
     >
       <h1 style={{ fontSize: '1.4rem', letterSpacing: 2, margin: 0 }}>
-        FILLS DE TRAMUNTANA
+        HIJOS DE TRAMUNTANA
       </h1>
 
       {phase === 'scenario' && (
@@ -196,9 +196,9 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
 /* ════════════════════════════════════════════════════════════════════ */
 function PhaseNav({ phase, blockAReady }: { phase: Phase; blockAReady: boolean }) {
   const steps: { id: Phase; label: string }[] = [
-    { id: 'scenario', label: '1. Escenari' },
-    { id: 'blockA',   label: '2. Elegits' },
-    { id: 'blockB',   label: '3. Ciutadans' },
+    { id: 'scenario', label: '1. Escenario' },
+    { id: 'blockA',   label: '2. Elegidos' },
+    { id: 'blockB',   label: '3. Ciudadanos' },
     { id: 'confirm',  label: '4. Confirmar' },
   ];
   return (
@@ -291,12 +291,12 @@ function BlockAPhase({ draft, activeSlot, onSlot, onArchetype, onSex, onAddTrait
 
       <div style={{ ...CARD, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-          Pressupost arquetips: {draft.budgetRemaining}/{CHOSEN_BUDGET}pts restants
-          {' · '}Pressupost trets: {TRAIT_BUDGET_DRAFT - traitUsed}/{TRAIT_BUDGET_DRAFT}pts restants
+          Presupuesto arquetipos: {draft.budgetRemaining}/{CHOSEN_BUDGET}pts restantes
+          {' · '}Presupuesto rasgos: {TRAIT_BUDGET_DRAFT - traitUsed}/{TRAIT_BUDGET_DRAFT}pts restantes
         </div>
 
         <div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Arquetip</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Arquetipo</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {(Object.values(ARCHETYPE) as Archetype[]).map((a) => (
               <button key={a} type="button" onClick={() => onArchetype(a)}
@@ -308,7 +308,7 @@ function BlockAPhase({ draft, activeSlot, onSlot, onArchetype, onSex, onAddTrait
         </div>
 
         <div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Sexe</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Sexo</div>
           <div style={{ display: 'flex', gap: 4 }}>
             {(Object.values(SEX) as Sex[]).map((s) => (
               <button key={s} type="button" onClick={() => onSex(s)}
@@ -320,7 +320,7 @@ function BlockAPhase({ draft, activeSlot, onSlot, onArchetype, onSex, onAddTrait
         </div>
 
         <div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Trets del slot</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Rasgos del slot</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
             {(Object.values(TRAIT) as TraitId[]).map((id) => {
               const def = TRAIT_CATALOG[id];
@@ -341,7 +341,7 @@ function BlockAPhase({ draft, activeSlot, onSlot, onArchetype, onSex, onAddTrait
       <button type="button" onClick={onNext} disabled={!ready}
         style={{ ...BTN(ready, '#57cc99'), alignSelf: 'flex-end', opacity: ready ? 1 : 0.4 }}
         data-testid="blockA-next">
-        Continuar → Ciutadans
+        Continuar → Ciudadanos
       </button>
     </div>
   );
@@ -359,7 +359,7 @@ interface BlockBProps {
   ready: boolean;
 }
 
-const TIER_LABELS = { excelente: 'Excel·lent', bueno: 'Bo', regular: 'Regular', malo: 'Dolent' } as const;
+const TIER_LABELS = { excelente: 'Excelente', bueno: 'Bueno', regular: 'Regular', malo: 'Malo' } as const;
 
 function BlockBPhase({ followerDraft, onPick, tierCandidates, onNext, ready }: BlockBProps) {
   const [activeTier, setActiveTier] = useState<'excelente' | 'bueno' | 'regular' | 'malo'>('excelente');
@@ -369,7 +369,7 @@ function BlockBPhase({ followerDraft, onPick, tierCandidates, onNext, ready }: B
   return (
     <div style={{ width: '100%', maxWidth: 640, display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-        Ciutadans seleccionats: {followerDraft.picks.length}/10
+        Ciudadanos seleccionados: {followerDraft.picks.length}/10
       </div>
 
       <div style={{ display: 'flex', gap: 6 }}>
@@ -419,10 +419,10 @@ function ConfirmPhase({ draft, followerDraft, onConfirm, onBack }: {
   return (
     <div style={{ ...CARD, maxWidth: 480, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {scenario && (
-        <div><strong>Escenari:</strong> {scenario.name}</div>
+        <div><strong>Escenario:</strong> {scenario.name}</div>
       )}
       <div>
-        <strong>Elegits:</strong>
+        <strong>Elegidos:</strong>
         {draft.slots.map((s, i) => (
           <div key={i} style={{ fontSize: '0.8rem', opacity: 0.8 }}>
             {i + 1}. {s.archetype ?? '—'} ({s.sex ?? '?'})
@@ -435,7 +435,7 @@ function ConfirmPhase({ draft, followerDraft, onConfirm, onBack }: {
         {followerDraft.picks.length} ciutadans seleccionats
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={onBack} style={BTN(false)}>← Enrere</button>
+        <button type="button" onClick={onBack} style={BTN(false)}>← Atrás</button>
         <button type="button" onClick={onConfirm} data-testid="draft-confirm"
           style={{ ...BTN(true, '#57cc99') }}>
           Iniciar Partida
