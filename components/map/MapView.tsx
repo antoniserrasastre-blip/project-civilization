@@ -950,6 +950,23 @@ function renderResources(
   }
 }
 
+// Cache de bitmaps pre-rasterizados: evita que ctx.drawImage(svgImg)
+// re-rasterice el SVG en cada frame. Clave = `${tileId}@${size}`.
+const _tileBitmapCache = new Map<string, HTMLCanvasElement>();
+
+function getTileBitmap(tile: TileId, tileW: number, sprite: HTMLImageElement): HTMLCanvasElement {
+  const key = `${tile}@${tileW}`;
+  let bmp = _tileBitmapCache.get(key);
+  if (!bmp) {
+    bmp = document.createElement('canvas');
+    bmp.width = tileW;
+    bmp.height = tileW;
+    bmp.getContext('2d')?.drawImage(sprite, 0, 0, tileW, tileW);
+    _tileBitmapCache.set(key, bmp);
+  }
+  return bmp;
+}
+
 function renderTiles(
   ctx: CanvasRenderingContext2D,
   world: WorldMap,
@@ -970,7 +987,7 @@ function renderTiles(
       const sy = y * tilePx + state.offsetY;
       const sprite = tileSprites?.get(tile);
       if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-        ctx.drawImage(sprite, sx, sy, tileW, tileW);
+        ctx.drawImage(getTileBitmap(tile, tileW, sprite), sx, sy);
       } else {
         ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
         ctx.fillRect(sx, sy, tileW, tileW);
@@ -1336,6 +1353,10 @@ export function MapView({
   const tileSprites = useTileSprites();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Canvas offscreen para el layer estático (tiles + recursos + estructuras).
+  // Se regenera cuando el viewport cambia; se blit-ea cada frame.
+  const tileLayerRef = useRef<HTMLCanvasElement | null>(null);
+  const tileLayerDirtyRef = useRef(true);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
   // NPCs y el timestamp del último tick para calcular el factor de lerp.
   const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(
@@ -1439,11 +1460,16 @@ export function MapView({
     };
   });
 
+  // Invalidar el tile layer cuando cambia el contenido estático del mundo.
+  useEffect(() => { tileLayerDirtyRef.current = true; }, [world, fog, structures, buildProject, tileSprites, influenceLayerOn]);
+
   const influenceLayerOnRef = useRef(influenceLayerOn);
   useEffect(() => { influenceLayerOnRef.current = influenceLayerOn; }, [influenceLayerOn]);
 
   // Loop RAF: renderiza a 60fps interpolando posiciones entre ticks.
   useEffect(() => {
+    // El loop se reinicia cuando cambia dims/viewport → tile layer sucio.
+    tileLayerDirtyRef.current = true;
     let rafId: number;
     const loop = () => {
       const canvas = canvasRef.current;
@@ -1477,16 +1503,43 @@ export function MapView({
       const currentViewport = viewport;
       const lerpedPlacements = placeMarkers(lerpedNpcs, currentDims, currentViewport);
 
-      canvas.width = currentDims.screenWidth;
-      canvas.height = currentDims.screenHeight;
-      renderTiles(ctx, rp.world, currentDims, currentViewport, rp.tileSprites);
-      renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
-      renderStructures(ctx, rp.structures, currentDims, currentViewport);
-      renderBuildProject(ctx, rp.buildProject, currentDims, currentViewport);
-      renderFogOverlay(ctx, rp.fog, currentDims, currentViewport, rp.world);
-      if (influenceLayerOnRef.current) {
-        renderInfluenceOverlay(ctx, rp.world, currentDims, currentViewport);
+      const W = currentDims.screenWidth;
+      const H = currentDims.screenHeight;
+
+      // Sólo redimensionar cuando cambia el tamaño real.
+      if (canvas.width !== W || canvas.height !== H) {
+        canvas.width = W;
+        canvas.height = H;
+        tileLayerDirtyRef.current = true;
       }
+
+      // ── Layer estático (tiles + recursos + estructuras + niebla) ──
+      // Se regenera solo cuando el contenido cambia; luego se blit-ea.
+      let tileLayer = tileLayerRef.current;
+      if (!tileLayer || tileLayerDirtyRef.current) {
+        if (!tileLayer || tileLayer.width !== W || tileLayer.height !== H) {
+          tileLayer = document.createElement('canvas');
+          tileLayer.width = W;
+          tileLayer.height = H;
+          tileLayerRef.current = tileLayer;
+        }
+        const tlCtx = tileLayer.getContext('2d');
+        if (tlCtx) {
+          renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites);
+          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
+          renderStructures(tlCtx, rp.structures, currentDims, currentViewport);
+          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
+          renderFogOverlay(tlCtx, rp.fog, currentDims, currentViewport, rp.world);
+          if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);
+        }
+        tileLayerDirtyRef.current = false;
+      }
+
+      // Blit del layer estático (una sola operación GPU por frame).
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(tileLayer, 0, 0);
+
+      // ── Layer dinámico (relaciones, trails, NPCs) — siempre fresco ──
       if (rp.relationsLayerOn) {
         renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
       }
