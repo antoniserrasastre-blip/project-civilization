@@ -55,6 +55,7 @@ import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
 import { computeActiveSynergies, type ActiveSynergy } from '@/lib/synergies';
 import { DraftScreen, type DraftResult } from '@/components/draft/DraftScreen';
+import { DebugOverlay } from '@/components/debug/DebugOverlay';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -415,6 +416,7 @@ export function GameShell({ seed }: GameShellProps) {
           onGrantMiracle={onGrantMiracle}
         />
       )}
+      <DebugOverlay state={state} />
     </main>
   );
 }

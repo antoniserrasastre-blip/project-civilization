@@ -86,6 +86,11 @@ export function canReachByNpcMovement(
   );
 }
 
+// Límite del BFS de alcanzabilidad: evita explorar islas enteras en mapas
+// grandes (512×512). 8000 tiles ≈ radio ~50 — suficiente para encontrar
+// cualquier recurso en la misma isla sin bloquear el tick.
+const REACHABILITY_BFS_LIMIT = 8000;
+
 function reachableTilesByNpcMovement(
   state: GameState,
   from: { x: number; y: number },
@@ -105,21 +110,16 @@ function reachableTilesByNpcMovement(
   const queue: number[] = [start];
   let head = 0;
   seen.add(start);
-  while (head < queue.length) {
+  while (head < queue.length && seen.size < REACHABILITY_BFS_LIMIT) {
     const cur = queue[head++];
     const x = cur % world.width;
     const y = Math.floor(cur / world.width);
     for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
+      [1, 0], [-1, 0], [0, 1], [0, -1],
     ] as const) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) {
-        continue;
-      }
+      if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) continue;
       const idx = ny * world.width + nx;
       if (seen.has(idx)) continue;
       if (!isMovementPassable(world.tiles[idx] as TileId)) continue;
