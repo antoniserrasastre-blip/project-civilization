@@ -134,21 +134,22 @@ describe('decideDestination — prioridades', () => {
   });
 
   it('supervivencia baja con comida en inventario no bloquea construcción', () => {
+    // Fogata ahora necesita wood:4. NPC tiene wood:0 → debe ir a por madera.
     const world = mkWorld(20, 20);
     world.resources.push({
-      id: RESOURCE.STONE,
+      id: RESOURCE.WOOD,
       x: 10,
       y: 10,
       quantity: 20,
       initialQuantity: 20,
-      regime: 'depletable',
+      regime: 'regenerable',
       depletedAtTick: null,
     });
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 35, socializacion: 90 },
-      inventory: { wood: 5, stone: 0, berry: 3, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      inventory: { wood: 0, stone: 0, berry: 3, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
     const ctx: DestinationContext = {
       world,

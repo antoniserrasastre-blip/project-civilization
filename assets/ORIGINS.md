@@ -158,6 +158,9 @@ Sprint 14.5: biomas bioclimáticos con 14 tipos de tile.
 | `assets/ui/vfx_divine_focus.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `c41b3a6aa2b11128c34590566dbce87ea5f63be00bec3d7625f081b691b788c6` |
 | `assets/ui/vfx_smoke_plume.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `a1f9d4e1a350636e01cb763b0e2ab248c1be79e8f07147a85aed3b4c826e2b84` |
 | `assets/ui/vfx_wind_streak.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `1a8988460e9438875abca27d2308e3088d2577039c14ef4629d6dc0da4914753` |
+| `assets/ui/map_preview_archipelago.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `b89328a87fd1079bd11fcf06629d4856849d7606d8de2bf6f92eb95d3e3578b8` |
+| `assets/ui/map_preview_continents.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `1b4e5f52fba8b9bc57a4e92e37fde139ad353263687396b8c17e475eb4081602` |
+| `assets/ui/map_preview_pangea.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `b54db87e432c081eea4c6cecf7e5c7072accb4ad7d2707b0dc5d32e4e33bdcbb` |
 | `assets/ui/fog_pixel.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `c92d4e1c1993565766100347a7e98d0c1c32a5d7dc3cb419a1730c5bc3067a18` |
 | `assets/ui/vfx_shadow_cast.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `4b7c6365d6fdefd8962513c95ae2ba0635502e79288b3ea28eb6db2e79303963` |
 | `assets/ui/ui_marker_history.svg` | Proyecto Civilización (artista) | CC0 | Equipo interno | — | `2cb6b0e47e9d9d3c1a2cd8084e7745bdaaba1332221c7e06ad211a169dc23f79` |

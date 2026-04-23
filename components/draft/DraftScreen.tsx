@@ -445,6 +445,7 @@ function GeographyPhase({ onPick }: { onPick: (type: MapType) => void }) {
             overflow: 'hidden',
             imageRendering: 'pixelated'
           }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={t.icon} alt={t.label} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <strong style={{ fontSize: '1.1rem', color: '#f7d060' }}>{t.label}</strong>
