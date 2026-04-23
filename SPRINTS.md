@@ -22,19 +22,26 @@ Cola táctica de ejecución. Los sprints se ejecutan bajo TDD estricto y gate ve
 **Meta**: 7 roles operativos que filtran la intención divina.
 - `lib/roles.ts`, `lib/simulation.ts`.
 
-### 11. OBSERVABILIDAD-TOTAL (ACTUAL) · Pilar 3
-**Meta**: UI que exponga la profundidad social y técnica sin micromanagement.
+### 11. DRAFTING-SISTÉMICO (ACTUAL) · Pilares 1, 2 y 3
+**Meta**: Implementar el Draft de 14 fundadores con rasgos (Zomboid) y escenarios de spawn (Kenshi).
+**Contrato Técnico**:
+- **lib/traits.ts**: Catálogo de rasgos con coste y modificadores. Presupuesto UNIFICADO (15 pts).
+- **lib/scenarios.ts**: Perfiles de arranque (Náufragos, Éxodo) sobre el mismo archipiélago.
+- **Tests de Rotura**: `tests/design/draft-chaos.test.ts` (colapso de clanes mal diseñados).
+
+### 12. OBSERVABILIDAD-TOTAL (Pendiente) · Pilar 3
+**Meta**: UI que exponga la profundidad geopolítica y dinástica (Inspiración: CK3, WorldBox, TFT).
 **Archivos**: `components/era/HUD.tsx`, `components/era/NpcSheet.tsx`, `components/map/MapView.tsx`.
-- **HUD**: Inventario Comunal (total de recursos del clan).
-- **NpcSheet expandida**: Skills, Biografía (historia personal) e Inventario Físico.
-- **Capas de Mapa**: Relaciones y Píxel de Oficio (marcador visual).
+- **Capa de Influencia (Mapa)**: Visualizar el territorio reclamado por el clan (estilo WorldBox).
+- **Dashboard de Sinergias (HUD)**: Panel que muestra los bonos activos por composición de roles y herramientas (estilo TFT).
+- **NpcSheet Dinástica**: Biografía, linaje y habilidades heredadas (estilo CK3).
 - **Tests**: `tests/e2e/observabilidad.spec.ts`.
 
 ---
 
 ## Próximos Sprints — Era Tribal (Fase 7)
 
-### 12. MIGRANTES-Y-RIVAL (Pendiente) · Pilar 4
+### 13. MIGRANTES-Y-RIVAL (Pendiente) · Pilar 4
 **Meta**: NPCs externos atraídos por el monumento y reaparición del Dios Rival.
 
 ---
