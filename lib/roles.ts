@@ -24,6 +24,7 @@
  */
 
 import type { NPC, NPCSkills } from './npcs';
+import { ARCHETYPE } from './npcs';
 import type { EquippableItem } from './items';
 import { ITEM_KIND } from './items';
 import { RESOURCE, type ResourceId } from './world-state';
@@ -134,6 +135,22 @@ export function computeRole(
   }
   if (dom === 'gathering' && gathering >= SKILL_DOMINANT_THRESHOLD) {
     return ROLE.RECOLECTOR;
+  }
+
+  // Fallback: si ningún skill supera el umbral, usar el ARQUETIPO de
+  // nacimiento del NPC. Un Cazador novato sigue prefiriendo la caza
+  // sobre las bayas aunque sus skills sean bajas.
+  if (npc.archetype) {
+    switch (npc.archetype) {
+      case ARCHETYPE.CAZADOR:   return ROLE.CAZADOR;
+      case ARCHETYPE.SCOUT:     return ROLE.RASTREADOR;
+      case ARCHETYPE.PESCADOR:  return ROLE.PESCADOR;
+      case ARCHETYPE.CURANDERO: return ROLE.CURANDERO;
+      case ARCHETYPE.ARTESANO:
+      case ARCHETYPE.TEJEDOR:   return ROLE.TALLADOR;
+      case ARCHETYPE.RECOLECTOR:
+      case ARCHETYPE.LIDER:     return ROLE.RECOLECTOR;
+    }
   }
 
   return ROLE.RECOLECTOR;

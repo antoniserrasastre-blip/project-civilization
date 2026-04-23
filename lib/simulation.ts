@@ -291,15 +291,21 @@ export function tick(state: GameState): GameState {
   const newNPCs: NPC[] = [];
   let prng = state.prng;
   let fog: FogState = state.fog;
+  // Claimed tiles: cada NPC que elige un destino lo añade aquí.
+  // Los NPCs procesados después ven ese tile con CLAIM_PENALTY → se dispersan.
+  const claimedTiles = new Set<string>();
 
   for (const npc of state.npcs) {
     if (!npc.alive) {
       newNPCs.push(npc);
       continue;
     }
-    const dest = decideDestination(npc, ctx);
+    const dest = decideDestination(npc, { ...ctx, claimedTiles });
+    // Registrar destino como reclamado para los NPCs siguientes.
+    claimedTiles.add(`${dest.x},${dest.y}`);
+
     if (dest.x === npc.position.x && dest.y === npc.position.y) {
-      newNPCs.push(npc);
+      newNPCs.push({ ...npc, destination: dest });
       fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
       continue;
     }
@@ -312,18 +318,17 @@ export function tick(state: GameState): GameState {
     );
     prng = r.next;
     if (!r.path || r.path.length < 2) {
-      // Sin ruta o ya está — se queda quieto.
-      newNPCs.push(npc);
+      newNPCs.push({ ...npc, destination: dest });
       fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
       continue;
     }
     const nextStep = r.path[1];
     if (!canMoveThisTick(state, npc, nextStep)) {
-      newNPCs.push(npc);
+      newNPCs.push({ ...npc, destination: dest });
       fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
       continue;
     }
-    const moved: NPC = { ...npc, position: { ...nextStep } };
+    const moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
     newNPCs.push(moved);
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }

@@ -131,6 +131,10 @@ export interface NPC {
   /** Tick en que se reprodujo por última vez. null = nunca. Cooldown
    *  de reproducción calculado en `lib/reproduction.ts`. */
   lastReproducedTick: number | null;
+  /** Destino comprometido en el tick anterior. Permite histéresis:
+   *  el NPC no abandona su objetivo a menos que sea inválido o exista
+   *  uno significativamente mejor. null = sin destino activo. */
+  destination?: { x: number; y: number } | null;
 }
 
 /** Helper para tests — construye un NPC con defaults razonables y
