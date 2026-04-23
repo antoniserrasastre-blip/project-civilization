@@ -328,8 +328,11 @@ export function tick(state: GameState): GameState {
   }
 
   // Actualizar heatmap de influencia con posiciones post-movimiento.
+  // Fallback a array vacío si el estado llegó sin influence inicializado.
+  const currentInfluence = state.world.influence ??
+    new Array<number>(state.world.width * state.world.height).fill(0);
   const nextInfluence = tickInfluence(
-    state.world.influence,
+    currentInfluence,
     newNPCs,
     state.world.width,
     state.world.height,
