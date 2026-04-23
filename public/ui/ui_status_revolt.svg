@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Contorno negro -->
+  <rect x="8" y="10" width="16" height="14" fill="#000000"/>
+  <rect x="10" y="8" width="12" height="18" fill="#000000"/>
+  
+  <!-- Muñeca -->
+  <rect x="12" y="22" width="8" height="6" fill="#8b0000"/>
+  <rect x="13" y="22" width="6" height="4" fill="#ff0000"/>
+  
+  <!-- Puño (Palma/Dedos cerrados) -->
+  <rect x="10" y="10" width="12" height="12" fill="#ff0000"/>
+  
+  <!-- Sombras de los dedos (divisiones) -->
+  <rect x="13" y="10" width="1" height="6" fill="#8b0000"/>
+  <rect x="16" y="10" width="1" height="6" fill="#8b0000"/>
+  <rect x="19" y="10" width="1" height="6" fill="#8b0000"/>
+  
+  <!-- Pulgar -->
+  <rect x="8" y="14" width="4" height="6" fill="#ff0000"/>
+  <rect x="8" y="14" width="1" height="6" fill="#8b0000"/>
+  
+  <!-- Brillo sutil en nudillos -->
+  <rect x="11" y="10" width="2" height="2" fill="#ff4d4d"/>
+  <rect x="14" y="10" width="2" height="2" fill="#ff4d4d"/>
+  <rect x="17" y="10" width="2" height="2" fill="#ff4d4d"/>
+  <rect x="20" y="10" width="2" height="2" fill="#ff4d4d"/>
+</svg>

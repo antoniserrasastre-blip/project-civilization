@@ -9,8 +9,17 @@ export const RESOURCE_SPRITE_URLS: Record<string, string> = {
   game:     '/resources/game.svg',
   water:    '/resources/water.svg',
   fish:     '/resources/fish.svg',
-  obsidian: '/resources/obsidian.svg',
-  shell:    '/resources/shell.svg',
+  obsidian: '/resources/resource_obsidian.svg',
+  shell:    '/resources/resource_shell.svg',
+  // Nuevos (Sprint 14.5)
+  clay:     '/resources/resource_clay.svg',
+  coconut:  '/resources/resource_coconut.svg',
+  flint:    '/resources/resource_flint.svg',
+  mushroom: '/resources/resource_mushroom.svg',
+  // Armas
+  weapon_club:   '/resources/weapon_club.svg',
+  weapon_shield: '/resources/weapon_shield.svg',
+  weapon_sling:  '/resources/weapon_sling.svg',
 };
 
 export type ResourceSpriteMap = Map<string, HTMLImageElement>;

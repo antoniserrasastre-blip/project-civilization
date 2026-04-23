@@ -323,7 +323,24 @@ export function decideDestination(
     if (proactiveFood) return withHysteresis(proactiveFood) ?? proactiveFood;
   }
 
-  return npc.position;
+  // 4. Fallback: buscar CUALQUIER recurso accesible para no quedarse parado.
+  //    Prioriza madera (útil para construcción) sobre el resto.
+  const anyWood = nearestResource(
+    npc.position, ctx.world.resources,
+    (rid) => rid === RESOURCE.WOOD,
+    ctx.isReachable, undefined, claimed, id,
+  );
+  if (anyWood) return anyWood;
+
+  const anyResource = nearestResource(
+    npc.position, ctx.world.resources,
+    () => true,
+    ctx.isReachable, undefined, claimed, id,
+  );
+  if (anyResource) return anyResource;
+
+  // 5. Sin ningún recurso accesible: ir hacia el centroide del clan.
+  return centroidOfAlive(ctx.npcs) ?? npc.position;
 }
 
 function missingResourceFor(

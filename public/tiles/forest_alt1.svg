@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Bosque Alt 1 (Diferente disposición + Seta) -->
+  <!-- Árbol 1 (Izquierda superior) -->
+  <rect x="6" y="16" width="2" height="4" fill="#5d2906"/>
+  <rect x="2" y="8" width="8" height="8" fill="#228b22"/>
+  <!-- Árbol 2 (Derecha superior) -->
+  <rect x="22" y="18" width="4" height="6" fill="#5d2906"/>
+  <rect x="18" y="6" width="12" height="12" fill="#228b22"/>
+  <rect x="20" y="8" width="8" height="8" fill="#32cd32"/>
+  <!-- Árbol 3 (Centro inferior) -->
+  <rect x="12" y="24" width="2" height="4" fill="#5d2906"/>
+  <rect x="8" y="14" width="10" height="10" fill="#228b22"/>
+  <!-- Seta pequeña -->
+  <rect x="26" y="26" width="4" height="2" fill="#d32f2f"/>
+  <rect x="27" y="28" width="2" height="2" fill="#eeeeee"/>
+</svg>

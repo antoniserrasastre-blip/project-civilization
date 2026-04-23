@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Centro (Sólido) -->
+  <rect x="15" y="15" width="2" height="2" fill="#ffd700"/>
+  
+  <!-- Anillo 1 (Dithering Oro/Blanco) -->
+  <rect x="13" y="13" width="2" height="2" fill="#ffd700"/>
+  <rect x="17" y="13" width="2" height="2" fill="#ffffff"/>
+  <rect x="13" y="17" width="2" height="2" fill="#ffffff"/>
+  <rect x="17" y="17" width="2" height="2" fill="#ffd700"/>
+  
+  <!-- Anillo 2 (Más disperso) -->
+  <rect x="10" y="10" width="2" height="2" fill="#ffd700" fill-opacity="0.6"/>
+  <rect x="20" y="10" width="2" height="2" fill="#ffd700" fill-opacity="0.6"/>
+  <rect x="10" y="20" width="2" height="2" fill="#ffd700" fill-opacity="0.6"/>
+  <rect x="20" y="20" width="2" height="2" fill="#ffd700" fill-opacity="0.6"/>
+  
+  <rect x="15" y="8" width="2" height="2" fill="#ffffff" fill-opacity="0.4"/>
+  <rect x="15" y="22" width="2" height="2" fill="#ffffff" fill-opacity="0.4"/>
+  <rect x="8" y="15" width="2" height="2" fill="#ffffff" fill-opacity="0.4"/>
+  <rect x="22" y="15" width="2" height="2" fill="#ffffff" fill-opacity="0.4"/>
+  
+  <!-- Anillo 3 (Extremo) -->
+  <rect x="4" y="4" width="2" height="2" fill="#ffffff" fill-opacity="0.2"/>
+  <rect x="26" y="4" width="2" height="2" fill="#ffffff" fill-opacity="0.2"/>
+  <rect x="4" y="26" width="2" height="2" fill="#ffffff" fill-opacity="0.2"/>
+  <rect x="26" y="26" width="2" height="2" fill="#ffffff" fill-opacity="0.2"/>
+</svg>

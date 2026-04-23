@@ -43,8 +43,8 @@ export const RECIPES: Record<CraftableId, Recipe> = {
   },
   [CRAFTABLE.FOGATA_PERMANENTE]: {
     id: CRAFTABLE.FOGATA_PERMANENTE,
-    inputs: { wood: 5, stone: 15 },
-    daysWork: 3,
+    inputs: { wood: 4 },
+    daysWork: 2,
     minSkill: 5,
   },
   [CRAFTABLE.PIEL_ROPA]: {

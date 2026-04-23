@@ -8,7 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TILE, type TileId } from '@/lib/world-state';
 
-const TILE_SPRITE_URLS: Record<TileId, string> = {
+const TILE_SPRITE_URLS: Record<TileId | string, string> = {
   [TILE.WATER]:            '/tiles/water.svg',
   [TILE.SHORE]:            '/tiles/shore.svg',
   [TILE.GRASS]:            '/tiles/grass.svg',
@@ -23,9 +23,25 @@ const TILE_SPRITE_URLS: Record<TileId, string> = {
   [TILE.MOUNTAIN_SNOW]:    '/tiles/mountain_snow.svg',
   [TILE.MOUNTAIN_VOLCANO]: '/tiles/mountain_volcano.svg',
   [TILE.RIVER]:            '/tiles/river_flow.svg',
+  // Variantes (Sprint 14.5)
+  'grass_alt1':  '/tiles/grass_alt1.svg',
+  'grass_alt2':  '/tiles/grass_alt2.svg',
+  'forest_alt1': '/tiles/forest_alt1.svg',
+  'forest_alt2': '/tiles/forest_alt2.svg',
+  'river_corner': '/tiles/river_corner.svg',
+  'river_t_junction': '/tiles/river_t_junction.svg',
+  // Decoraciones (Sprint 14.5)
+  'cactus':      '/tiles/cactus.svg',
+  'dead_tree':   '/tiles/dead_tree.svg',
+  'jungle_tree': '/tiles/jungle_tree.svg',
+  'palm_tree':   '/tiles/palm_tree.svg',
+  'pine_tree':   '/tiles/pine_tree.svg',
+  'reeds':       '/tiles/reeds.svg',
+  // VFX
+  'shadow':      '/ui/vfx_shadow_cast.svg',
 };
 
-export type TileSpriteMap = Map<TileId, HTMLImageElement>;
+export type TileSpriteMap = Map<TileId | string, HTMLImageElement>;
 
 export function useTileSprites(): TileSpriteMap {
   const [sprites, setSprites] = useState<TileSpriteMap>(new Map());
@@ -42,7 +58,10 @@ export function useTileSprites(): TileSpriteMap {
     for (const [tileId, url] of entries) {
       const img = new Image();
       img.onload = () => {
-        map.set(Number(tileId) as TileId, img);
+        // Si el tileId es un número (del enum TILE), lo guardamos como número,
+        // si no (decoraciones), como string.
+        const key = isNaN(Number(tileId)) ? tileId : Number(tileId);
+        map.set(key as any, img);
         remaining -= 1;
         if (remaining === 0) setSprites(new Map(map));
       };

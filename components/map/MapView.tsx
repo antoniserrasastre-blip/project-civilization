@@ -34,6 +34,7 @@ import { useUnitSprites, type SpriteMap } from '@/hooks/use-unit-sprites';
 import { useResourceSprites, type ResourceSpriteMap } from '@/hooks/use-resource-sprites';
 import { useTileSprites, type TileSpriteMap } from '@/hooks/use-tile-sprites';
 import { CASTA } from '@/lib/npcs';
+import { getTileVariant } from '@/lib/world-gen';
 import {
   spriteKeyFor,
   shouldShowCrown,
@@ -1021,7 +1022,7 @@ function renderResources(
 // re-rasterice el SVG en cada frame. Clave = `${tileId}@${size}`.
 const _tileBitmapCache = new Map<string, HTMLCanvasElement>();
 
-function getTileBitmap(tile: TileId, tileW: number, sprite: HTMLImageElement): HTMLCanvasElement {
+function getTileBitmap(tile: TileId | string, tileW: number, sprite: HTMLImageElement): HTMLCanvasElement {
   const key = `${tile}@${tileW}`;
   let bmp = _tileBitmapCache.get(key);
   if (!bmp) {
@@ -1050,11 +1051,28 @@ function renderTiles(
   for (let y = firstY; y < lastY; y++) {
     for (let x = firstX; x < lastX; x++) {
       const tile = world.tiles[y * world.width + x] as TileId;
+      const variant = getTileVariant(tile, x, y, world.seed, world);
       const sx = x * tilePx + state.offsetX;
       const sy = y * tilePx + state.offsetY;
-      const sprite = tileSprites?.get(tile);
+
+      // Render de sombras para objetos altos (Sprint 14.5)
+      const isMountain = tile === TILE.MOUNTAIN || tile === TILE.MOUNTAIN_SNOW || tile === TILE.MOUNTAIN_VOLCANO;
+      const isTree = tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL;
+      
+      if ((isMountain || isTree) && tileSprites?.has('shadow')) {
+        const shadowSprite = tileSprites.get('shadow')!;
+        if (shadowSprite.complete && shadowSprite.naturalWidth > 0) {
+          // Desplazamiento sutil según el zoom (tilePx)
+          const offset = tilePx * 0.12; 
+          ctx.globalAlpha = 0.35;
+          ctx.drawImage(getTileBitmap('shadow', tileW, shadowSprite), sx + offset, sy + offset);
+          ctx.globalAlpha = 1.0;
+        }
+      }
+
+      const sprite = tileSprites?.get(variant);
       if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-        ctx.drawImage(getTileBitmap(tile, tileW, sprite), sx, sy);
+        ctx.drawImage(getTileBitmap(variant, tileW, sprite), sx, sy);
       } else {
         ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
         ctx.fillRect(sx, sy, tileW, tileW);

@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Small Monolith -->
+  <rect x="12" y="16" width="8" height="16" fill="#555555"/>
+  <rect x="13" y="18" width="6" height="14" fill="#8b8b8b"/>
+  
+  <!-- Highlight -->
+  <rect x="13" y="18" width="2" height="14" fill="#ffffff" fill-opacity="0.3"/>
+  
+  <!-- Moss/Detail -->
+  <rect x="14" y="24" width="2" height="2" fill="#228b22"/>
+</svg>

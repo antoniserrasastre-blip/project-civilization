@@ -1,0 +1,21 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- 8-pointed Star (Pixelated) -->
+  <!-- Main Cross -->
+  <rect x="14" y="2" width="4" height="28" fill="#FFD700"/>
+  <rect x="2" y="14" width="28" height="4" fill="#FFD700"/>
+  
+  <!-- Diagonal Cross -->
+  <rect x="8" y="8" width="4" height="4" fill="#FFD700"/>
+  <rect x="20" y="8" width="4" height="4" fill="#FFD700"/>
+  <rect x="8" y="20" width="4" height="4" fill="#FFD700"/>
+  <rect x="20" y="20" width="4" height="4" fill="#FFD700"/>
+  
+  <rect x="10" y="10" width="12" height="12" fill="#FFD700"/>
+  
+  <!-- Center Detail -->
+  <rect x="14" y="14" width="4" height="4" fill="#ffffff"/>
+  
+  <!-- Shadow/Depth -->
+  <rect x="16" y="4" width="2" height="24" fill="#B8860B"/>
+  <rect x="4" y="16" width="24" height="2" fill="#B8860B"/>
+</svg>

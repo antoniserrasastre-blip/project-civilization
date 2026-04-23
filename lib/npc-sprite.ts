@@ -24,6 +24,20 @@ export const SPRITE_KEY = {
   CAZADOR:    'CAZADOR',
   RECOLECTOR: 'RECOLECTOR',
   ARTESANO:   'ARTESANO',
+  // Animales (Sprint 14.5)
+  ANIMAL_BOAR:    'ANIMAL_BOAR',
+  ANIMAL_CRAB:    'ANIMAL_CRAB',
+  ANIMAL_DEER:    'ANIMAL_DEER',
+  ANIMAL_EAGLE:   'ANIMAL_EAGLE',
+  ANIMAL_GOAT:    'ANIMAL_GOAT',
+  ANIMAL_MONKEY:  'ANIMAL_MONKEY',
+  ANIMAL_PANTHER: 'ANIMAL_PANTHER',
+  ANIMAL_TURTLE:  'ANIMAL_TURTLE',
+  ANIMAL_WOLF:    'ANIMAL_WOLF',
+  // Dioses (Sprint 14.5)
+  GOD_SEA:   'GOD_SEA',
+  GOD_STONE: 'GOD_STONE',
+  GOD_WIND:  'GOD_WIND',
 } as const;
 
 export type SpriteKey = (typeof SPRITE_KEY)[keyof typeof SPRITE_KEY];
@@ -34,6 +48,20 @@ export const SPRITE_URLS: Record<SpriteKey, string> = {
   CAZADOR:    '/units/unit-cazador.svg',
   RECOLECTOR: '/units/unit-recolector.svg',
   ARTESANO:   '/units/unit-artesano.svg',
+  // Animales
+  ANIMAL_BOAR:    '/units/animal_boar.svg',
+  ANIMAL_CRAB:    '/units/animal_crab.svg',
+  ANIMAL_DEER:    '/units/animal_deer.svg',
+  ANIMAL_EAGLE:   '/units/animal_eagle.svg',
+  ANIMAL_GOAT:    '/units/animal_goat.svg',
+  ANIMAL_MONKEY:  '/units/animal_monkey.svg',
+  ANIMAL_PANTHER: '/units/animal_panther.svg',
+  ANIMAL_TURTLE:  '/units/animal_turtle.svg',
+  ANIMAL_WOLF:    '/units/animal_wolf.svg',
+  // Dioses (en carpeta UI según el Artista)
+  GOD_SEA:   '/ui/god_portrait_sea.svg',
+  GOD_STONE: '/ui/god_portrait_stone.svg',
+  GOD_WIND:  '/ui/god_portrait_wind.svg',
 };
 
 function archetypeToKey(archetype: string | null): SpriteKey {

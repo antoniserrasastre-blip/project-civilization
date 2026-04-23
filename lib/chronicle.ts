@@ -54,6 +54,10 @@ const RESOURCE_ES: Record<ResourceId, string> = {
   fish: 'pescado',
   obsidian: 'obsidiana',
   shell: 'concha',
+  clay: 'arcilla',
+  coconut: 'coco',
+  flint: 'sílex',
+  mushroom: 'seta',
 };
 
 export function narrate(ev: ChronicleEvent): string {

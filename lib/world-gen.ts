@@ -20,8 +20,10 @@ import {
   TILE,
   RESOURCE,
   type TileId,
+  type ResourceId,
   type WorldMap,
   type ResourceSpawn,
+  type ResourceRegime,
 } from './world-state';
 
 export const CANONICAL_SEED = 20260419;
@@ -78,6 +80,76 @@ function applyIslandMask(val: number, x: number, y: number, w: number, h: number
   // Máscara suave: 1.0 en el centro, cae a 0.0 en los bordes
   const mask = Math.max(0, 1 - dist * 1.4);
   return val * mask;
+}
+
+/**
+ * Elige determinísticamente una variante visual para un tile basándose en su
+ * posición y la semilla del mundo. Esto rompe el patrón de mosaico.
+ */
+export function getTileVariant(
+  tileId: TileId,
+  x: number,
+  y: number,
+  seed: number,
+  world?: WorldMap,
+): string | TileId {
+  // Solo forest y grass tienen variantes alt1/alt2 actualmente
+  if (tileId !== TILE.FOREST && tileId !== TILE.GRASS) {
+    if (tileId === TILE.RIVER && world) {
+      return getRiverVariant(x, y, world);
+    }
+    return tileId;
+  }
+
+  // Determinismo: seed + x + y coordinado
+  // Usamos una mezcla simple para no instanciar PRNG pesado en el loop de renderizado
+  const h = (seed ^ (x * 7919) ^ (y * 5231)) >>> 0;
+  const mod = h % 10; // 0-9
+
+  if (tileId === TILE.FOREST) {
+    if (mod < 2) return 'forest_alt1';
+    if (mod < 4) return 'forest_alt2';
+    return TILE.FOREST;
+  }
+
+  if (tileId === TILE.GRASS) {
+    if (mod < 2) return 'grass_alt1';
+    if (mod < 4) return 'grass_alt2';
+    return TILE.GRASS;
+  }
+
+  return tileId;
+}
+
+/**
+ * Detecta si un río debe ser recto, curva o unión en T.
+ */
+function getRiverVariant(x: number, y: number, world: WorldMap): string {
+  const neighbors = [
+    { dx: 0, dy: -1 }, // N
+    { dx: 1, dy: 0 },  // E
+    { dx: 0, dy: 1 },  // S
+    { dx: -1, dy: 0 }, // W
+  ];
+
+  const connections = neighbors.map(n => {
+    const nx = x + n.dx;
+    const ny = y + n.dy;
+    if (nx < 0 || nx >= world.width || ny < 0 || ny >= world.height) return false;
+    return world.tiles[ny * world.width + nx] === TILE.RIVER;
+  });
+
+  const count = connections.filter(Boolean).length;
+
+  if (count >= 3) return 'river_t_junction';
+  if (count === 2) {
+    // Si son opuestos es recto, si son adyacentes es corner
+    const [n, e, s, w] = connections;
+    if ((n && s) || (e && w)) return 'river_flow'; // Recto
+    return 'river_corner';
+  }
+  
+  return 'river_flow';
 }
 
 /** Trazado de ríos determinista por camino de menor resistencia. */
@@ -177,6 +249,17 @@ function scatterResources(
           if (r.value < 0.12) { res = RESOURCE.WOOD; chance = 1; quantityRange = [20, 40]; }
           else if (r.value < 0.14) { res = RESOURCE.BERRY; chance = 1; }
           else if (r.value > 0.98) { res = RESOURCE.GAME; chance = 1; quantityRange = [3, 8]; }
+          break;
+        case TILE.GRASS_SABANA:
+          // Piedras en superficie — garantiza stone aunque no haya montañas
+          if (r.value < 0.08) { res = RESOURCE.STONE; chance = 1; regime = 'depletable'; quantityRange = [8, 20]; }
+          else if (r.value > 0.96) { res = RESOURCE.GAME; chance = 1; quantityRange = [2, 5]; }
+          break;
+        case TILE.GRASS:
+        case TILE.GRASS_LUSH:
+          if (r.value < 0.015) { res = RESOURCE.BERRY; chance = 1; }
+          else if (r.value > 0.985) { res = RESOURCE.GAME; chance = 1; quantityRange = [2, 5]; }
+          else if (r.value > 0.975 && r.value <= 0.985) { res = RESOURCE.STONE; chance = 1; regime = 'depletable'; quantityRange = [5, 15]; }
           break;
         case TILE.MOUNTAIN:
         case TILE.MOUNTAIN_SNOW:

@@ -31,14 +31,19 @@ export type TileId = (typeof TILE)[keyof typeof TILE];
 /** Los 8 recursos primigenia. Obsidiana y concha fuerzan nomadismo
  *  (Sprint 9): obsidiana en montaña para Lanza, conchas en costa para Cesta. */
 export const RESOURCE = {
-  WOOD: 'wood',
-  STONE: 'stone',
-  BERRY: 'berry',
-  GAME: 'game',
-  WATER: 'water',
-  FISH: 'fish',
+  WOOD:     'wood',
+  STONE:    'stone',
+  BERRY:    'berry',
+  GAME:     'game',
+  WATER:    'water',
+  FISH:     'fish',
   OBSIDIAN: 'obsidian',
-  SHELL: 'shell',
+  SHELL:    'shell',
+  // Sprint 14.5
+  CLAY:     'clay',
+  COCONUT:  'coconut',
+  FLINT:    'flint',
+  MUSHROOM: 'mushroom',
 } as const;
 
 export type ResourceId = (typeof RESOURCE)[keyof typeof RESOURCE];
