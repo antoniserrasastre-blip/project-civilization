@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra suelo -->
+  <ellipse cx="8" cy="15.5" rx="4" ry="1" fill="rgba(0,0,0,0.25)" shape-rendering="auto"/>
+  <!-- Corona: 3 puntas -->
+  <rect x="5" y="0" width="6" height="1" fill="#f0c030"/>
+  <rect x="5" y="0" width="1" height="2" fill="#f0c030"/>
+  <rect x="7" y="0" width="2" height="3" fill="#f0c030"/>
+  <rect x="10" y="0" width="1" height="2" fill="#f0c030"/>
+  <!-- Cabeza -->
+  <rect x="6" y="2" width="4" height="4" fill="#d4956a"/>
+  <!-- Ojos -->
+  <rect x="7" y="3" width="1" height="1" fill="#2a1505"/>
+  <rect x="9" y="3" width="1" height="1" fill="#2a1505"/>
+  <!-- Cuerpo: armadura dorada -->
+  <rect x="5" y="6" width="6" height="5" fill="#c89820"/>
+  <!-- Capa -->
+  <rect x="3" y="6" width="2" height="5" fill="#8b0000"/>
+  <rect x="11" y="6" width="2" height="5" fill="#8b0000"/>
+  <!-- Cinturón -->
+  <rect x="5" y="10" width="6" height="1" fill="#7a5810"/>
+  <!-- Piernas -->
+  <rect x="5" y="11" width="2" height="3" fill="#7a5810"/>
+  <rect x="9" y="11" width="2" height="3" fill="#7a5810"/>
+  <!-- Botas -->
+  <rect x="4" y="14" width="4" height="1" fill="#1a0e04"/>
+  <rect x="8" y="14" width="4" height="1" fill="#1a0e04"/>
+</svg>

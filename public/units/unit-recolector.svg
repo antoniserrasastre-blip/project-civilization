@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges">
+  <!-- Sombra -->
+  <ellipse cx="8" cy="15.5" rx="4" ry="1" fill="rgba(0,0,0,0.25)" shape-rendering="auto"/>
+  <!-- Sombrero de paja (ala ancha) -->
+  <rect x="4" y="1" width="8" height="1" fill="#c8a840"/>
+  <rect x="5" y="0" width="6" height="2" fill="#c8a840"/>
+  <!-- Cabeza -->
+  <rect x="6" y="2" width="4" height="4" fill="#d4956a"/>
+  <!-- Ojos -->
+  <rect x="7" y="3" width="1" height="1" fill="#2a1505"/>
+  <rect x="9" y="3" width="1" height="1" fill="#2a1505"/>
+  <!-- Cuerpo: túnica verde -->
+  <rect x="5" y="6" width="6" height="5" fill="#3a6e30"/>
+  <!-- Brazo izquierdo -->
+  <rect x="3" y="6" width="2" height="5" fill="#3a6e30"/>
+  <!-- Brazo derecho extendido (porta cesta) -->
+  <rect x="11" y="6" width="2" height="4" fill="#3a6e30"/>
+  <!-- Cesta -->
+  <rect x="12" y="7" width="3" height="3" fill="#8b5a14"/>
+  <rect x="13" y="6" width="1" height="1" fill="#8b5a14"/>
+  <rect x="12" y="10" width="3" height="1" fill="#5a3a0a"/>
+  <!-- Cinturón -->
+  <rect x="5" y="10" width="6" height="1" fill="#2a5020"/>
+  <!-- Piernas -->
+  <rect x="5" y="11" width="2" height="3" fill="#2a5020"/>
+  <rect x="9" y="11" width="2" height="3" fill="#2a5020"/>
+  <!-- Botas -->
+  <rect x="4" y="14" width="4" height="1" fill="#1a0e04"/>
+  <rect x="8" y="14" width="4" height="1" fill="#1a0e04"/>
+</svg>

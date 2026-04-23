@@ -206,13 +206,13 @@ function spriteKeyFor(
   const role = computeRole(npc, itemForNpc(npc, items));
   switch (role) {
     case ROLE.CAZADOR:
-    case ROLE.RASTREADOR: return 'CAZADOR';
+    case ROLE.RASTREADOR:  return 'CAZADOR';
     case ROLE.RECOLECTOR:
-    case ROLE.PESCADOR:   return 'RECOLECTOR';
+    case ROLE.PESCADOR:    return 'RECOLECTOR';
     case ROLE.TALLADOR:
     case ROLE.TEJEDOR:
-    case ROLE.CURANDERO:  return 'ARTESANO';
-    default:              return 'GUERRERO';
+    case ROLE.CURANDERO:   return 'ARTESANO';
+    default:               return 'GUERRERO';
   }
 }
 
