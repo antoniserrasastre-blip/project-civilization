@@ -12,9 +12,11 @@
 
 import { RESOURCE, type ResourceId, type ResourceSpawn } from './world-state';
 
-/** Escalado tick → día del mundo. Parametrizable si la simulación
- *  pide más granularidad temporal. */
-export const TICKS_PER_DAY = 24;
+/** Escalado tick → día del mundo.
+ *  480 ticks × 250 ms/tick = 120 s reales = 2 minutos por día.
+ *  Los NPCs tienen tiempo suficiente para desplazarse, recolectar y
+ *  volver al hogar antes del anochecer. */
+export const TICKS_PER_DAY = 480;
 
 /** Días hasta regeneración total (spawn vuelve a initialQuantity).
  *  null = depletable (piedra). 0 = continuous (no aplica). */
