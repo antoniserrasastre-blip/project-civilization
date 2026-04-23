@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Círculo de Piedras -->
+  <path d="M12 22h8v2h4v4h-16v-4h4z" fill="#4a5568"/>
+  <rect x="8" y="24" width="4" height="2" fill="#8b8b8b"/>
+  <rect x="20" y="24" width="4" height="2" fill="#8b8b8b"/>
+  <rect x="14" y="26" width="4" height="2" fill="#8b8b8b"/>
+  <!-- Carbón/Ceniza -->
+  <rect x="12" y="22" width="8" height="2" fill="#1a202c"/>
+  <!-- Fuego -->
+  <path d="M12 20h8v2h-8z" fill="#e65100"/>
+  <path d="M14 14h4v6h-4z" fill="#ff6d00"/>
+  <path d="M15 10h2v4h-2z" fill="#ffab00"/>
+  <!-- Brillo Central -->
+  <rect x="15" y="16" width="2" height="2" fill="#ffff00"/>
+</svg>

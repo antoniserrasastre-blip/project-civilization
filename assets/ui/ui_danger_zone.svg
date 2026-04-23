@@ -1,0 +1,13 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Danger Zone Diagonal Stripes (Red) -->
+  <g fill="#ff0000">
+    <!-- Diagonal stripes x+y logic -->
+    <path d="M0 0h4v4H0z M4 4h4v4H4z M8 8h4v4H8z M12 12h4v4H12z M16 16h4v4H16z M20 20h4v4H20z M24 24h4v4H24z M28 28h4v4H28z"/>
+    <path d="M8 0h4v4H8z M12 4h4v4H12z M16 8h4v4H16z M20 12h4v4H20z M24 16h4v4H24z M28 20h4v4H28z"/>
+    <path d="M16 0h4v4H16z M20 4h4v4H20z M24 8h4v4H24z M28 12h4v4H28z"/>
+    <path d="M24 0h4v4H24z M28 4h4v4H28z"/>
+    <path d="M0 8h4v4H0z M4 12h4v4H4z M8 16h4v4H8z M12 20h4v4H12z M16 24h4v4H16z M20 28h4v4H20z"/>
+    <path d="M0 16h4v4H0z M4 20h4v4H4z M8 24h4v4H8z M12 28h4v4H12z"/>
+    <path d="M0 24h4v4H0z M4 28h4v4H4z"/>
+  </g>
+</svg>

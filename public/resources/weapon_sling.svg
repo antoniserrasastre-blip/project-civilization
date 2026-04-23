@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Correa Cuero -->
+  <path d="M4 14h6v2H4zm18 0h6v2h-6z" fill="#5d2906"/>
+  <path d="M6 12h4v2H6zm16 0h4v2h-4z" fill="#a0522d"/>
+  <!-- Bolsa -->
+  <path d="M10 16h12v2h2v4h-2v2h-12v-2h-2v-4h2z" fill="#3d2b1f"/>
+  <path d="M12 18h8v4h-8z" fill="#5d4037"/>
+  <!-- Piedra en la bolsa -->
+  <rect x="14" y="16" width="4" height="4" fill="#8b8b8b"/>
+  <rect x="14" y="16" width="2" height="2" fill="#ffffff"/>
+</svg>

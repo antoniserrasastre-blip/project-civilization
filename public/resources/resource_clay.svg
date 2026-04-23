@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Borde -->
+  <path d="M10 8h12v2h4v4h2v10h-2v4h-16v-2h-4v-4h-2v-10h2v-4h4z" fill="#3e2723"/>
+  <!-- Cuerpo -->
+  <path d="M10 10h12v4h4v10h-2v2h-14v-2h-4v-10h2v-4z" fill="#a1887f"/>
+  <!-- Textura/Sombras -->
+  <path d="M14 14h8v4h2v6h-10v-2h-4v-4h4v-4z" fill="#795548"/>
+  <rect x="10" y="12" width="4" height="2" fill="#d7ccc8"/>
+</svg>

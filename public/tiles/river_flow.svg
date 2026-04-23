@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Agua del río -->
+  <rect width="32" height="32" fill="#0077be"/>
+  <!-- Corriente/Espuma -->
+  <rect x="4" y="6" width="12" height="2" fill="#00f2ff"/>
+  <rect x="16" y="14" width="12" height="2" fill="#00f2ff"/>
+  <rect x="2" y="22" width="12" height="2" fill="#00f2ff"/>
+  <rect x="20" y="26" width="8" height="2" fill="#00f2ff"/>
+  <!-- Puntos de brillo -->
+  <rect x="20" y="4" width="2" height="2" fill="#ffffff" fill-opacity="0.5"/>
+  <rect x="8" y="16" width="2" height="2" fill="#ffffff" fill-opacity="0.5"/>
+</svg>

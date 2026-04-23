@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Borde Oscuro -->
+  <path d="M16 4 H20 V8 H24 V12 H26 V20 H24 V24 H20 V28 H12 V24 H8 V20 H6 V12 H8 V8 H12 V4 Z" fill="#1a202c"/>
+  
+  <!-- Cuerpo del Sílex -->
+  <path d="M16 6 H18 V8 H22 V12 H24 V18 H22 V22 H18 V26 H14 V22 H10 V18 H8 V12 H10 V8 H14 V6 Z" fill="#4a5568"/>
+  
+  <!-- Sombras -->
+  <path d="M18 12 H22 V18 H20 V22 H16 V24 H14 V22 H12 V18 H10 V12 H14 V10 H18 V12 Z" fill="#2d3748"/>
+  
+  <!-- Brillo Blanco (1 píxel) -->
+  <rect x="14" y="8" width="2" height="2" fill="#ffffff"/>
+  <rect x="12" y="10" width="2" height="2" fill="#ffffff"/>
+  
+  <!-- Reflejos Secundarios -->
+  <rect x="10" y="14" width="2" height="4" fill="#718096"/>
+</svg>

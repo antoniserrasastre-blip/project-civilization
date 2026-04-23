@@ -32,6 +32,7 @@ import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { computeRole, roleColor, ROLE } from '@/lib/roles';
 import { useUnitSprites, type SpriteMap } from '@/hooks/use-unit-sprites';
 import { useResourceSprites, type ResourceSpriteMap } from '@/hooks/use-resource-sprites';
+import { useTileSprites, type TileSpriteMap } from '@/hooks/use-tile-sprites';
 import { CASTA } from '@/lib/npcs';
 import {
   spriteKeyFor,
@@ -949,33 +950,48 @@ function renderResources(
   }
 }
 
+// Cache de bitmaps pre-rasterizados: evita que ctx.drawImage(svgImg)
+// re-rasterice el SVG en cada frame. Clave = `${tileId}@${size}`.
+const _tileBitmapCache = new Map<string, HTMLCanvasElement>();
+
+function getTileBitmap(tile: TileId, tileW: number, sprite: HTMLImageElement): HTMLCanvasElement {
+  const key = `${tile}@${tileW}`;
+  let bmp = _tileBitmapCache.get(key);
+  if (!bmp) {
+    bmp = document.createElement('canvas');
+    bmp.width = tileW;
+    bmp.height = tileW;
+    bmp.getContext('2d')?.drawImage(sprite, 0, 0, tileW, tileW);
+    _tileBitmapCache.set(key, bmp);
+  }
+  return bmp;
+}
+
 function renderTiles(
   ctx: CanvasRenderingContext2D,
   world: WorldMap,
   dims: ViewportDims,
   state: ViewportState,
+  tileSprites?: TileSpriteMap,
 ) {
-  const { screenWidth, screenHeight, tileSize } = dims;
+  const { screenWidth, screenHeight } = dims;
   ctx.clearRect(0, 0, screenWidth, screenHeight);
 
-  // Determinar qué tiles caen dentro del viewport para evitar
-  // iterar los 262k del mapa completo cada frame.
-  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
-    dims,
-    state,
-    world,
-  );
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
+  const tileW = Math.ceil(tilePx);
 
   for (let y = firstY; y < lastY; y++) {
     for (let x = firstX; x < lastX; x++) {
       const tile = world.tiles[y * world.width + x] as TileId;
-      ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
-      ctx.fillRect(
-        x * tilePx + state.offsetX,
-        y * tilePx + state.offsetY,
-        Math.ceil(tilePx),
-        Math.ceil(tilePx),
-      );
+      const sx = x * tilePx + state.offsetX;
+      const sy = y * tilePx + state.offsetY;
+      const sprite = tileSprites?.get(tile);
+      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        ctx.drawImage(getTileBitmap(tile, tileW, sprite), sx, sy);
+      } else {
+        ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
+        ctx.fillRect(sx, sy, tileW, tileW);
+      }
     }
   }
 }
@@ -1334,21 +1350,26 @@ export function MapView({
   const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
   const sprites = useUnitSprites();
   const resourceSprites = useResourceSprites();
+  const tileSprites = useTileSprites();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Canvas offscreen para el layer estático (tiles + recursos + estructuras).
+  // Se regenera cuando el viewport cambia; se blit-ea cada frame.
+  const tileLayerRef = useRef<HTMLCanvasElement | null>(null);
+  const tileLayerDirtyRef = useRef(true);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
   // NPCs y el timestamp del último tick para calcular el factor de lerp.
   const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(
     new Map(npcs.map((n) => [n.id, { ...n.position }])),
   );
-  const lastTickMsRef = useRef<number>(performance.now());
+  const lastTickMsRef = useRef<number>(0);
   // Ref que guarda los npcs del RENDER ANTERIOR — necesario para
   // capturar las posiciones viejas ANTES de que npcs cambie.
   const npcsSnapshotRef = useRef<readonly typeof npcs[0][]>(npcs);
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
-    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
+    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
   });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
@@ -1435,15 +1456,20 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
+      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
     };
   });
+
+  // Invalidar el tile layer cuando cambia el contenido estático del mundo.
+  useEffect(() => { tileLayerDirtyRef.current = true; }, [world, fog, structures, buildProject, tileSprites, influenceLayerOn]);
 
   const influenceLayerOnRef = useRef(influenceLayerOn);
   useEffect(() => { influenceLayerOnRef.current = influenceLayerOn; }, [influenceLayerOn]);
 
   // Loop RAF: renderiza a 60fps interpolando posiciones entre ticks.
   useEffect(() => {
+    // El loop se reinicia cuando cambia dims/viewport → tile layer sucio.
+    tileLayerDirtyRef.current = true;
     let rafId: number;
     const loop = () => {
       const canvas = canvasRef.current;
@@ -1477,16 +1503,43 @@ export function MapView({
       const currentViewport = viewport;
       const lerpedPlacements = placeMarkers(lerpedNpcs, currentDims, currentViewport);
 
-      canvas.width = currentDims.screenWidth;
-      canvas.height = currentDims.screenHeight;
-      renderTiles(ctx, rp.world, currentDims, currentViewport);
-      renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
-      renderStructures(ctx, rp.structures, currentDims, currentViewport);
-      renderBuildProject(ctx, rp.buildProject, currentDims, currentViewport);
-      renderFogOverlay(ctx, rp.fog, currentDims, currentViewport, rp.world);
-      if (influenceLayerOnRef.current) {
-        renderInfluenceOverlay(ctx, rp.world, currentDims, currentViewport);
+      const W = currentDims.screenWidth;
+      const H = currentDims.screenHeight;
+
+      // Sólo redimensionar cuando cambia el tamaño real.
+      if (canvas.width !== W || canvas.height !== H) {
+        canvas.width = W;
+        canvas.height = H;
+        tileLayerDirtyRef.current = true;
       }
+
+      // ── Layer estático (tiles + recursos + estructuras + niebla) ──
+      // Se regenera solo cuando el contenido cambia; luego se blit-ea.
+      let tileLayer = tileLayerRef.current;
+      if (!tileLayer || tileLayerDirtyRef.current) {
+        if (!tileLayer || tileLayer.width !== W || tileLayer.height !== H) {
+          tileLayer = document.createElement('canvas');
+          tileLayer.width = W;
+          tileLayer.height = H;
+          tileLayerRef.current = tileLayer;
+        }
+        const tlCtx = tileLayer.getContext('2d');
+        if (tlCtx) {
+          renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites);
+          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
+          renderStructures(tlCtx, rp.structures, currentDims, currentViewport);
+          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
+          renderFogOverlay(tlCtx, rp.fog, currentDims, currentViewport, rp.world);
+          if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);
+        }
+        tileLayerDirtyRef.current = false;
+      }
+
+      // Blit del layer estático (una sola operación GPU por frame).
+      ctx.clearRect(0, 0, W, H);
+      ctx.drawImage(tileLayer, 0, 0);
+
+      // ── Layer dinámico (relaciones, trails, NPCs) — siempre fresco ──
       if (rp.relationsLayerOn) {
         renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
       }
@@ -1507,7 +1560,6 @@ export function MapView({
     };
     rafId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dims, viewport, tickIntervalMs]);
 
   // Drag.

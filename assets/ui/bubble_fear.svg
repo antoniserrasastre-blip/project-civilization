@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Burbuja -->
+  <path d="M8 6h16v2h4v16h-4v2h-2v4l-4-4h-10v-2h-4v-16h4v-2z" fill="#4a148c"/>
+  <path d="M8 8h16v16h-12l-2 2v-2h-2v-16z" fill="#7b1fa2"/>
+  <!-- Exclamación -->
+  <rect x="15" y="11" width="2" height="6" fill="#ffffff"/>
+  <rect x="15" y="19" width="2" height="2" fill="#ffffff"/>
+  <!-- Brillo -->
+  <rect x="10" y="10" width="2" height="2" fill="#ba68c8"/>
+</svg>

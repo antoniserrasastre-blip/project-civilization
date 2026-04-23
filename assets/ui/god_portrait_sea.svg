@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <!-- Pelo de Algas (Cascada lateral) -->
+  <rect x="8" y="4" width="48" height="10" fill="#2f855a"/>
+  <rect x="4" y="14" width="10" height="40" fill="#276749"/>
+  <rect x="50" y="14" width="10" height="40" fill="#276749"/>
+  <rect x="6" y="20" width="4" height="4" fill="#38a169"/>
+  <rect x="54" y="24" width="4" height="4" fill="#38a169"/>
+  
+  <!-- Rostro Sereno -->
+  <rect x="18" y="14" width="28" height="38" fill="#4fd1c5"/>
+  <rect x="22" y="12" width="20" height="2" fill="#81e6d9"/>
+  
+  <!-- Ojos de Perla -->
+  <rect x="22" y="28" width="8" height="8" fill="#e2e8f0"/>
+  <rect x="34" y="28" width="8" height="8" fill="#e2e8f0"/>
+  <rect x="24" y="30" width="4" height="4" fill="#ffffff"/>
+  <rect x="36" y="30" width="4" height="4" fill="#ffffff"/>
+  
+  <!-- Joyas de Sal/Conchas -->
+  <rect x="28" y="8" width="8" height="8" fill="#fbd38d"/>
+  <rect x="30" y="10" width="4" height="4" fill="#fffaf0"/>
+  <rect x="18" y="44" width="4" height="4" fill="#e2e8f0"/>
+  <rect x="42" y="44" width="4" height="4" fill="#e2e8f0"/>
+  
+  <!-- Labios de Coral -->
+  <rect x="28" y="46" width="8" height="2" fill="#2c7a7b"/>
+  
+  <!-- Sombras de profundidad marina -->
+  <rect x="18" y="38" width="4" height="6" fill="#38b2ac"/>
+  <rect x="42" y="38" width="4" height="6" fill="#38b2ac"/>
+</svg>

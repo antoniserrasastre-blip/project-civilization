@@ -55,6 +55,7 @@ import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
 import { computeActiveSynergies, type ActiveSynergy } from '@/lib/synergies';
 import { DraftScreen, type DraftResult } from '@/components/draft/DraftScreen';
+import { DebugOverlay } from '@/components/debug/DebugOverlay';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -66,13 +67,20 @@ function bootstrap(seed: number): GameState {
 }
 
 const TILE_LABEL: Record<TileId, string> = {
-  [TILE.WATER]: 'agua profunda',
-  [TILE.SHALLOW_WATER]: 'agua poco profunda',
-  [TILE.SHORE]: 'orilla',
-  [TILE.GRASS]: 'pradera',
-  [TILE.FOREST]: 'bosque',
-  [TILE.MOUNTAIN]: 'montaña',
-  [TILE.SAND]: 'arena',
+  [TILE.WATER]:            'agua profunda',
+  [TILE.SHALLOW_WATER]:    'agua poco profunda',
+  [TILE.SHORE]:            'orilla',
+  [TILE.GRASS]:            'pradera',
+  [TILE.FOREST]:           'bosque',
+  [TILE.MOUNTAIN]:         'montaña',
+  [TILE.SAND]:             'arena',
+  [TILE.GRASS_LUSH]:       'pradera frondosa',
+  [TILE.GRASS_SABANA]:     'sabana',
+  [TILE.SAND_TROPICAL]:    'playa tropical',
+  [TILE.JUNGLE_SOIL]:      'jungla',
+  [TILE.MOUNTAIN_SNOW]:    'cima nevada',
+  [TILE.MOUNTAIN_VOLCANO]: 'volcán',
+  [TILE.RIVER]:            'río',
 };
 
 function actionForDestination(
@@ -408,6 +416,7 @@ export function GameShell({ seed }: GameShellProps) {
           onGrantMiracle={onGrantMiracle}
         />
       )}
+      <DebugOverlay state={state} />
     </main>
   );
 }

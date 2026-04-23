@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Mango -->
+  <path d="M8 22h4v2h2v4h-4v-4h-2z" fill="#3d2b1f"/>
+  <path d="M10 24h2v4h-2z" fill="#5d4037"/>
+  <!-- Cabeza del garrote -->
+  <path d="M12 6h8v2h4v12h-2v4h-10v-2h-4v-12h4v-4z" fill="#3d2b1f"/>
+  <path d="M12 8h8v12h-8z" fill="#8d6e63"/>
+  <path d="M14 10h4v8h-4z" fill="#5d4037"/>
+  <!-- Detalles de pinchos/rugosidad -->
+  <rect x="20" y="10" width="2" height="2" fill="#3d2b1f"/>
+  <rect x="10" y="14" width="2" height="2" fill="#3d2b1f"/>
+</svg>

@@ -57,11 +57,11 @@ describe('RESOURCE.SHELL en world-gen', () => {
     expect(shells.length).toBeGreaterThan(0);
   });
 
-  it('las conchas spawnean sobre tiles SHORE', () => {
+  it('las conchas spawnean sobre tiles SHORE o SAND_TROPICAL', () => {
     const shells = world.resources.filter((r) => r.id === RESOURCE.SHELL);
     for (const r of shells) {
       const tile = world.tiles[r.y * world.width + r.x];
-      expect(tile).toBe(TILE.SHORE);
+      expect([TILE.SHORE, TILE.SAND_TROPICAL]).toContain(tile);
     }
   });
 

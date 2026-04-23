@@ -15,6 +15,9 @@ import {
   type ResourceId,
   type ResourceSpawn,
 } from './world-state';
+import type { Structure } from './structures';
+import { CRAFTABLE } from './crafting';
+import { DESPENSA_BONUS_RADIUS, DESPENSA_INVENTORY_BONUS } from './village-siting';
 
 /** Cap por tipo en el inventario del NPC (decisión operativa v1;
  *  revalidar en playtest Fase 4). */
@@ -50,12 +53,32 @@ export interface HarvestTickResult {
  *  Si se pasa `reservesIn` + `worldWidth`, aplica depleción acumulativa:
  *  tiles con reserves = 0 están agotados y no pueden cosecharse aunque
  *  el spawn tenga quantity > 0. */
+/** Devuelve el cap de inventario efectivo para un NPC según proximidad
+ *  a una Despensa (bono +DESPENSA_INVENTORY_BONUS si está en radio 5). */
+function effectiveInventoryCap(
+  npc: NPC,
+  structures: readonly Structure[],
+): number {
+  const hasDespensaNear = structures.some((s) => {
+    if (s.kind !== CRAFTABLE.DESPENSA) return false;
+    return (
+      Math.abs(s.position.x - npc.position.x) +
+      Math.abs(s.position.y - npc.position.y) <= DESPENSA_BONUS_RADIUS
+    );
+  });
+  return hasDespensaNear
+    ? INVENTORY_CAP_PER_TYPE + DESPENSA_INVENTORY_BONUS
+    : INVENTORY_CAP_PER_TYPE;
+}
+
 export function tickHarvests(
   npcsIn: readonly NPC[],
   resourcesIn: readonly ResourceSpawn[],
   currentTick: number,
   reservesIn?: readonly number[],
   worldWidth?: number,
+  /** Estructuras del clan — para aplicar bono de Despensa. */
+  structures: readonly Structure[] = [],
 ): HarvestTickResult {
   // Clonamos arrays / elementos que mutaremos.
   const npcs = npcsIn.map((n) => ({
@@ -77,7 +100,7 @@ export function tickHarvests(
       if (r.quantity <= 0) continue;
       const key = inventoryKeyFor(r.id);
       if (!key) continue; // agua
-      if (npc.inventory[key] >= INVENTORY_CAP_PER_TYPE) continue;
+      if (npc.inventory[key] >= effectiveInventoryCap(npc, structures)) continue;
       // Comprobar reserva acumulativa del tile.
       if (reserves && worldWidth !== undefined) {
         const idx = r.y * worldWidth + r.x;

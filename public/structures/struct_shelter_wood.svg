@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Paredes de Troncos -->
+  <path d="M6 14h20v14H6z" fill="#5d2906"/> <!-- Borde -->
+  <rect x="8" y="16" width="16" height="2" fill="#a0522d"/>
+  <rect x="8" y="20" width="16" height="2" fill="#a0522d"/>
+  <rect x="8" y="24" width="16" height="2" fill="#a0522d"/>
+  <!-- Puerta -->
+  <rect x="14" y="22" width="4" height="6" fill="#3d2b1f"/>
+  <!-- Techo -->
+  <path d="M4 14l12-8 12 8v2H4z" fill="#5d2906"/>
+  <path d="M16 6l10 6.6V14H6v-1.4z" fill="#8b4513"/>
+  <!-- Brillo Techo -->
+  <path d="M16 6l8 5.3v1H8v-1z" fill="#a0522d"/>
+</svg>

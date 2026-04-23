@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Bordes Oscuros (Sombra/Contorno) -->
+  <rect x="0" y="8" width="32" height="2" fill="#5d2906"/>
+  <rect x="0" y="22" width="32" height="2" fill="#5d2906"/>
+  
+  <!-- Tablones de madera -->
+  <rect x="0" y="10" width="6" height="12" fill="#a0522d"/>
+  <rect x="8" y="10" width="6" height="12" fill="#a0522d"/>
+  <rect x="16" y="10" width="6" height="12" fill="#a0522d"/>
+  <rect x="24" y="10" width="6" height="12" fill="#a0522d"/>
+  
+  <!-- Detalle de madera (veta) -->
+  <rect x="2" y="12" width="2" height="2" fill="#5d2906" fill-opacity="0.3"/>
+  <rect x="10" y="18" width="2" height="2" fill="#5d2906" fill-opacity="0.3"/>
+  <rect x="18" y="14" width="2" height="2" fill="#5d2906" fill-opacity="0.3"/>
+  <rect x="26" y="16" width="2" height="2" fill="#5d2906" fill-opacity="0.3"/>
+  
+  <!-- Cuerdas (Ropes) -->
+  <rect x="0" y="8" width="32" height="1" fill="#cd853f"/>
+  <rect x="0" y="23" width="32" height="1" fill="#cd853f"/>
+  
+  <!-- Nudos de cuerda -->
+  <rect x="6" y="8" width="2" height="2" fill="#8b4513"/>
+  <rect x="14" y="8" width="2" height="2" fill="#8b4513"/>
+  <rect x="22" y="8" width="2" height="2" fill="#8b4513"/>
+  <rect x="6" y="22" width="2" height="2" fill="#8b4513"/>
+  <rect x="14" y="22" width="2" height="2" fill="#8b4513"/>
+  <rect x="22" y="22" width="2" height="2" fill="#8b4513"/>
+</svg>

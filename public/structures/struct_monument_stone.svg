@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Pirámide escalonada (Talayot) -->
+  <rect x="2" y="24" width="28" height="8" fill="#718096"/>
+  <rect x="6" y="16" width="20" height="8" fill="#4a5568"/>
+  <rect x="10" y="8" width="12" height="8" fill="#2d3748"/>
+  
+  <!-- Sombra lateral -->
+  <rect x="16" y="8" width="6" height="8" fill="#1a202c" fill-opacity="0.3"/>
+  <rect x="16" y="16" width="10" height="8" fill="#1a202c" fill-opacity="0.3"/>
+  <rect x="16" y="24" width="14" height="8" fill="#1a202c" fill-opacity="0.3"/>
+  
+  <!-- Cara del Dios de Piedra en la cima -->
+  <rect x="12" y="10" width="2" height="2" fill="#ed8936"/>
+  <rect x="18" y="10" width="2" height="2" fill="#ed8936"/>
+  <rect x="14" y="14" width="4" height="1" fill="#a0522d"/>
+  
+  <!-- Detalles de bloques tallados -->
+  <rect x="4" y="26" width="4" height="4" fill="#2d3748" fill-opacity="0.5"/>
+  <rect x="24" y="26" width="4" height="4" fill="#2d3748" fill-opacity="0.5"/>
+  <rect x="8" y="18" width="4" height="4" fill="#cbd5e0" fill-opacity="0.1"/>
+  <rect x="20" y="18" width="4" height="4" fill="#cbd5e0" fill-opacity="0.1"/>
+</svg>

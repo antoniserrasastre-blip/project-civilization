@@ -16,6 +16,14 @@ export const TILE = {
   MOUNTAIN: 4,
   SAND: 5,
   SHALLOW_WATER: 6,
+  // Sprint 14.5 — biomas y geografía
+  GRASS_LUSH:       7,   // Pradera húmeda / selva baja
+  GRASS_SABANA:     8,   // Sabana seca / estepa
+  SAND_TROPICAL:    9,   // Playa tropical
+  JUNGLE_SOIL:      10,  // Suelo de jungla profunda
+  MOUNTAIN_SNOW:    11,  // Cima nevada
+  MOUNTAIN_VOLCANO: 12,  // Volcán / basalto (obsidiana)
+  RIVER:            13,  // Río — atravesable, fuente de agua
 } as const;
 
 export type TileId = (typeof TILE)[keyof typeof TILE];
