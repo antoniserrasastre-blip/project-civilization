@@ -29,6 +29,7 @@ import {
 } from '@/lib/faith';
 import type { VillageState } from '@/lib/village';
 import type { CraftableId } from '@/lib/crafting';
+import type { NPCInventory } from '@/lib/npcs';
 import { useGratitudeFloaters } from '@/hooks/use-gratitude-floaters';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
@@ -88,6 +89,10 @@ export interface HUDProps {
   /** Opcional — habilita pulso animado + floater de gratitud. */
   village?: VillageState;
   buildStatus?: BuildHudStatus;
+  /** Sprint 11 OBSERVABILIDAD-TOTAL: pool agregado de inventarios
+   *  vivos del clan. Visible siempre que se pase; los tests antiguos
+   *  que no lo inyectan siguen pasando. */
+  communalInventory?: NPCInventory;
   paused: boolean;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
@@ -170,6 +175,7 @@ export function HUD({
   monumentProgress,
   village,
   buildStatus,
+  communalInventory,
   paused,
   onTogglePause,
   onOpenWhisper,
@@ -289,6 +295,51 @@ export function HUD({
         <strong>Monumento</strong> {PHASE_ES[monumentPhase]}
         {showProgress && ` (${pct(monumentProgress)}%)`}
       </div>
+      {communalInventory && (
+        <div
+          data-testid="hud-inventory"
+          style={{
+            marginTop: 6,
+            paddingTop: 6,
+            borderTop: '1px solid rgba(245,245,220,0.18)',
+            fontSize: '0.78rem',
+            lineHeight: 1.35,
+          }}
+        >
+          <strong style={{ fontSize: '0.82rem' }}>Inventario comunal</strong>
+          <div
+            style={{
+              marginTop: 3,
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              columnGap: 10,
+              rowGap: 1,
+              opacity: 0.88,
+            }}
+          >
+            <span data-testid="hud-inventory-wood">
+              <span style={{ opacity: 0.68 }}>madera</span>{' '}
+              <strong>{communalInventory.wood}</strong>
+            </span>
+            <span data-testid="hud-inventory-stone">
+              <span style={{ opacity: 0.68 }}>piedra</span>{' '}
+              <strong>{communalInventory.stone}</strong>
+            </span>
+            <span data-testid="hud-inventory-berry">
+              <span style={{ opacity: 0.68 }}>bayas</span>{' '}
+              <strong>{communalInventory.berry}</strong>
+            </span>
+            <span data-testid="hud-inventory-game">
+              <span style={{ opacity: 0.68 }}>caza</span>{' '}
+              <strong>{communalInventory.game}</strong>
+            </span>
+            <span data-testid="hud-inventory-fish">
+              <span style={{ opacity: 0.68 }}>pescado</span>{' '}
+              <strong>{communalInventory.fish}</strong>
+            </span>
+          </div>
+        </div>
+      )}
       {buildStatus && (
         <div
           data-testid="hud-build"

@@ -231,3 +231,52 @@ obliga a revertir o ajustar #2 antes de pasar a #3 FICHA-AVENTURERO.
 Sprint #2 arranca en rama `claude/sprint-02-legibilidad-mvp`
 partiendo de `claude/sprint-01-refactor-susurro-fe` (PR encadenado)
 para no mergear #1 prematuramente a la rama de fase.
+
+## Sprint 11 OBSERVABILIDAD-TOTAL — 2026-04-23
+
+Rama: `claude/game-design-task-11-Fn3df`. Rol: Diseño (toca `components/**`
+y `tests/e2e/**` — sin tocar `lib/**`).
+
+Entregables (§Pilar 3, SPRINTS-primigenia §11):
+
+- **HUD inventario comunal** — nuevo bloque `data-testid="hud-inventory"`
+  con las cinco reservas (madera, piedra, bayas, caza, pescado)
+  agregadas desde `clanInventoryTotal(npcs)`. Aparece entre
+  gratitud/monumento y la pieza de construcción para que el
+  jugador vea **lo que tiene** antes de **lo que falta**.
+- **NpcSheet ampliada** — dos secciones nuevas:
+  - `npc-sheet-skills` con 5 barras (caza / recolección / artesanía
+    / pesca / sanación) leyendo `NPC.skills` directamente.
+  - `npc-sheet-biography` con día de nacimiento, edad en días,
+    padres (nombre resuelto contra `state.npcs`) y nº de hijos
+    (derivado por count). Si es fundador, aparece "fundador del clan".
+- **MapView** — capas extra sin micromanagement:
+  - *Píxel de oficio* siempre activo: un 2×2 tintado en el cuadrante
+    inferior-derecho del marcador, color por arquetipo. Ciudadanos
+    sin arquetipo formal reciben un gris neutro (no distraen).
+  - *Capa de relaciones* togglable vía
+    `data-testid="map-layer-relations-toggle"` (esquina inferior
+    derecha del canvas). Dibuja líneas finas tintadas por `type`
+    entre pares NPC vivos para `kinship / debt / saved / favor`.
+
+Gate local:
+
+- `pnpm test` — 504/504 ✓.
+- `pnpm exec tsc --noEmit` — ✓.
+- `pnpm exec eslint .` — ✓.
+- `pnpm build` — ✓ (tras limpiar `.next` stale generado por sesión
+  previa con scaffolding divergente).
+- `pnpm test:e2e -- observabilidad` — 3/3 ✓.
+
+E2E de regresión: la suite completa muestra **4 fallos pre-existentes
+en `main`** (verificado tras `git stash` con tip de
+`a9f05bd Merge pull request #22 ...`): `ficha.spec.ts` ×2 y
+`npc-markers.spec.ts` ×1 por timeout del barrido de canvas en el
+entorno sandbox (mouse.move acumulativo excede 30s), y
+`susurro.spec.ts` ×1 por drift temporal en la Fe pasiva. No
+bloquean este sprint; quedan flageados para Edición como flakes
+del entorno/suite.
+
+Todos los data-testid de Sprint 11 están alineados con la E2E
+`tests/e2e/observabilidad.spec.ts` — cualquier cambio posterior
+que los renombre rompe el contrato UI.
