@@ -882,8 +882,19 @@ function renderNpcStatusBadges(
   }
 }
 
-/** Overlay semitransparente de influencia territorial.
- *  Tiles con alta presencia → tono azul-verde; tiles con reserves = 0 → marrón rojizo. */
+/**
+ * Overlay de territorio estilo WorldBox.
+ *
+ * DOS capas independientes:
+ *   1. TERRITORIO (influencia del clan): tiles donde el clan ha
+ *      pisado recibe un tinte azul-verde. Las fronteras se detectan
+ *      comparando con vecinos y se pintan más brillantes — el borde
+ *      del territorio se ve claramente sin texto ni iconos.
+ *   2. RECURSOS AGOTADOS: solo para tiles que *tienen* un ResourceSpawn
+ *      Y cuyas reserves han llegado a 0. El resto del mapa (tiles sin
+ *      recursos) NO se tiñe de rojo aunque reserves[idx] === 0 —
+ *      reserves=0 en un tile vacío significa simplemente "no hay nada".
+ */
 function renderInfluenceOverlay(
   ctx: CanvasRenderingContext2D,
   world: WorldMap,
@@ -894,31 +905,54 @@ function renderInfluenceOverlay(
   const tilePx = tileSize * viewport.zoom;
   const influence = world.influence;
   const reserves = world.reserves;
-  if (!influence && !reserves) return;
+  if (!influence) return;
+
+  // Índices de tiles que SÍ tienen un spawn de recurso.
+  const resourceTiles = new Set<number>();
+  for (const spawn of world.resources) {
+    resourceTiles.add(spawn.y * world.width + spawn.x);
+  }
 
   const startX = Math.max(0, Math.floor(-viewport.offsetX / tilePx));
   const startY = Math.max(0, Math.floor(-viewport.offsetY / tilePx));
   const endX = Math.min(world.width, Math.ceil((screenWidth - viewport.offsetX) / tilePx));
   const endY = Math.min(world.height, Math.ceil((screenHeight - viewport.offsetY) / tilePx));
 
+  const THRESHOLD = 40; // influencia mínima para reclamar territorio
+
   for (let ty = startY; ty < endY; ty++) {
     for (let tx = startX; tx < endX; tx++) {
       const idx = ty * world.width + tx;
-      const inf = influence ? influence[idx] ?? 0 : 0;
-      const res = reserves ? reserves[idx] : undefined;
+      const inf = influence[idx] ?? 0;
 
       const sx = Math.round(tx * tilePx + viewport.offsetX);
       const sy = Math.round(ty * tilePx + viewport.offsetY);
       const sz = Math.ceil(tilePx);
 
-      if (res === 0) {
-        // Tile agotado — overlay marrón rojizo
-        ctx.fillStyle = 'rgba(120, 40, 20, 0.38)';
+      // ── Capa 1: Territorio del clan ───────────────────────────────
+      if (inf >= THRESHOLD) {
+        // Detectar si es tile fronterizo (algún vecino está fuera
+        // del territorio) para pintar el borde más brillante.
+        const n  = ty > 0               ? (influence[(ty-1)*world.width + tx] ?? 0) : 0;
+        const s  = ty < world.height-1  ? (influence[(ty+1)*world.width + tx] ?? 0) : 0;
+        const w2 = tx > 0               ? (influence[ty*world.width + (tx-1)] ?? 0) : 0;
+        const e  = tx < world.width-1   ? (influence[ty*world.width + (tx+1)] ?? 0) : 0;
+        const isBorder = n < THRESHOLD || s < THRESHOLD || w2 < THRESHOLD || e < THRESHOLD;
+
+        if (isBorder) {
+          // Borde de territorio: línea brillante estilo WorldBox
+          ctx.fillStyle = 'rgba(120, 240, 200, 0.70)';
+        } else {
+          // Interior: tinte suave proporcional a la influencia
+          const a = 0.12 + Math.min(0.22, (inf / 1000) * 0.35);
+          ctx.fillStyle = `rgba(60, 190, 150, ${a.toFixed(3)})`;
+        }
         ctx.fillRect(sx, sy, sz, sz);
-      } else if (inf > 30) {
-        // Zona activa — overlay azul-verde proporcional a la influencia
-        const a = Math.min(0.32, (inf / 1000) * 0.48);
-        ctx.fillStyle = `rgba(80, 200, 160, ${a.toFixed(3)})`;
+      }
+
+      // ── Capa 2: Recursos agotados (solo tiles con spawn) ──────────
+      if (reserves && resourceTiles.has(idx) && (reserves[idx] ?? 1) === 0) {
+        ctx.fillStyle = 'rgba(160, 50, 20, 0.55)';
         ctx.fillRect(sx, sy, sz, sz);
       }
     }
@@ -1345,7 +1379,9 @@ export function MapView({
             textAlign: 'left',
           }}
         >
-          {relationsLayerOn ? '● Relaciones' : '○ Relaciones'}
+          {relationsLayerOn
+            ? `● Relaciones${relations.length > 0 ? ` (${relations.length})` : ' — sin datos aún'}`
+            : '○ Relaciones'}
         </button>
         <button
           type="button"
