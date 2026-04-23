@@ -11,9 +11,23 @@
  * reemplazará estas formas geométricas sin cambiar el cableado.
  */
 
-import { CASTA, type NPC } from './npcs';
+import { CASTA, LINAJE, type NPC } from './npcs';
 
 export type MarkerShape = 'circle' | 'diamond';
+
+/** Un color por cada uno de los 8 vientos. Se usa como anillo exterior
+ *  del marcador para que el jugador lea de un vistazo la facción del NPC
+ *  sin perder el color de rol interior. */
+export const LINAJE_COLORS: Record<string, string> = {
+  [LINAJE.TRAMUNTANA]: '#a8d8ea',
+  [LINAJE.LLEVANT]:    '#f4a261',
+  [LINAJE.MIGJORN]:    '#e63946',
+  [LINAJE.PONENT]:     '#9b5de5',
+  [LINAJE.XALOC]:      '#f7d060',
+  [LINAJE.MESTRAL]:    '#57cc99',
+  [LINAJE.GREGAL]:     '#38b2ac',
+  [LINAJE.GARBI]:      '#a07850',
+};
 
 export interface MarkerColors {
   /** Relleno principal del cuerpo del marcador. */
@@ -31,6 +45,8 @@ export interface NpcMarker {
   colors: MarkerColors;
   /** Grosor del outline en pixels (1 o 2, pixel-art duro). */
   outline: number;
+  /** Color del anillo de linaje (facción de los 8 vientos). */
+  linajeBorderColor: string;
 }
 
 /** Tamaño mínimo legible a cualquier zoom — contrato del sprint. */
@@ -63,5 +79,6 @@ export function computeNpcMarker(
       highlight: isElegido ? '#fff3b0' : '#d8d8d8',
     },
     outline,
+    linajeBorderColor: LINAJE_COLORS[npc.linaje] ?? '#888888',
   };
 }

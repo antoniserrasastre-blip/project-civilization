@@ -54,6 +54,7 @@ import { buildNpcBiography } from '@/lib/biography';
 import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
 import { computeActiveSynergies, type ActiveSynergy } from '@/lib/synergies';
+import { DraftScreen, type DraftResult } from '@/components/draft/DraftScreen';
 
 /** Milisegundos reales entre ticks simulados. A 250ms un día
  *  in-game (24 ticks) dura ~6s reales — suficientemente lento
@@ -127,8 +128,18 @@ export interface GameShellProps {
 }
 
 export function GameShell({ seed }: GameShellProps) {
+  const [draftDone, setDraftDone] = useState(false);
   const [state, setState] = useState<GameState>(() => bootstrap(seed));
   const [selectorOpen, setSelectorOpen] = useState(false);
+
+  const handleDraftStart = (result: DraftResult) => {
+    setState(initialGameState(result.seed, result.npcs));
+    setDraftDone(true);
+  };
+
+  if (!draftDone) {
+    return <DraftScreen seed={seed} onStart={handleDraftStart} />;
+  }
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const spawnCenter = useMemo(() => defaultClanSpawn(seed).center, [seed]);
@@ -353,6 +364,7 @@ export function GameShell({ seed }: GameShellProps) {
         items={state.items}
         onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter}
+        tickIntervalMs={TICK_INTERVAL_MS}
       />
       <HUD
         day={day}
