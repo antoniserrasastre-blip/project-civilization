@@ -305,9 +305,20 @@ export function decideDestination(
           (rid) => preferred.includes(rid),
           ctx.isReachable, undefined, claimed, id,
         );
-        if (intentTarget) return intentTarget; // herramienta no necesita histéresis
+        if (intentTarget) return intentTarget;
       }
     }
+  }
+
+  // Recolección proactiva — NPC sin urgencias llena su inventario de comida.
+  // Evita el idle total cuando sv/soc son altos y no hay tarea asignada.
+  if (carriedFood(npc) < 3) {
+    const proactiveFood = nearestResource(
+      npc.position, ctx.world.resources,
+      (rid) => FOOD_IDS.includes(rid),
+      ctx.isReachable, undefined, claimed, id,
+    );
+    if (proactiveFood) return withHysteresis(proactiveFood) ?? proactiveFood;
   }
 
   return npc.position;
