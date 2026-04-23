@@ -16,6 +16,15 @@ export interface Structure {
   builtAtTick: number;
 }
 
+export interface BuildProject {
+  id: string;
+  kind: CraftableId;
+  position: Position;
+  startedAtTick: number;
+  progress: number;
+  required: number;
+}
+
 export function hasStructure(
   structures: readonly Structure[],
   kind: CraftableId,

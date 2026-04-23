@@ -198,6 +198,43 @@ describe('tick — prioridad estricta de construcción', () => {
     );
     expect(after.structures).toHaveLength(0);
   });
+
+  it('inicia una obra antes de materializar la estructura', () => {
+    const npc = makeTestNPC({
+      id: 'builder',
+      inventory: { wood: 5, stone: 15, berry: 0, game: 0, fish: 0 },
+      stats: { supervivencia: 90, socializacion: 90 },
+    });
+    const after = tick(initialGameState(1, [npc], mkFlatWorld()));
+
+    expect(after.structures).toHaveLength(0);
+    expect(after.buildProject?.kind).toBe(CRAFTABLE.FOGATA_PERMANENTE);
+    expect(after.npcs[0].inventory.wood).toBe(0);
+    expect(after.npcs[0].inventory.stone).toBe(0);
+  });
+
+  it('completa la obra al acumular días-hombre suficientes', () => {
+    const npcs = Array.from({ length: 14 }, (_, i) =>
+      makeTestNPC({
+        id: `builder-${i}`,
+        inventory:
+          i === 0
+            ? { wood: 5, stone: 15, berry: 0, game: 0, fish: 0 }
+            : { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+        stats: { supervivencia: 90, socializacion: 90 },
+      }),
+    );
+    let s = initialGameState(1, npcs, mkFlatWorld());
+    for (let i = 0; i < 20; i++) {
+      s = tick(s);
+      if (s.structures.length > 0) break;
+    }
+
+    expect(s.buildProject).toBeNull();
+    expect(s.structures.map((x) => x.kind)).toContain(
+      CRAFTABLE.FOGATA_PERMANENTE,
+    );
+  });
 });
 
 describe('tick — fog', () => {

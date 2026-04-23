@@ -1,69 +1,76 @@
 ---
 tipo: roadmap
-estado: pendiente-firma-humana
-fecha: 2026-04-22
-base: vision-primigenia.md (commit 73615a1 + pase editorial 1c643f2)
+estado: en-proceso-sprint-aureo
+fecha: 2026-04-23
+base: vision-primigenia.md + plan-sprint-aureo.md
 ---
 
-# ROADMAP — Edad Primigenia
+# ROADMAP — Edad Primigenia & Transición Tribal
 
 ## Resumen ejecutivo
 
-Construir la primera edad jugable de GODGAME al nivel de fase: un
-archipiélago determinista donde 14 personas drafteadas sobreviven,
-interpretan el susurro persistente del jugador, generan Fe y gratitud,
-y cierran el loop levantando el monumento que desbloquea una
-bendición de aldea.
+Evolucionar el loop básico de supervivencia hacia una simulación de
+cultura material y estructura social profunda. El objetivo es que el
+clan no solo sobreviva, sino que se especialice mediante herramientas,
+linajes y castas, preparando el terreno para la Era Tribal.
 
-**Objetivos de la era**:
+**Objetivos de la era (Ampliados)**:
 
-1. Un mundo 512×512 reproducible byte a byte desde `seed`.
-2. Un clan de 14 NPCs (4 Elegidos + 10 Ciudadanos) autónomo: se mueve,
-   recolecta, craftea, muere y se reproduce sin intervención.
-3. El verbo del dios implementado: susurro persistente (6 intenciones
-   + Silencio), economía de Fe (`sqrt(vivos)/día`, cap 160, coste 80
-   por cambio), pool de gratitud y 5 milagros (§3.7, §3.7b, §3.8).
-4. Loop cerrado: monumento construible, bendición de aldea elegible,
-   transición al cartucho tribal (placeholder).
-5. Pilar 1 demostrable: mismos rasgos bajo susurros distintos (y
-   mismo susurro bajo composiciones distintas) producen trayectorias
-   medibles diferentes.
+1. **Cultura Material**: Separación de Edificios e Items (herramientas).
+   Sistema "Eureka" de descubrimiento por necesidad.
+2. **Estructura Social**: Castas funcionales (Elegido, Ciudadano, Esclavo),
+   linajes activos y ciclo de reproducción con herencia de skills.
+3. **Especialización (Arquetipos)**: 7 roles definidos por herramientas
+   (Cazador, Pescador, Tallador, etc.) que filtran la intención divina.
+4. **Observabilidad Total**: HUD de inventario comunal, NpcSheet con
+   biografía y skills, y capas de mapa para relaciones sociales.
+5. **Loop Divino & Monumento**: El monumento como hito final que exige
+   especialización y herramientas para su construcción.
 
 ---
 
 ## Fases
 
-Las 7 fases son las definidas en `vision-primigenia.md §8`. Orden
-canónico; reordenar requiere firma del Director humano. Estimaciones
-en días-calendario de un ingeniero full-time bajo TDD estricto.
-
 | # | Fase | Dependencias | Entregable testeable | Días | Estado |
 |-|-|-|-|-|-|
-| 1 | **Mundo** — generación determinista 512×512 + render pixel art con zoom/drag | — | Fixture JSON del mundo + snapshot visual. Regeneración byte-idéntica 1.000× con mismo seed. Round-trip JSON verde. | 5–7 | listo |
-| 2 | **NPCs y recursos** — drafting 4+10 por tiers, castas, linajes, recursos con régimen, fog-of-war | Fase 1 | Partida iniciada con 14 NPCs en el mapa y recursos visibles al descubrirlos. Stats iniciales deterministas por seed. | 8–10 | listo |
-| 3 | **Movimiento y pathfinding** — A* sobre tiles, nomadismo real del clan tras agotamiento local | Fase 2 | 10.000 ticks en verde sin NPCs atrapados. Clan deriva coherentemente tras agotar un recurso local. | 5–7 | listo |
-| 4 | **Economía** — necesidades (hambre/sed/frío), crafting con recetas y skills, matriz relacional NPC×NPC, fogata permanente | Fase 3 | Clan alcanza los 5 crafteables umbral por sí solo en partida determinista de 20.000 ticks. | 10–14 | listo |
-| 5 | **Susurro, Fe y gratitud** — verbo del dios completo: susurro persistente + 6 intenciones, `lib/faith.ts`, pool de gratitud, 5 milagros con herencia 50% | Fase 4 | (1) Mismos rasgos bajo susurros distintos → trayectorias medibles distintas. (2) Mismo susurro → lecturas distintas según composición. (3) 20 días silenciados → semilla de herejía; milagro Corazón fiel a 80 de gratitud deja pool a 0. (4) Fe acumula `sqrt(vivos)` determinista, cambio descuenta 80, silencio deliberado 40, cap 160, primer susurro gratis, gracia 7 días. | 6–8 | en progreso |
-| 6 | **Monumento y bendición de aldea** — condiciones de desbloqueo, construcción con coste/tiempo, cinemática de transición, selección de bendición | Fase 5 | Partida que llega al monumento en condiciones normales, selecciona bendición y transiciona al cartucho tribal (placeholder). | 6–8 | en progreso |
-| 7 | **Migrantes externos y rival** (diferida, post-primigenia) | Fase 6 cerrada + firma humana | NPCs externos al culto atraíbles por el monumento. Reaparición del dios rival (Pilar 4). Abre la edad tribal. | 15–20 | pendiente |
+| 1-4| **Infraestructura Base** | — | Mundo, NPCs, Movimiento y Economía autónoma operativa. | — | listo |
+| 5 | **Susurro y Fe** | Fase 4 | Verbo divino persistente, Fe y Gratitud v2. | — | listo |
+| 6 | **Monumento (Core)** | Fase 5 | Lógica de desbloqueo y construcción básica. | — | listo |
+| 6.5| **Sprint Áureo** | Fase 6 | **Especialización y Sociedad**. Herramientas, linajes, castas y UI expandida. | 15-20 | en progreso |
+| 7 | **Era Tribal (Apertura)** | Fase 6.5 | Migrantes, Rival (Pilar 4) e IA reactivada. | 15-20 | pendiente |
 
 **Totales**:
 
-- Fases 1–4 (infraestructura + clan autónomo): contract-complete en
-  commits `b9f0b0c` / `6378dd8` / `90f66c9` / `dfa4bbc`.
-- Fases 5–6 (gameplay divino + cierre del loop): contract-complete
-  en commits `21c612f` / `76ada22` pero **pendientes de**: (a)
-  re-alineación con la firma del susurro persistente y economía de
-  Fe (§3.7 reescrito y §3.7b nuevo en commit `73615a1`), (b)
-  playtest humano que valide las viñetas 3 y 4 de los VERSION-LOGs
-  correspondientes.
-- Fase 7: fuera de scope de la edad primigenia. Se planifica en un
-  roadmap propio cuando el Director humano firme el cierre de
-  primigenia.
+- Edad Primigenia (Fases 1-6): Contract-complete.
+- Sprint Áureo (Transición): Implementando cultura material y sociedad.
+- Fase 7 (Era Tribal): En cola de diseño.
 
-**Efecto remanente** (lo que queda para declarar primigenia cerrada,
-no un rebuild): **~4–6 días** de ajustes sobre 5 y 6 + playtest.
-El estimado de 15-20 días de Fase 7 **no cuenta** aquí.
+---
+
+## Próximos Pasos: Sprint Áureo
+
+1. **Módulo Social**: Implementar reproducción, linajes y el peso
+   mecánico de las castas (Elegidos vs Esclavos).
+2. **Módulo de Herramientas**: Refactor de `crafting.ts`, sistema
+   Eureka y herencia de Legados Divinos.
+3. **Arquetipos Activos**: Especialización de tareas mediante skills
+   y filtrado de intención por herramienta.
+4. **UI de Observabilidad**: NpcSheet expandida (Biografía/Skills) y
+   HUD de inventario comunal.
+
+---
+
+## Criterio de Cierre de Transición
+
+1. **Especialización Demostrable**: Un NPC con Lanza prefiere cazar;
+   un NPC con Cesta prefiere recolectar, de forma autónoma.
+2. **Ciclo de Vida**: Los NPCs nacen, heredan linaje y skills, y mueren
+   dejando sus herramientas de prestigio como legado.
+3. **Legibilidad**: El jugador puede ver el inventario total del clan
+   y la ficha completa de cada NPC sin ambigüedad.
+4. **Construcción Especializada**: El Monumento requiere herramientas
+   específicas y trabajadores especializados para avanzar.
+
 
 ---
 

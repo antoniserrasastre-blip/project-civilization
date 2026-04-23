@@ -212,6 +212,7 @@ export function finalizeBlockA(
       birthTick: 0,
       alive: true,
       inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+      equippedItemId: null,
     };
   });
   return npcs;
@@ -406,6 +407,7 @@ export function finalizeBlockB(
         birthTick: 0,
         alive: true,
         inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+        equippedItemId: null,
       };
     },
   );

@@ -15,7 +15,7 @@ import { createFog, type FogState } from './fog';
 import type { NPC } from './npcs';
 import type { PRNGState } from './prng';
 import { seedState } from './prng';
-import type { Structure } from './structures';
+import type { BuildProject, Structure } from './structures';
 import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
 import type { WorldMap } from './world-state';
@@ -44,6 +44,7 @@ export interface GameState {
   npcs: NPC[];
   fog: FogState;
   structures: Structure[];
+  buildProject: BuildProject | null;
   relations: Edge[];
   village: VillageState;
   monument: MonumentState;
@@ -72,6 +73,7 @@ export function initialGameState(
     npcs: npcs.map((n) => ({ ...n })),
     fog: createFog(world.width, world.height),
     structures: [],
+    buildProject: null,
     relations: [],
     village: initialVillageState(),
     monument: initialMonumentState(),

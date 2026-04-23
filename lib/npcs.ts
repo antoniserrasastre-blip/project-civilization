@@ -122,6 +122,8 @@ export interface NPC {
   alive: boolean;
   /** Inventario — Sprint 4.2. Agua no se guarda. */
   inventory: NPCInventory;
+  /** Cultura material — herramienta/reliquia equipada. */
+  equippedItemId: string | null;
 }
 
 /** Helper para tests — construye un NPC con defaults razonables y
@@ -148,6 +150,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     birthTick: 0,
     alive: true,
     inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0 },
+    equippedItemId: null,
     ...overrides,
   };
 }
