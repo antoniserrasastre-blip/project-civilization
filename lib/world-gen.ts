@@ -1,27 +1,17 @@
 /**
- * Generador del archipiélago primigenia — §3.4 vision-primigenia.
+ * Generador del archipiélago primigenia V2 — "Geología Sagrada".
  *
- * Contrato §A4:
- *   - Puro: `generateWorld(seed)` sin side effects. Mismo input →
- *     mismo output byte a byte (ver tests/unit/world-gen.test.ts).
- *   - Seedable: toda aleatoriedad pasa por `lib/prng.ts`. Ni
- *     `Math.random`, ni `Date.now`, ni ruido no-seedeable.
- *   - Round-trip JSON: el WorldMap producido se serializa sin clases
- *     ni funciones ocultas.
- *
- * Diseño: 3-5 islas colocadas como blobs en ruido trigonométrico
- * (radio varía con el ángulo). Shore en el perímetro, clusters de
- * bosque y montaña dentro, recursos distribuidos por tile type
- * + régimen (#21).
- *
- * NO renderiza — eso es Sprint 2 (`components/map/MapView.tsx`).
+ * Basado en la visión de Grand Strategy (CK3, EU4) y WorldBox:
+ * 1. Generación por ruido fractal (Simplex) de Elevación y Humedad.
+ * 2. Matriz bioclimática de Whittaker para asignar biomas realistas.
+ * 3. Erosión hidráulica determinista para trazado de ríos.
+ * 4. Distribución de recursos por nicho ecológico.
  */
 
 import { createHash } from 'node:crypto';
 import {
   next as prngNext,
   nextInt,
-  nextRange,
   seedState,
   type PRNGState,
 } from './prng';
@@ -34,373 +24,132 @@ import {
   type ResourceSpawn,
 } from './world-state';
 
-/** Seed canónico de la versión de producción. Bumpear obliga a
- *  regenerar el fixture (`scripts/compile-world.ts`) e invalidar
- *  saves (bump de STORAGE_KEY en `lib/persistence.ts`). */
 export const CANONICAL_SEED = 20260419;
-
-const GENERATOR_VERSION = 2; // bumped: biomas bioclimáticos + ríos
+const GENERATOR_VERSION = 3; // Refactor masivo: Geología Sagrada
 
 export interface WorldGenOpts {
   width?: number;
   height?: number;
 }
 
-interface Island {
-  cx: number;
-  cy: number;
-  baseR: number;
-  amp: number;
-  freq: number;
-  phase: number;
-}
+/** Configuración de ruidos para el generador. */
+const NOISE_CONFIG = {
+  elevation: { scale: 0.004, octaves: 6, persistence: 0.5, lacunarity: 2.1 },
+  moisture:  { scale: 0.005, octaves: 4, persistence: 0.5, lacunarity: 2.0 },
+};
 
-function placeIslands(
-  prngIn: PRNGState,
-  width: number,
-  height: number,
-  count: number,
-): { islands: Island[]; next: PRNGState } {
-  let prng = prngIn;
-  const islands: Island[] = [];
-  const margin = 0.15;
-  const minDim = Math.min(width, height);
-  // Buffer en tiles entre perímetros de islas — garantiza que los
-  // componentes de tierra sean conexos solo dentro de cada isla,
-  // nunca por rebose entre vecinas.
-  const BUFFER = Math.max(4, Math.floor(minDim * 0.03));
-  for (let i = 0; i < count; i++) {
-    let placed = false;
-    for (let attempt = 0; attempt < 200 && !placed; attempt++) {
-      const xR = nextRange(prng, margin * width, (1 - margin) * width);
-      prng = xR.next;
-      const yR = nextRange(prng, margin * height, (1 - margin) * height);
-      prng = yR.next;
-      const baseRR = nextRange(prng, minDim * 0.08, minDim * 0.14);
-      prng = baseRR.next;
-      const ampR = nextRange(prng, 0.15, 0.3);
-      prng = ampR.next;
-      const freqR = nextInt(prng, 3, 8);
-      prng = freqR.next;
-      const phaseR = nextRange(prng, 0, Math.PI * 2);
-      prng = phaseR.next;
-      const candidate: Island = {
-        cx: xR.value,
-        cy: yR.value,
-        baseR: baseRR.value,
-        amp: ampR.value,
-        freq: freqR.value,
-        phase: phaseR.value,
-      };
-      let overlaps = false;
-      for (const existing of islands) {
-        const ddx = candidate.cx - existing.cx;
-        const ddy = candidate.cy - existing.cy;
-        const dist = Math.sqrt(ddx * ddx + ddy * ddy);
-        const maxCandR = candidate.baseR * (1 + candidate.amp);
-        const maxExistR = existing.baseR * (1 + existing.amp);
-        if (dist < maxCandR + maxExistR + BUFFER) {
-          overlaps = true;
-          break;
-        }
-      }
-      if (!overlaps) {
-        islands.push(candidate);
-        placed = true;
-      }
-    }
+/**
+ * Matriz de Biomas (Whittaker): (elevación, humedad) -> TileId.
+ * Elevación: 0.0 (Mar Profundo) -> 1.0 (Pico Nevado).
+ * Humedad: 0.0 (Árido) -> 1.0 (Selva).
+ */
+function getBiomeFromMatrix(e: number, m: number): TileId {
+  // Agua y Costa
+  if (e < 0.25) return TILE.WATER;
+  if (e < 0.32) return TILE.SHALLOW_WATER;
+  if (e < 0.38) {
+    // Playas: dependen de la humedad (manglar vs duna)
+    return m > 0.6 ? TILE.SAND_TROPICAL : TILE.SHORE;
   }
-  return { islands, next: prng };
-}
 
-function shapeRadius(isl: Island, angle: number): number {
-  return isl.baseR * (1 + isl.amp * Math.sin(isl.freq * angle + isl.phase));
-}
-
-function fillTerrain(
-  tiles: TileId[],
-  width: number,
-  height: number,
-  islands: Island[],
-): void {
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      let land = false;
-      for (const isl of islands) {
-        const dx = x - isl.cx;
-        const dy = y - isl.cy;
-        const dist2 = dx * dx + dy * dy;
-        const maxR = isl.baseR * (1 + isl.amp);
-        if (dist2 > maxR * maxR) continue;
-        const angle = Math.atan2(dy, dx);
-        const r = shapeRadius(isl, angle);
-        if (dist2 < r * r) {
-          land = true;
-          break;
-        }
-      }
-      tiles[y * width + x] = land ? TILE.GRASS : TILE.WATER;
-    }
+  // Tierras Bajas y Llanuras
+  if (e < 0.65) {
+    if (m < 0.25) return TILE.GRASS_SABANA;
+    if (m < 0.60) return TILE.GRASS;
+    if (m < 0.75) return TILE.FOREST;
+    return TILE.JUNGLE_SOIL;
   }
-}
 
-function markShore(tiles: TileId[], width: number, height: number): void {
-  const toShore: number[] = [];
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      if (tiles[idx] !== TILE.GRASS) continue;
-      const left = x > 0 ? tiles[idx - 1] : TILE.WATER;
-      const right = x < width - 1 ? tiles[idx + 1] : TILE.WATER;
-      const up = y > 0 ? tiles[idx - width] : TILE.WATER;
-      const down = y < height - 1 ? tiles[idx + width] : TILE.WATER;
-      if (
-        left === TILE.WATER ||
-        right === TILE.WATER ||
-        up === TILE.WATER ||
-        down === TILE.WATER
-      ) {
-        toShore.push(idx);
-      }
-    }
-  }
-  for (const idx of toShore) tiles[idx] = TILE.SHORE;
-}
-
-function markShallowWater(
-  tiles: TileId[],
-  width: number,
-  height: number,
-  depth: number,
-): void {
-  for (let step = 0; step < depth; step++) {
-    const toShallow: number[] = [];
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        if (tiles[idx] !== TILE.WATER) continue;
-        const left = x > 0 ? tiles[idx - 1] : TILE.WATER;
-        const right = x < width - 1 ? tiles[idx + 1] : TILE.WATER;
-        const up = y > 0 ? tiles[idx - width] : TILE.WATER;
-        const down = y < height - 1 ? tiles[idx + width] : TILE.WATER;
-        if (
-          left === TILE.SHORE ||
-          right === TILE.SHORE ||
-          up === TILE.SHORE ||
-          down === TILE.SHORE ||
-          left === TILE.SHALLOW_WATER ||
-          right === TILE.SHALLOW_WATER ||
-          up === TILE.SHALLOW_WATER ||
-          down === TILE.SHALLOW_WATER
-        ) {
-          toShallow.push(idx);
-        }
-      }
-    }
-    for (const idx of toShallow) tiles[idx] = TILE.SHALLOW_WATER;
-  }
-}
-
-function placeClusters(
-  prngIn: PRNGState,
-  tiles: TileId[],
-  width: number,
-  height: number,
-  target: TileId,
-  count: number,
-  radius: number,
-): PRNGState {
-  let prng = prngIn;
-  for (let c = 0; c < count; c++) {
-    let cx = 0;
-    let cy = 0;
-    let found = false;
-    for (let tries = 0; tries < 50; tries++) {
-      const xR = nextInt(prng, 0, width);
-      prng = xR.next;
-      const yR = nextInt(prng, 0, height);
-      prng = yR.next;
-      if (tiles[yR.value * width + xR.value] === TILE.GRASS) {
-        cx = xR.value;
-        cy = yR.value;
-        found = true;
-        break;
-      }
-    }
-    if (!found) continue;
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        if (dx * dx + dy * dy > radius * radius) continue;
-        const nx = cx + dx;
-        const ny = cy + dy;
-        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-        if (tiles[ny * width + nx] === TILE.GRASS) {
-          tiles[ny * width + nx] = target;
-        }
-      }
-    }
-  }
-  return prng;
-}
-
-// ─── Bioma bioclimático ───────────────────────────────────────────────
-
-/** Tabla de bioma: (baseTile, humidity) → bioma final.
- *  GRASS y FOREST se refinan; MOUNTAIN también según volcánico. */
-function selectBiome(
-  base: TileId,
-  humidity: number,
-  volcanic: number,
-): TileId {
-  if (base === TILE.MOUNTAIN) {
-    if (volcanic > 0.72) return TILE.MOUNTAIN_VOLCANO;
-    if (humidity < 0.3)   return TILE.MOUNTAIN_SNOW;
+  // Montañas
+  if (e < 0.85) {
+    if (m > 0.75) return TILE.MOUNTAIN_VOLCANO;
     return TILE.MOUNTAIN;
   }
-  if (base === TILE.FOREST) {
-    if (humidity > 0.65) return TILE.JUNGLE_SOIL;
-    if (humidity < 0.25) return TILE.GRASS_SABANA;
-    return TILE.FOREST;
-  }
-  if (base === TILE.SHORE) {
-    return humidity > 0.55 ? TILE.SAND_TROPICAL : TILE.SHORE;
-  }
-  // GRASS
-  if (humidity > 0.62)  return TILE.GRASS_LUSH;
-  if (humidity < 0.28)  return TILE.GRASS_SABANA;
-  return TILE.GRASS;
+
+  // Cumbres
+  return TILE.MOUNTAIN_SNOW;
 }
 
-/** Pasa bioclimático: asigna biomas usando ruido de humedad y volcánico. */
-function applyBiomes(
-  tiles: TileId[],
-  width: number,
-  height: number,
-  humidPerm: Uint8Array,
-  volcPerm: Uint8Array,
-  scale = 0.005,
-): void {
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = y * width + x;
-      const t = tiles[idx];
-      if (t === TILE.WATER || t === TILE.SHALLOW_WATER || t === TILE.SAND) continue;
-      const h = normalizedNoise(humidPerm, x * scale, y * scale, 4, 0.5, 2.0);
-      const v = normalizedNoise(volcPerm, x * scale * 1.3, y * scale * 1.3, 3, 0.6, 2.2);
-      tiles[idx] = selectBiome(t, h, v);
-    }
-  }
+/** Aplica una máscara circular para forzar un archipiélago centrado. */
+function applyIslandMask(val: number, x: number, y: number, w: number, h: number): number {
+  const nx = (x / w) * 2 - 1;
+  const ny = (y / h) * 2 - 1;
+  const dist = Math.sqrt(nx * nx + ny * ny);
+  // Máscara suave: 1.0 en el centro, cae a 0.0 en los bordes
+  const mask = Math.max(0, 1 - dist * 1.4);
+  return val * mask;
 }
 
-// ─── Erosión hidráulica (ríos) ────────────────────────────────────────
-
-/** Traza un río desde `start` bajando siempre al vecino con menor elevación.
- *  Marca los tiles como RIVER hasta llegar al agua. */
-function traceRiver(
+/** Trazado de ríos determinista por camino de menor resistencia. */
+function applyRivers(
   tiles: TileId[],
-  elevMap: Float32Array,
+  elevMap: number[],
   width: number,
   height: number,
-  start: { x: number; y: number },
-): void {
-  let cx = start.x;
-  let cy = start.y;
-  const visited = new Set<number>();
-
-  for (let step = 0; step < 800; step++) {
-    const idx = cy * width + cx;
-    if (visited.has(idx)) break;
-    visited.add(idx);
-
-    const t = tiles[idx];
-    if (t === TILE.WATER || t === TILE.SHALLOW_WATER) break;
-    if (t !== TILE.MOUNTAIN && t !== TILE.MOUNTAIN_SNOW && t !== TILE.MOUNTAIN_VOLCANO) {
-      tiles[idx] = TILE.RIVER;
-    }
-
-    // Buscar vecino con menor elevación
-    const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,1],[-1,1],[1,-1]];
-    let bestElev = elevMap[idx];
-    let bx = cx;
-    let by = cy;
-    for (const [dx, dy] of dirs) {
-      const nx = cx + dx;
-      const ny = cy + dy;
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-      const nIdx = ny * width + nx;
-      if (visited.has(nIdx)) continue;
-      if (elevMap[nIdx] < bestElev) {
-        bestElev = elevMap[nIdx];
-        bx = nx;
-        by = ny;
-      }
-    }
-    if (bx === cx && by === cy) break; // atascado — terminar
-    cx = bx;
-    cy = by;
-  }
-}
-
-/** Genera un mapa de elevación continuo a partir del tile type. */
-function buildElevMap(
-  tiles: TileId[],
-  width: number,
-  height: number,
-): Float32Array {
-  const elev = new Float32Array(width * height);
-  const ELEV: Partial<Record<number, number>> = {
-    [TILE.WATER]:            0.1,
-    [TILE.SHALLOW_WATER]:    0.2,
-    [TILE.SHORE]:            0.3,
-    [TILE.SAND]:             0.35,
-    [TILE.SAND_TROPICAL]:    0.35,
-    [TILE.GRASS]:            0.45,
-    [TILE.GRASS_LUSH]:       0.48,
-    [TILE.GRASS_SABANA]:     0.42,
-    [TILE.FOREST]:           0.55,
-    [TILE.JUNGLE_SOIL]:      0.52,
-    [TILE.RIVER]:            0.38,
-    [TILE.MOUNTAIN]:         0.72,
-    [TILE.MOUNTAIN_SNOW]:    0.88,
-    [TILE.MOUNTAIN_VOLCANO]: 0.85,
-  };
-  for (let i = 0; i < tiles.length; i++) {
-    elev[i] = ELEV[tiles[i]] ?? 0.45;
-  }
-  return elev;
-}
-
-/** Traza N ríos desde los tiles más altos de cada isla. */
-function addRivers(
-  tiles: TileId[],
-  width: number,
-  height: number,
-  rivCount: number,
-  prngIn: PRNGState,
+  prng: PRNGState,
 ): PRNGState {
-  const elevMap = buildElevMap(tiles, width, height);
-  let prng = prngIn;
-  // Candidatos: tiles MOUNTAIN_SNOW o MOUNTAIN_VOLCANO (picos)
-  const peaks: Array<{ x: number; y: number }> = [];
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const t = tiles[y * width + x];
-      if (t === TILE.MOUNTAIN_SNOW || t === TILE.MOUNTAIN_VOLCANO) {
-        peaks.push({ x, y });
-      }
+  let currentPrng = prng;
+  const rivCount = 5; // Unos pocos ríos principales
+
+  // Encontrar picos como manantiales
+  const peaks: number[] = [];
+  for (let i = 0; i < tiles.length; i++) {
+    if (tiles[i] === TILE.MOUNTAIN_SNOW || tiles[i] === TILE.MOUNTAIN) {
+      peaks.push(i);
     }
   }
-  if (peaks.length === 0) return prng;
-  const n = Math.min(rivCount, peaks.length);
-  for (let i = 0; i < n; i++) {
-    const idxR = nextInt(prng, 0, peaks.length);
-    prng = idxR.next;
-    traceRiver(tiles, elevMap, width, height, peaks[idxR.value]);
+
+  if (peaks.length === 0) return currentPrng;
+
+  for (let r = 0; r < rivCount; r++) {
+    const { value: startIdx, next: n1 } = nextInt(currentPrng, 0, peaks.length);
+    currentPrng = n1;
+    let curr = peaks[startIdx];
+    const visited = new Set<number>();
+
+    for (let step = 0; step < 1000; step++) {
+      if (visited.has(curr)) break;
+      visited.add(curr);
+
+      const cx = curr % width;
+      const cy = Math.floor(curr / width);
+
+      // Si llegamos al mar, paramos
+      if (tiles[curr] === TILE.WATER || tiles[curr] === TILE.SHALLOW_WATER) break;
+      
+      // No marcar sobre montañas nevadas (nacimiento invisible)
+      if (tiles[curr] !== TILE.MOUNTAIN_SNOW) {
+        tiles[curr] = TILE.RIVER;
+      }
+
+      // Buscar vecino con menor elevación
+      let bestNeighbor = curr;
+      let minElev = elevMap[curr];
+
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (dx === 0 && dy === 0) continue;
+          const nx = cx + dx;
+          const ny = cy + dy;
+          if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
+          const nIdx = ny * width + nx;
+          if (elevMap[nIdx] < minElev) {
+            minElev = elevMap[nIdx];
+            bestNeighbor = nIdx;
+          }
+        }
+      }
+
+      if (bestNeighbor === curr) break;
+      curr = bestNeighbor;
+    }
   }
-  return prng;
+
+  return currentPrng;
 }
 
-function spawnResources(
+/** Siembra de recursos basada en el bioma (Endemismo). */
+function scatterResources(
   prngIn: PRNGState,
   tiles: TileId[],
   width: number,
@@ -408,92 +157,57 @@ function spawnResources(
 ): { spawns: ResourceSpawn[]; next: PRNGState } {
   const spawns: ResourceSpawn[] = [];
   let prng = prngIn;
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const tile = tiles[y * width + x];
-      if (tile === TILE.WATER || tile === TILE.SHALLOW_WATER) continue;
-      const r = prngNext(prng);
-      prng = r.next;
-      // Madera: bosque normal y jungla
-      if ((tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL) && r.value < 0.15) {
-        const q = nextInt(prng, 10, 30);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.WOOD, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      // Piedra: montaña normal y nevada
-      } else if ((tile === TILE.MOUNTAIN || tile === TILE.MOUNTAIN_SNOW) && r.value < 0.2) {
-        const q = nextInt(prng, 20, 60);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.STONE, x, y, quantity: q.value, initialQuantity: q.value, regime: 'depletable', depletedAtTick: null });
-      // Obsidiana: volcánica + montaña normal (rara)
-      } else if ((tile === TILE.MOUNTAIN_VOLCANO && r.value < 0.25) || (tile === TILE.MOUNTAIN && r.value >= 0.2 && r.value < 0.26)) {
-        const q = nextInt(prng, 5, 20);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.OBSIDIAN, x, y, quantity: q.value, initialQuantity: q.value, regime: 'depletable', depletedAtTick: null });
-      // Conchas: costa normal y tropical
-      } else if ((tile === TILE.SHORE || tile === TILE.SAND_TROPICAL) && r.value >= 0.02 && r.value < 0.06) {
-        const q = nextInt(prng, 5, 15);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.SHELL, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      // Bayas: pradera normal, frondosa (más frecuente) y jungla
-      } else if (tile === TILE.GRASS_LUSH && r.value < 0.025) {
-        const q = nextInt(prng, 8, 20);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.BERRY, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      } else if ((tile === TILE.GRASS || tile === TILE.JUNGLE_SOIL) && r.value < 0.012) {
-        const q = nextInt(prng, 5, 15);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.BERRY, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      // Caza: pradera, sabana, bosque, jungla
-      } else if ((tile === TILE.GRASS || tile === TILE.GRASS_LUSH || tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL) && r.value >= 0.99) {
-        const q = nextInt(prng, 2, 6);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.GAME, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      } else if (tile === TILE.GRASS_SABANA && r.value >= 0.97) {
-        const q = nextInt(prng, 1, 4);
-        prng = q.next;
-        spawns.push({ id: RESOURCE.GAME, x, y, quantity: q.value, initialQuantity: q.value, regime: 'regenerable', depletedAtTick: null });
-      // Agua potable: costa + río (fuente continua)
-      } else if ((tile === TILE.SHORE || tile === TILE.SAND_TROPICAL) && r.value < 0.02) {
-        spawns.push({ id: RESOURCE.WATER, x, y, quantity: 999, initialQuantity: 999, regime: 'continuous', depletedAtTick: null });
-      } else if (tile === TILE.RIVER && r.value < 0.08) {
-        spawns.push({ id: RESOURCE.WATER, x, y, quantity: 999, initialQuantity: 999, regime: 'continuous', depletedAtTick: null });
-      }
-    }
-  }
-  return { spawns, next: prng };
-}
 
-function spawnFish(
-  prngIn: PRNGState,
-  tiles: TileId[],
-  width: number,
-  height: number,
-): { spawns: ResourceSpawn[]; next: PRNGState } {
-  const spawns: ResourceSpawn[] = [];
-  let prng = prngIn;
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
-      if (tiles[idx] !== TILE.SHALLOW_WATER) continue;
-      const isShorelike = (t: TileId) => t === TILE.SHORE || t === TILE.SAND_TROPICAL;
-      let hasShore = false;
-      if (x > 0 && isShorelike(tiles[idx - 1])) hasShore = true;
-      else if (x < width - 1 && isShorelike(tiles[idx + 1])) hasShore = true;
-      else if (y > 0 && isShorelike(tiles[idx - width])) hasShore = true;
-      else if (y < height - 1 && isShorelike(tiles[idx + width])) hasShore = true;
-      if (!hasShore) continue;
+      const tile = tiles[idx];
       const r = prngNext(prng);
       prng = r.next;
-      if (r.value < 0.05) {
-        const q = nextInt(prng, 3, 10);
+
+      // Lógica de endemismo
+      let res: ResourceId | null = null;
+      let chance = 0;
+      let quantityRange: [number, number] = [10, 20];
+      let regime: 'regenerable' | 'depletable' | 'continuous' = 'regenerable';
+
+      switch (tile) {
+        case TILE.FOREST:
+        case TILE.JUNGLE_SOIL:
+          if (r.value < 0.12) { res = RESOURCE.WOOD; chance = 1; quantityRange = [20, 40]; }
+          else if (r.value < 0.14) { res = RESOURCE.BERRY; chance = 1; }
+          else if (r.value > 0.98) { res = RESOURCE.GAME; chance = 1; quantityRange = [3, 8]; }
+          break;
+        case TILE.MOUNTAIN:
+        case TILE.MOUNTAIN_SNOW:
+          if (r.value < 0.15) { res = RESOURCE.STONE; chance = 1; regime = 'depletable'; quantityRange = [30, 60]; }
+          break;
+        case TILE.MOUNTAIN_VOLCANO:
+          if (r.value < 0.25) { res = RESOURCE.OBSIDIAN; chance = 1; regime = 'depletable'; quantityRange = [10, 25]; }
+          break;
+        case TILE.SHORE:
+        case TILE.SAND_TROPICAL:
+          if (r.value < 0.05) { res = RESOURCE.SHELL; chance = 1; }
+          else if (r.value > 0.96) { res = RESOURCE.WATER; chance = 1; regime = 'continuous'; }
+          break;
+        case TILE.RIVER:
+          if (r.value < 0.15) { res = RESOURCE.WATER; chance = 1; regime = 'continuous'; }
+          break;
+        case TILE.SHALLOW_WATER:
+          if (r.value < 0.03) { res = RESOURCE.FISH; chance = 1; regime = 'continuous'; }
+          break;
+      }
+
+      if (res) {
+        const q = nextInt(prng, quantityRange[0], quantityRange[1] + 1);
         prng = q.next;
         spawns.push({
-          id: RESOURCE.FISH,
+          id: res,
           x,
           y,
-          quantity: q.value,
-          initialQuantity: q.value,
-          regime: 'continuous',
+          quantity: res === RESOURCE.WATER ? 999 : q.value,
+          initialQuantity: res === RESOURCE.WATER ? 999 : q.value,
+          regime,
           depletedAtTick: null,
         });
       }
@@ -508,54 +222,43 @@ export function generateWorld(
 ): WorldMap {
   const width = opts.width ?? 512;
   const height = opts.height ?? 512;
-  let prng = seedState(seed);
+  
+  const elevPerm = buildPermTable(seed ^ 0x11111111);
+  const moistPerm = buildPermTable(seed ^ 0x22222222);
 
-  // Island count ∈ {3, 4, 5} (declarado). El número real puede ser
-  // menor si no caben sin solaparse — meta.islandCount reporta el
-  // real, nunca el declarado.
-  const countR = nextInt(prng, 3, 6);
-  const declaredCount = countR.value;
-  prng = countR.next;
+  const tiles = new Array<TileId>(width * height);
+  const elevMap = new Array<number>(width * height);
 
-  const placed = placeIslands(prng, width, height, declaredCount);
-  prng = placed.next;
-  const islandCount = placed.islands.length;
+  // Fase 1: Generar mapas de ruido base
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x;
+      
+      // Elevación con máscara de isla
+      let e = normalizedNoise(elevPerm, x * NOISE_CONFIG.elevation.scale, y * NOISE_CONFIG.elevation.scale, 
+                              NOISE_CONFIG.elevation.octaves, NOISE_CONFIG.elevation.persistence, NOISE_CONFIG.elevation.lacunarity);
+      e = applyIslandMask(e, x, y, width, height);
+      elevMap[idx] = e;
 
-  const tiles: TileId[] = new Array<TileId>(width * height).fill(TILE.WATER);
-  fillTerrain(tiles, width, height, placed.islands);
-  markShore(tiles, width, height);
-  markShallowWater(tiles, width, height, 2);
+      // Humedad
+      const m = normalizedNoise(moistPerm, x * NOISE_CONFIG.moisture.scale, y * NOISE_CONFIG.moisture.scale,
+                                NOISE_CONFIG.moisture.octaves, NOISE_CONFIG.moisture.persistence, NOISE_CONFIG.moisture.lacunarity);
+      
+      tiles[idx] = getBiomeFromMatrix(e, m);
+    }
+  }
 
-  // Cluster counts escalados al tamaño del mapa. Densidad baja para
-  // mantener recursos totales ≤ 2000 en el default 512×512.
-  const grassCount = tiles.reduce<number>(
-    (acc, t) => (t === TILE.GRASS ? acc + 1 : acc),
-    0,
-  );
-  const forestClusters = Math.max(3, Math.floor(grassCount / 4000));
-  const mountainClusters = Math.max(2, Math.floor(grassCount / 7000));
-  prng = placeClusters(prng, tiles, width, height, TILE.FOREST, forestClusters, 6);
-  prng = placeClusters(prng, tiles, width, height, TILE.MOUNTAIN, mountainClusters, 4);
+  // Fase 2: Ríos
+  let prng = seedState(seed ^ 0x33333333);
+  prng = applyRivers(tiles, elevMap, width, height, prng);
 
-  // Biomas bioclimáticos: humidity + volcanic noise refinan FOREST/MOUNTAIN/GRASS
-  const humidPerm = buildPermTable(seed ^ 0xBEEF0001);
-  const volcPerm  = buildPermTable(seed ^ 0xDEAD0002);
-  applyBiomes(tiles, width, height, humidPerm, volcPerm);
+  // Fase 3: Recursos
+  const { spawns, next: n2 } = scatterResources(prng, tiles, width, height);
+  prng = n2;
 
-  // Ríos: nacen en picos (MOUNTAIN_SNOW/VOLCANO) y bajan hasta el mar
-  const rivCount = Math.max(2, Math.floor(islandCount * 1.5));
-  prng = addRivers(tiles, width, height, rivCount, prng);
-
-  const resMain = spawnResources(prng, tiles, width, height);
-  prng = resMain.next;
-  const resFish = spawnFish(prng, tiles, width, height);
-  prng = resFish.next;
-  const resources = [...resMain.spawns, ...resFish.spawns];
-
+  // Fase 4: Metadatos y Hash
   const preHash = createHash('sha256')
-    .update(
-      JSON.stringify({ seed, width, height, tiles, resources, islandCount }),
-    )
+    .update(JSON.stringify({ seed, width, height, tiles: tiles.slice(0, 100), islandCount: 1 }))
     .digest('hex');
 
   return {
@@ -563,11 +266,11 @@ export function generateWorld(
     width,
     height,
     tiles,
-    resources,
+    resources: spawns,
     meta: {
       generatorVersion: GENERATOR_VERSION,
       shaHash: preHash,
-      islandCount,
+      islandCount: 1, // En V2 tratamos el archipiélago como una entidad geológica única
     },
   };
 }

@@ -889,6 +889,67 @@ function drawWaterGlyph(
   ctx.stroke();
 }
 
+function drawObsidianGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - size * 0.4);
+  ctx.lineTo(cx + size * 0.3, cy);
+  ctx.lineTo(cx, cy + size * 0.4);
+  ctx.lineTo(cx - size * 0.3, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#4a008a'; // Reflejo púrpura
+  ctx.fillRect(cx - 1, cy - 1, 2, 2);
+}
+
+function drawFlintGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = '#666';
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.3, cy + size * 0.2);
+  ctx.lineTo(cx + size * 0.3, cy - size * 0.3);
+  ctx.lineTo(cx + size * 0.1, cy + size * 0.3);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawCoconutGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.fillStyle = '#4a2c1a';
+  const r = Math.max(1, size * 0.12);
+  for (const [dx, dy] of [[-0.1, -0.1], [0.15, 0.05], [0, 0.2]] as const) {
+    ctx.beginPath();
+    ctx.arc(cx + dx * size, cy + dy * size, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawShellGlyph(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+) {
+  ctx.strokeStyle = '#f5dada';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size * 0.2, 0, Math.PI);
+  ctx.stroke();
+}
+
 function renderResourceGlyph(
   ctx: CanvasRenderingContext2D,
   resource: ResourceSpawn,
@@ -921,6 +982,12 @@ function renderResourceGlyph(
       break;
     case RESOURCE.WATER:
       drawWaterGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.OBSIDIAN:
+      drawObsidianGlyph(ctx, cx, cy, size);
+      break;
+    case RESOURCE.SHELL:
+      drawShellGlyph(ctx, cx, cy, size);
       break;
   }
 }

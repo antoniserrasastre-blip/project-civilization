@@ -10,7 +10,6 @@
  * coloca en el spawn inicial del clan.
  */
 
-import fixtureJson from './fixtures/world-map.v1.json';
 import { createFog, type FogState } from './fog';
 import type { NPC } from './npcs';
 import type { PRNGState } from './prng';
@@ -18,6 +17,7 @@ import { seedState } from './prng';
 import type { BuildProject, Structure } from './structures';
 import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
+import { generateWorld } from './world-gen';
 import type { WorldMap } from './world-state';
 import type { EquippableItem } from './items';
 
@@ -60,8 +60,6 @@ export interface GameState {
   prng: PRNGState;
 }
 
-const DEFAULT_WORLD = fixtureJson as unknown as WorldMap;
-
 /** Construye una partida nueva. Los NPCs llegan drafteados (Sprint
  *  2.2/2.3) y se posicionan en el spawn costero declarado. */
 export function initialGameState(
@@ -69,9 +67,12 @@ export function initialGameState(
   npcs: readonly NPC[],
   worldOverride?: WorldMap,
 ): GameState {
+  // Generación procedimental por defecto — Sprint 14.5 GEOLOGÍA-SAGRADA.
+  // Mata el fixture estático world-map.v1.json.
+  const rawWorld = worldOverride ?? generateWorld(seed);
+
   // Influence arranca siempre en ceros — es estado dinámico, no vive en el
   // fixture estático (evita bundle de 262K ceros en webpack).
-  const rawWorld = worldOverride ?? DEFAULT_WORLD;
   // Reserves: suma de initialQuantity de cada spawn en su tile.
   const reserves = new Array<number>(rawWorld.width * rawWorld.height).fill(0);
   for (const spawn of rawWorld.resources) {
