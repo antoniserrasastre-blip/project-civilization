@@ -18,6 +18,7 @@ import { decideDestination, tickNeeds } from './needs';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
+import { CASTA } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickHarvests } from './harvest';
 import { markDiscovered } from './fog';
@@ -27,8 +28,12 @@ import { isDawn } from './messages';
 import { applyFaithDelta, faithPerTick } from './faith';
 import {
   applyGratitudeDelta,
+  applyGratitudeFromEvent,
   computeGratitudeTickDelta,
   computeSilenceDrainPerDay,
+  evaluateDawnGratitude,
+  penalizeElegidoDeath,
+  resetGratitudeDailyTracking,
 } from './gratitude';
 import type { VillageState } from './village';
 import { firstStructureOfKind } from './structures';
@@ -41,6 +46,57 @@ import {
   type CraftableId,
 } from './crafting';
 import { addStructure } from './structures';
+
+/** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
+const HUNGER_ESCAPE_LOW = 20;
+const HUNGER_ESCAPE_RECOVERY = 40;
+
+/**
+ * Diffs prev/post un tick de NPCs para detectar transiciones
+ * relevantes a la gratitud. Aplica eventos + pérdidas al village
+ * y acumula contadores diarios. El orden es determinista (por
+ * índice de `prev`) y no consume PRNG.
+ *
+ * Detecta:
+ *   - Muerte de Elegido → penalty (no cuenta contra cap diario).
+ *   - Escape de hambre crítica → evento `hunger_escape` (cuenta).
+ */
+function applyGratitudeEventsForTick(
+  village: VillageState,
+  prev: readonly NPC[],
+  next: readonly NPC[],
+): VillageState {
+  const byId = new Map<string, NPC>();
+  for (const n of next) byId.set(n.id, n);
+  let v = village;
+  for (const p of prev) {
+    const n = byId.get(p.id);
+    if (!n) continue;
+    const diedThisTick = p.alive && !n.alive;
+    if (diedThisTick) {
+      v = { ...v, dailyDeaths: v.dailyDeaths + 1 };
+      if (p.casta === CASTA.ELEGIDO) v = penalizeElegidoDeath(v);
+      continue;
+    }
+    if (!p.alive || !n.alive) continue;
+    const escaped =
+      p.stats.supervivencia < HUNGER_ESCAPE_LOW &&
+      n.stats.supervivencia >= HUNGER_ESCAPE_RECOVERY;
+    if (escaped) {
+      v = applyGratitudeFromEvent(
+        v,
+        {
+          type: 'hunger_escape',
+          npcId: n.id,
+          position: { x: n.position.x, y: n.position.y },
+        },
+        v.activeMessage,
+      );
+      v = { ...v, dailyHungerEscapes: v.dailyHungerEscapes + 1 };
+    }
+  }
+  return v;
+}
 
 const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.FOGATA_PERMANENTE,
@@ -175,10 +231,10 @@ export function tick(state: GameState): GameState {
   );
   nextVillage = applyFaithDelta(nextVillage, faithPerTick(aliveCount));
 
-  // Gratitud pasiva (§3.8) — acumula cuando el susurro activo
-  // beneficia a NPCs thriving. Sin susurro (null/SILENCE) el delta
-  // es 0; por eso activeMessage rige ambas economías: Fe crece
-  // siempre con vivos, gratitud sólo con intención real.
+  // Gratitud legacy trickle (Sprint 5.3, rate 0.1 post Fase 5 #1).
+  // Conservada como ruta pasiva mientras el v2 event-driven es la
+  // ruta principal — ambas coexisten hasta que el playtest #1.5
+  // decida el balance final.
   const gratitudeDelta = computeGratitudeTickDelta(
     afterBuild.npcs,
     nextVillage.activeMessage,
@@ -187,10 +243,22 @@ export function tick(state: GameState): GameState {
     nextVillage = applyGratitudeDelta(nextVillage, gratitudeDelta);
   }
 
-  // Transiciones diarias al cruzar un amanecer (no tick 0).
+  // Gratitud v2 — eventos detectados en este tick (per-NPC diffs).
+  // Hunger-escape + muerte de Elegido. §A4 — sin PRNG.
+  nextVillage = applyGratitudeEventsForTick(
+    nextVillage,
+    state.npcs,
+    afterBuild.npcs,
+  );
+
+  // Flujo de amanecer (tick > 0, múltiplo de TICKS_PER_DAY):
+  //   1. Decrementar gracia del silencio-por-default.
+  //   2. Drain de silencio si activeMessage === null y gracia agotada.
+  //   3. Pulsos B sobre el susurro activo persistente.
+  //   4. Reset de tracking diario.
+  // Nota: no hay `archiveAtDawn` — el susurro persiste (§3.7). Se
+  // archiva al cambiar, vía `applyPlayerIntent`.
   if (isDawn(afterBuild.tick) && afterBuild.tick > 0) {
-    // Gracia del silencio por default — decrece 1/día mientras no se
-    // haya susurrado (§3.7).
     if (
       nextVillage.activeMessage === null &&
       nextVillage.silenceGraceDaysRemaining > 0
@@ -201,11 +269,15 @@ export function tick(state: GameState): GameState {
           nextVillage.silenceGraceDaysRemaining - 1,
       };
     }
-    // Drain de gratitud por silencio por default fuera de gracia.
     const drain = computeSilenceDrainPerDay(nextVillage);
     if (drain > 0) {
       nextVillage = applyGratitudeDelta(nextVillage, -drain);
     }
+    nextVillage = evaluateDawnGratitude(
+      nextVillage,
+      nextVillage.activeMessage,
+    );
+    nextVillage = resetGratitudeDailyTracking(nextVillage);
   }
 
   return {

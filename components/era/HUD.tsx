@@ -1,15 +1,21 @@
 'use client';
 
 /**
- * HUD — barra de estado mínima del jugador.
+ * HUD — barra de estado del jugador.
  *
- * Sprint Fase 5 #1: añade barra de Fe con marcas visuales en 40
- * (coste silencio) y 80 (coste cambio), e indicador del susurro
- * activo (§3.7b).
+ * Combina las dos ramas de feedback del Sprint Fase 5 + Gratitud v2:
+ *   - Fe (Sprint Fase 5 #1): barra con marcas en 40 (coste silencio)
+ *     y 80 (coste cambio) + indicador del susurro activo (§3.7b).
+ *   - Gratitud v2: número con pulso de color (verde saturado M+L,
+ *     verde claro S, rojo pérdidas) y floater `+N` / `-N` que sube
+ *     22px y se desvanece en ~1.2s (hook `useGratitudeFloaters`).
  *
- * Dumb component: recibe strings/números ya calculados. Sin
- * decisiones estéticas finales — tokens base. Director Design
- * firma look & feel después.
+ * El prop `village` es opcional: si no se pasa, el hook se llama
+ * con un shape sintético estable y no dispara floaters — así
+ * tests antiguos que pasan `gratitude` directo siguen funcionando.
+ *
+ * `onOpenWhisper` abre el selector de susurro desde el botón
+ * "Hablar al clan" (§3.7 susurro persistente).
  */
 
 import type { MessageChoice } from '@/lib/messages';
@@ -21,6 +27,8 @@ import {
   FAITH_COST_CHANGE,
   FAITH_COST_SILENCE,
 } from '@/lib/faith';
+import type { VillageState } from '@/lib/village';
+import { useGratitudeFloaters } from '@/hooks/use-gratitude-floaters';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
   none: 'sin desbloquear',
@@ -49,11 +57,19 @@ export interface HUDProps {
   totalCount: number;
   monumentPhase: MonumentPhase;
   monumentProgress: number;
+  /** Opcional — habilita pulso animado + floater de gratitud. */
+  village?: VillageState;
   onOpenWhisper: () => void;
 }
 
 function pct(progress: number): number {
   return Math.min(100, Math.round((progress / BUILD_TICK_HOURS) * 100));
+}
+
+function floaterColor(delta: number): string {
+  if (delta < 0) return '#f87171';
+  if (delta >= 5) return '#4ade80';
+  return '#a7f3d0';
 }
 
 function FaithBar({ faith }: { faith: number }) {
@@ -121,10 +137,32 @@ export function HUD({
   totalCount,
   monumentPhase,
   monumentProgress,
+  village,
   onOpenWhisper,
 }: HUDProps) {
   const showProgress =
     monumentPhase === 'building' || monumentPhase === 'built';
+  // Hook siempre llamado — Rules of Hooks. Si no hay `village`,
+  // pasamos uno sintético estable (gratitud idéntica entre renders
+  // → no dispara floaters).
+  const floaters = useGratitudeFloaters(
+    village ??
+      ({
+        gratitude,
+        gratitudeEarnedToday: 0,
+        gratitudeEventKeys: [],
+        dailyDeaths: 0,
+        dailyHungerEscapes: 0,
+        consecutiveNightsAtFire: 0,
+        faith: 0,
+        silenceGraceDaysRemaining: 0,
+        activeMessage: null,
+        messageHistory: [],
+        blessings: [],
+      } as VillageState),
+  );
+  const lastFloater = floaters[floaters.length - 1];
+  const pulsing = lastFloater !== undefined;
   return (
     <div
       data-testid="hud"
@@ -150,8 +188,34 @@ export function HUD({
         <strong>Fe</strong> {Math.floor(faith)} / {FAITH_CAP}
         <FaithBar faith={faith} />
       </div>
-      <div data-testid="hud-gratitude">
+      <div
+        data-testid="hud-gratitude"
+        style={{
+          position: 'relative',
+          transition: 'color 400ms ease-out',
+          color: pulsing ? floaterColor(lastFloater.delta) : '#f5f5dc',
+        }}
+      >
         <strong>Gratitud</strong> {Math.floor(gratitude)}
+        {floaters.map((f) => (
+          <span
+            key={f.id}
+            data-testid="gratitude-floater"
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              left: '100%',
+              marginLeft: 8,
+              top: 0,
+              color: floaterColor(f.delta),
+              fontWeight: 700,
+              pointerEvents: 'none',
+              animation: 'gratitude-floater-rise 1200ms ease-out forwards',
+            }}
+          >
+            {f.delta > 0 ? `+${f.delta}` : `${f.delta}`}
+          </span>
+        ))}
       </div>
       <div data-testid="hud-alive">
         <strong>Hijos vivos</strong> {aliveCount}/{totalCount}
@@ -182,6 +246,13 @@ export function HUD({
       >
         Hablar al clan
       </button>
+      <style>{`
+        @keyframes gratitude-floater-rise {
+          0% { opacity: 0; transform: translateY(0); }
+          15% { opacity: 1; }
+          100% { opacity: 0; transform: translateY(-22px); }
+        }
+      `}</style>
     </div>
   );
 }

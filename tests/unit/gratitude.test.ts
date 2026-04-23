@@ -1,15 +1,32 @@
 /**
- * Tests del pool de gratitud — Sprint 5.3 (decisión #31).
+ * Tests del pool de gratitud — v2 (diseño Gratitud v2) + legacy rate
+ * ajustado y drain de silencio con gracia (Sprint Fase 5 #1).
+ *
+ * Cubre:
+ *   - Event-driven: dominios, multiplicadores, cap diario, dedupe,
+ *     dawn reset.
+ *   - Legacy trickle: rate 0.1 post sub-ajuste (no cableado en
+ *     simulation v2 pero exportado y testable).
+ *   - Drain silencio-por-default vs silencio-elegido + gracia.
+ *   - Round-trip JSON del shape ampliado.
  */
 
 import { describe, it, expect } from 'vitest';
 import {
-  computeGratitudeTickDelta,
   applyGratitudeDelta,
-  spendGratitude,
-  penalizeElegidoDeath,
+  applyGratitudeFromEvent,
+  computeGratitudeFromEvent,
+  computeGratitudeTickDelta,
+  computeSilenceDrainPerDay,
   GRATITUDE_CEILING,
+  GRATITUDE_DAILY_CAP,
+  GRATITUDE_EVENT_VALUES,
   GRATITUDE_RATES,
+  penalizeElegidoDeath,
+  resetGratitudeDailyTracking,
+  spendGratitude,
+  SUSURRO_DOMAINS,
+  type GratitudeEvent,
 } from '@/lib/gratitude';
 import { makeTestNPC } from '@/lib/npcs';
 import { MESSAGE_INTENTS, SILENCE } from '@/lib/messages';
@@ -25,16 +42,40 @@ function thrivingClan(n: number) {
 }
 
 describe('Constantes', () => {
-  it('CEILING positivo', () => {
-    expect(GRATITUDE_CEILING).toBeGreaterThan(0);
+  it('ceiling positivo y mayor que cap diario', () => {
+    expect(GRATITUDE_CEILING).toBe(200);
+    expect(GRATITUDE_DAILY_CAP).toBe(40);
+    expect(GRATITUDE_CEILING).toBeGreaterThan(GRATITUDE_DAILY_CAP);
   });
 
-  it('threshold supervivencia 50', () => {
+  it('valores de eventos son enteros en bandas S=2 / M=5 / L=10', () => {
+    const vals = Object.values(GRATITUDE_EVENT_VALUES).map((e) => e.base);
+    for (const v of vals) {
+      expect(Number.isInteger(v)).toBe(true);
+      expect([2, 5, 10]).toContain(v);
+    }
+  });
+
+  it('cada evento tiene dominio asignado', () => {
+    for (const [key, def] of Object.entries(GRATITUDE_EVENT_VALUES)) {
+      expect(typeof def.domain).toBe('string');
+      expect(def.domain.length).toBeGreaterThan(0);
+      expect(key.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('SUSURRO_DOMAINS cubre los 6 intents (ESPERANZA puede estar vacío)', () => {
+    for (const intent of Object.values(MESSAGE_INTENTS)) {
+      expect(SUSURRO_DOMAINS[intent]).toBeDefined();
+    }
+  });
+
+  it('threshold supervivencia 50 (legacy)', () => {
     expect(GRATITUDE_RATES.thrivingThreshold).toBe(50);
   });
 });
 
-describe('computeGratitudeTickDelta — con y sin mensaje', () => {
+describe('computeGratitudeTickDelta — legacy con y sin mensaje', () => {
   it('mensaje activo → delta positivo proporcional a NPCs thriving', () => {
     const clan = thrivingClan(10);
     const d = computeGratitudeTickDelta(clan, MESSAGE_INTENTS.CORAJE);
@@ -55,7 +96,7 @@ describe('computeGratitudeTickDelta — con y sin mensaje', () => {
     const hungryClan = Array.from({ length: 10 }, (_, i) =>
       makeTestNPC({
         id: `npc-${i}`,
-        stats: { supervivencia: 20, socializacion: 50 }, // <threshold
+        stats: { supervivencia: 20, socializacion: 50 },
       }),
     );
     expect(
@@ -72,17 +113,13 @@ describe('computeGratitudeTickDelta — con y sin mensaje', () => {
         stats: { supervivencia: 90, socializacion: 50 },
       }),
     ];
-    expect(computeGratitudeTickDelta(npcs, MESSAGE_INTENTS.CORAJE)).toBeCloseTo(
-      5 * GRATITUDE_RATES.perThrivingNpcWithMessage,
-      5,
-    );
+    expect(
+      computeGratitudeTickDelta(npcs, MESSAGE_INTENTS.CORAJE),
+    ).toBeCloseTo(5 * GRATITUDE_RATES.perThrivingNpcWithMessage, 5);
   });
 });
 
-describe('Rate ajustado — Sprint Fase 5 #1 (sub-ajuste obligatorio)', () => {
-  // El rate previo (1) saturaba el cap (200) en < 1 día con 10
-  // NPCs thriving. El target jugable es: primer milagro barato
-  // (~30) alcanzable en 2-3 días de susurro alineado.
+describe('Rate ajustado legacy — Sprint Fase 5 #1', () => {
   it('perThrivingNpcWithMessage es bajo (< 0.5) para no saturar rápido', () => {
     expect(GRATITUDE_RATES.perThrivingNpcWithMessage).toBeLessThan(0.5);
     expect(GRATITUDE_RATES.perThrivingNpcWithMessage).toBeGreaterThan(0);
@@ -90,20 +127,14 @@ describe('Rate ajustado — Sprint Fase 5 #1 (sub-ajuste obligatorio)', () => {
 
   it('10 NPCs thriving × 1 día (24 ticks) no satura el cap 200', () => {
     const clan = thrivingClan(10);
-    const perTick = computeGratitudeTickDelta(
-      clan,
-      MESSAGE_INTENTS.CORAJE,
-    );
+    const perTick = computeGratitudeTickDelta(clan, MESSAGE_INTENTS.CORAJE);
     const perDay = perTick * 24;
     expect(perDay).toBeLessThan(GRATITUDE_CEILING);
   });
 
   it('cap (200) requiere ≥ 3 días con 10 NPCs thriving — no instantáneo', () => {
     const clan = thrivingClan(10);
-    const perTick = computeGratitudeTickDelta(
-      clan,
-      MESSAGE_INTENTS.CORAJE,
-    );
+    const perTick = computeGratitudeTickDelta(clan, MESSAGE_INTENTS.CORAJE);
     const perDay = perTick * 24;
     const daysToCap = GRATITUDE_CEILING / perDay;
     expect(daysToCap).toBeGreaterThanOrEqual(3);
@@ -111,24 +142,16 @@ describe('Rate ajustado — Sprint Fase 5 #1 (sub-ajuste obligatorio)', () => {
 
   it('primer milagro (~30) reachable sin ser grind con 14 NPCs thriving', () => {
     const clan = thrivingClan(14);
-    const perTick = computeGratitudeTickDelta(
-      clan,
-      MESSAGE_INTENTS.CORAJE,
-    );
+    const perTick = computeGratitudeTickDelta(clan, MESSAGE_INTENTS.CORAJE);
     const perDay = perTick * 24;
     const daysTo30 = 30 / perDay;
-    // Rango amplio: el playtest calibra el número exacto; aquí el
-    // contrato es "ni < 1 tick (trivial) ni > 7 días (grind)".
     expect(daysTo30).toBeGreaterThan(0);
     expect(daysTo30).toBeLessThanOrEqual(7);
   });
 });
 
 describe('Drain del silencio — distinción elegido vs default (§3.7b)', () => {
-  it('silencio por default tras 7 días de gracia: drain aplica', async () => {
-    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
-    // Village con activeMessage null (default), history vacío,
-    // gracia agotada.
+  it('silencio por default tras 7 días de gracia: drain aplica', () => {
     const v = {
       ...initialVillageState(),
       activeMessage: null,
@@ -140,8 +163,7 @@ describe('Drain del silencio — distinción elegido vs default (§3.7b)', () =>
     );
   });
 
-  it('silencio por default dentro de gracia: drain NO aplica', async () => {
-    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+  it('silencio por default dentro de gracia: drain NO aplica', () => {
     const v = {
       ...initialVillageState(),
       activeMessage: null,
@@ -151,8 +173,7 @@ describe('Drain del silencio — distinción elegido vs default (§3.7b)', () =>
     expect(computeSilenceDrainPerDay(v)).toBe(0);
   });
 
-  it('silencio elegido (SILENCE): drain NO aplica (pagó 40 Fe)', async () => {
-    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+  it('silencio elegido (SILENCE): drain NO aplica (pagó 40 Fe)', () => {
     const v = {
       ...initialVillageState(),
       activeMessage: SILENCE,
@@ -162,8 +183,7 @@ describe('Drain del silencio — distinción elegido vs default (§3.7b)', () =>
     expect(computeSilenceDrainPerDay(v)).toBe(0);
   });
 
-  it('susurro activo (no silencio): drain NO aplica', async () => {
-    const { computeSilenceDrainPerDay } = await import('@/lib/gratitude');
+  it('susurro activo (no silencio): drain NO aplica', () => {
     const v = {
       ...initialVillageState(),
       activeMessage: MESSAGE_INTENTS.CORAJE,
@@ -173,66 +193,210 @@ describe('Drain del silencio — distinción elegido vs default (§3.7b)', () =>
   });
 });
 
-describe('applyGratitudeDelta — saturación y clamp', () => {
-  it('suma normal sin tocar ceiling', () => {
-    const v = { ...initialVillageState(), gratitude: 50 };
-    expect(applyGratitudeDelta(v, 20).gratitude).toBe(70);
+describe('computeGratitudeFromEvent — multiplicadores de alineación', () => {
+  const hungerEscape: GratitudeEvent = {
+    type: 'hunger_escape',
+    npcId: 'npc-1',
+  };
+  const discovery: GratitudeEvent = {
+    type: 'resource_discovered',
+    npcId: 'npc-2',
+  };
+  const birth: GratitudeEvent = { type: 'birth', npcId: 'child-1' };
+
+  it('susurro afín (AUXILIO × hunger_escape) → ×1.5 sobre L=10 → 15', () => {
+    expect(
+      computeGratitudeFromEvent(hungerEscape, MESSAGE_INTENTS.AUXILIO),
+    ).toBe(15);
   });
 
-  it('satura en CEILING', () => {
-    const v = { ...initialVillageState(), gratitude: GRATITUDE_CEILING - 5 };
-    expect(applyGratitudeDelta(v, 100).gratitude).toBe(GRATITUDE_CEILING);
+  it('susurro no afín (ENCUENTRO × hunger_escape) → ×0.5 sobre L=10 → 5', () => {
+    expect(
+      computeGratitudeFromEvent(hungerEscape, MESSAGE_INTENTS.ENCUENTRO),
+    ).toBe(5);
   });
 
-  it('clamp en 0', () => {
-    const v = { ...initialVillageState(), gratitude: 5 };
-    expect(applyGratitudeDelta(v, -100).gratitude).toBe(0);
+  it('CORAJE cubre supervivencia y exploración', () => {
+    expect(
+      computeGratitudeFromEvent(hungerEscape, MESSAGE_INTENTS.CORAJE),
+    ).toBe(15);
+    expect(
+      computeGratitudeFromEvent(discovery, MESSAGE_INTENTS.CORAJE),
+    ).toBe(3);
+  });
+
+  it('ESPERANZA → ×1.0 universal sobre cualquier evento', () => {
+    expect(
+      computeGratitudeFromEvent(hungerEscape, MESSAGE_INTENTS.ESPERANZA),
+    ).toBe(10);
+    expect(
+      computeGratitudeFromEvent(birth, MESSAGE_INTENTS.ESPERANZA),
+    ).toBe(10);
+    expect(
+      computeGratitudeFromEvent(discovery, MESSAGE_INTENTS.ESPERANZA),
+    ).toBe(2);
+  });
+
+  it('SILENCE → 0', () => {
+    expect(computeGratitudeFromEvent(hungerEscape, SILENCE)).toBe(0);
+    expect(computeGratitudeFromEvent(birth, SILENCE)).toBe(0);
+  });
+
+  it('null (sin susurro activo) → 0', () => {
+    expect(computeGratitudeFromEvent(hungerEscape, null)).toBe(0);
+  });
+
+  it('redondeo half-up determinista — S=2 × 0.5 = 1 entero', () => {
+    expect(
+      computeGratitudeFromEvent(discovery, MESSAGE_INTENTS.AUXILIO),
+    ).toBe(1);
   });
 });
 
-describe('spendGratitude', () => {
-  it('resta la cantidad si hay suficiente', () => {
+describe('applyGratitudeFromEvent — suma, dedupe y cap diario', () => {
+  it('suma el delta y lo refleja en gratitudeEarnedToday + gratitudeEventKeys', () => {
+    const v = initialVillageState();
+    const ev: GratitudeEvent = { type: 'birth', npcId: 'c1' };
+    const after = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.ENCUENTRO);
+    expect(after.gratitude).toBe(v.gratitude + 15);
+    expect(after.gratitudeEarnedToday).toBe(15);
+    expect(after.gratitudeEventKeys).toContain('birth:c1');
+  });
+
+  it('dedupe: mismo evento sobre mismo NPC el mismo día no vuelve a sumar', () => {
+    const v = initialVillageState();
+    const ev: GratitudeEvent = { type: 'birth', npcId: 'c1' };
+    const a = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.ENCUENTRO);
+    const b = applyGratitudeFromEvent(a, ev, MESSAGE_INTENTS.ENCUENTRO);
+    expect(b.gratitude).toBe(a.gratitude);
+    expect(b.gratitudeEarnedToday).toBe(a.gratitudeEarnedToday);
+    expect(b.gratitudeEventKeys.length).toBe(a.gratitudeEventKeys.length);
+  });
+
+  it('mismo tipo de evento sobre distintos NPCs SÍ suma ambos', () => {
+    const v = initialVillageState();
+    const e1: GratitudeEvent = { type: 'hunger_escape', npcId: 'a' };
+    const e2: GratitudeEvent = { type: 'hunger_escape', npcId: 'b' };
+    const s1 = applyGratitudeFromEvent(v, e1, MESSAGE_INTENTS.AUXILIO);
+    const s2 = applyGratitudeFromEvent(s1, e2, MESSAGE_INTENTS.AUXILIO);
+    expect(s2.gratitude).toBe(v.gratitude + 30);
+    expect(s2.gratitudeEventKeys.length).toBe(2);
+  });
+
+  it('cap diario 40: trunca lo que excede sin tirar', () => {
+    let v = initialVillageState();
+    const start = v.gratitude;
+    for (const id of ['c1', 'c2', 'c3']) {
+      v = applyGratitudeFromEvent(
+        v,
+        { type: 'birth', npcId: id },
+        MESSAGE_INTENTS.ENCUENTRO,
+      );
+    }
+    expect(v.gratitude).toBe(start + GRATITUDE_DAILY_CAP);
+    expect(v.gratitudeEarnedToday).toBe(GRATITUDE_DAILY_CAP);
+  });
+
+  it('eventos globales (fuente B, sin npcId) dedupean por tipo + "global"', () => {
+    const v = initialVillageState();
+    const ev: GratitudeEvent = { type: 'day_without_deaths' };
+    const a = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.PACIENCIA);
+    const b = applyGratitudeFromEvent(a, ev, MESSAGE_INTENTS.PACIENCIA);
+    expect(b.gratitude).toBe(a.gratitude);
+    expect(a.gratitudeEventKeys).toContain('day_without_deaths:global');
+  });
+
+  it('evento bajo SILENCE o null no modifica nada (ni registra key)', () => {
+    const v = initialVillageState();
+    const ev: GratitudeEvent = { type: 'birth', npcId: 'c1' };
+    expect(applyGratitudeFromEvent(v, ev, SILENCE)).toEqual(v);
+    expect(applyGratitudeFromEvent(v, ev, null)).toEqual(v);
+  });
+
+  it('al saturar techo 200, no supera el ceiling', () => {
+    const v = { ...initialVillageState(), gratitude: GRATITUDE_CEILING - 3 };
+    const ev: GratitudeEvent = { type: 'birth', npcId: 'c1' };
+    const after = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.ENCUENTRO);
+    expect(after.gratitude).toBe(GRATITUDE_CEILING);
+  });
+});
+
+describe('resetGratitudeDailyTracking — pulso al amanecer', () => {
+  it('pone gratitudeEarnedToday a 0 y vacía eventKeys sin tocar pool', () => {
+    const v = {
+      ...initialVillageState(),
+      gratitude: 75,
+      gratitudeEarnedToday: 30,
+      gratitudeEventKeys: ['birth:c1', 'hunger_escape:n2'],
+    };
+    const after = resetGratitudeDailyTracking(v);
+    expect(after.gratitude).toBe(75);
+    expect(after.gratitudeEarnedToday).toBe(0);
+    expect(after.gratitudeEventKeys).toEqual([]);
+  });
+
+  it('tras reset, el mismo evento sobre el mismo NPC vuelve a sumar', () => {
+    let v = initialVillageState();
+    const ev: GratitudeEvent = { type: 'birth', npcId: 'c1' };
+    v = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.ENCUENTRO);
+    const day1 = v.gratitude;
+    v = resetGratitudeDailyTracking(v);
+    v = applyGratitudeFromEvent(v, ev, MESSAGE_INTENTS.ENCUENTRO);
+    expect(v.gratitude).toBe(day1 + 15);
+  });
+});
+
+describe('applyGratitudeDelta + spendGratitude + penalizeElegidoDeath (legacy cruda)', () => {
+  it('applyGratitudeDelta suma sin tocar cap diario (pérdidas y milagros no cuentan)', () => {
+    const v = {
+      ...initialVillageState(),
+      gratitude: 100,
+      gratitudeEarnedToday: 35,
+    };
+    const after = applyGratitudeDelta(v, -30);
+    expect(after.gratitude).toBe(70);
+    expect(after.gratitudeEarnedToday).toBe(35);
+  });
+
+  it('satura en CEILING y clampa en 0', () => {
+    const hi = { ...initialVillageState(), gratitude: GRATITUDE_CEILING - 5 };
+    expect(applyGratitudeDelta(hi, 100).gratitude).toBe(GRATITUDE_CEILING);
+    const lo = { ...initialVillageState(), gratitude: 5 };
+    expect(applyGratitudeDelta(lo, -100).gratitude).toBe(0);
+  });
+
+  it('spendGratitude resta si suficiente y tira si no', () => {
     const v = { ...initialVillageState(), gratitude: 50 };
     expect(spendGratitude(v, 30).gratitude).toBe(20);
+    expect(() => spendGratitude(v, 80)).toThrow(/insuficiente/i);
+    expect(() => spendGratitude(v, 0)).toThrow(/> 0/);
   });
 
-  it('tira si no hay suficiente', () => {
-    const v = { ...initialVillageState(), gratitude: 10 };
-    expect(() => spendGratitude(v, 30)).toThrow(/insuficiente/i);
-  });
-
-  it('tira si amount <= 0', () => {
-    const v = { ...initialVillageState(), gratitude: 50 };
-    expect(() => spendGratitude(v, 0)).toThrow(/debe ser > 0/i);
-    expect(() => spendGratitude(v, -5)).toThrow(/debe ser > 0/i);
-  });
-});
-
-describe('penalizeElegidoDeath', () => {
-  it('resta GRATITUDE_RATES.elegidoDeathPenalty con clamp a 0', () => {
+  it('penalizeElegidoDeath resta 20 con clamp a 0', () => {
     const v = { ...initialVillageState(), gratitude: 30 };
-    const after = penalizeElegidoDeath(v);
-    expect(after.gratitude).toBe(30 - GRATITUDE_RATES.elegidoDeathPenalty);
-  });
-
-  it('clamp en 0 si pool ya bajo', () => {
-    const v = { ...initialVillageState(), gratitude: 5 };
-    expect(penalizeElegidoDeath(v).gratitude).toBe(0);
+    expect(penalizeElegidoDeath(v).gratitude).toBe(
+      30 - GRATITUDE_RATES.elegidoDeathPenalty,
+    );
+    const low = { ...initialVillageState(), gratitude: 5 };
+    expect(penalizeElegidoDeath(low).gratitude).toBe(0);
   });
 });
 
-describe('Suma conmutativa (§A4)', () => {
-  it('orden de eventos no cambia el pool final sobre 1000 deltas', () => {
-    const deltas = [12, -8, 33, -50, 17, 3, -2, 44, -10, 5];
-    const start = { ...initialVillageState(), gratitude: 100 };
-    let a = start;
-    for (const d of deltas) a = applyGratitudeDelta(a, d);
-    let b = start;
-    for (const d of [...deltas].reverse()) b = applyGratitudeDelta(b, d);
-    // Con clamps los dos caminos pueden diverger si se cruzan los
-    // límites — validamos solo cuando no se cruzan.
-    if (a.gratitude !== 0 && a.gratitude !== GRATITUDE_CEILING) {
-      expect(a.gratitude).toBe(b.gratitude);
-    }
+describe('Round-trip JSON (§A4)', () => {
+  it('VillageState con tracking de gratitud serializa sin perder forma', () => {
+    let v = initialVillageState();
+    v = applyGratitudeFromEvent(
+      v,
+      { type: 'birth', npcId: 'c1' },
+      MESSAGE_INTENTS.ENCUENTRO,
+    );
+    v = applyGratitudeFromEvent(
+      v,
+      { type: 'hunger_escape', npcId: 'n2' },
+      MESSAGE_INTENTS.AUXILIO,
+    );
+    const clone = JSON.parse(JSON.stringify(v));
+    expect(clone).toEqual(v);
+    expect(Array.isArray(clone.gratitudeEventKeys)).toBe(true);
   });
 });
