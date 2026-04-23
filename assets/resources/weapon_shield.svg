@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Borde -->
+  <path d="M10 4h12v2h4v4h2v12h-2v4h-4v2h-12v-2h-4v-4h-2v-12h2v-4h4z" fill="#3d2b1f"/>
+  <!-- Base de madera -->
+  <path d="M10 6h12v4h4v12h-4v4h-12v-4h-4v-12h4z" fill="#a0522d"/>
+  <!-- Patrón de tejido/refuerzo -->
+  <path d="M14 6h4v20h-4zM6 14h20v4H6z" fill="#5d2906"/>
+  <!-- Centro/Umbo -->
+  <rect x="14" y="14" width="4" height="4" fill="#8b8b8b"/>
+  <rect x="14" y="14" width="2" height="2" fill="#ffffff"/>
+</svg>

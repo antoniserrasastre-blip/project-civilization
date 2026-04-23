@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Borde -->
+  <path d="M12 6h8v2h4v4h2v12h-2v4h-12v-2h-4v-4h-2v-12h2v-4h4v-2z" fill="#3e2723"/>
+  <!-- Cuerpo -->
+  <path d="M12 8h8v2h4v4h2v8h-2v4h-10v-2h-4v-4h-2v-8h2v-4h4v-2z" fill="#fff9c4"/>
+  <!-- Sombras y Espiral -->
+  <path d="M22 12h2v8h-2v4h-8v-2h-4v-4h2v2h4v2h6v-8h-2v-2z" fill="#fbc02d"/>
+  <!-- Brillos -->
+  <rect x="10" y="10" width="4" height="2" fill="#ffffff"/>
+  <rect x="8" y="12" width="2" height="4" fill="#ffffff"/>
+</svg>

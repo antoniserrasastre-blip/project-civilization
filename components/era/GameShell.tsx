@@ -66,13 +66,20 @@ function bootstrap(seed: number): GameState {
 }
 
 const TILE_LABEL: Record<TileId, string> = {
-  [TILE.WATER]: 'agua profunda',
-  [TILE.SHALLOW_WATER]: 'agua poco profunda',
-  [TILE.SHORE]: 'orilla',
-  [TILE.GRASS]: 'pradera',
-  [TILE.FOREST]: 'bosque',
-  [TILE.MOUNTAIN]: 'montaña',
-  [TILE.SAND]: 'arena',
+  [TILE.WATER]:            'agua profunda',
+  [TILE.SHALLOW_WATER]:    'agua poco profunda',
+  [TILE.SHORE]:            'orilla',
+  [TILE.GRASS]:            'pradera',
+  [TILE.FOREST]:           'bosque',
+  [TILE.MOUNTAIN]:         'montaña',
+  [TILE.SAND]:             'arena',
+  [TILE.GRASS_LUSH]:       'pradera frondosa',
+  [TILE.GRASS_SABANA]:     'sabana',
+  [TILE.SAND_TROPICAL]:    'playa tropical',
+  [TILE.JUNGLE_SOIL]:      'jungla',
+  [TILE.MOUNTAIN_SNOW]:    'cima nevada',
+  [TILE.MOUNTAIN_VOLCANO]: 'volcán',
+  [TILE.RIVER]:            'río',
 };
 
 function actionForDestination(

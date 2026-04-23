@@ -1,0 +1,11 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Vertical Pixel Border -->
+  <rect x="14" y="0" width="4" height="8" fill="#FFD700"/>
+  <rect x="14" y="12" width="4" height="8" fill="#FFD700"/>
+  <rect x="14" y="24" width="4" height="8" fill="#FFD700"/>
+  
+  <!-- Shadows/Detail -->
+  <rect x="16" y="0" width="2" height="8" fill="#B8860B"/>
+  <rect x="16" y="12" width="2" height="8" fill="#B8860B"/>
+  <rect x="16" y="24" width="2" height="8" fill="#B8860B"/>
+</svg>

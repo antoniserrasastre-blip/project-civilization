@@ -32,6 +32,7 @@ import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { computeRole, roleColor, ROLE } from '@/lib/roles';
 import { useUnitSprites, type SpriteMap } from '@/hooks/use-unit-sprites';
 import { useResourceSprites, type ResourceSpriteMap } from '@/hooks/use-resource-sprites';
+import { useTileSprites, type TileSpriteMap } from '@/hooks/use-tile-sprites';
 import { CASTA } from '@/lib/npcs';
 import {
   spriteKeyFor,
@@ -954,28 +955,26 @@ function renderTiles(
   world: WorldMap,
   dims: ViewportDims,
   state: ViewportState,
+  tileSprites?: TileSpriteMap,
 ) {
-  const { screenWidth, screenHeight, tileSize } = dims;
+  const { screenWidth, screenHeight } = dims;
   ctx.clearRect(0, 0, screenWidth, screenHeight);
 
-  // Determinar qué tiles caen dentro del viewport para evitar
-  // iterar los 262k del mapa completo cada frame.
-  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
-    dims,
-    state,
-    world,
-  );
+  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
+  const tileW = Math.ceil(tilePx);
 
   for (let y = firstY; y < lastY; y++) {
     for (let x = firstX; x < lastX; x++) {
       const tile = world.tiles[y * world.width + x] as TileId;
-      ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
-      ctx.fillRect(
-        x * tilePx + state.offsetX,
-        y * tilePx + state.offsetY,
-        Math.ceil(tilePx),
-        Math.ceil(tilePx),
-      );
+      const sx = x * tilePx + state.offsetX;
+      const sy = y * tilePx + state.offsetY;
+      const sprite = tileSprites?.get(tile);
+      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+        ctx.drawImage(sprite, sx, sy, tileW, tileW);
+      } else {
+        ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
+        ctx.fillRect(sx, sy, tileW, tileW);
+      }
     }
   }
 }
@@ -1334,6 +1333,7 @@ export function MapView({
   const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
   const sprites = useUnitSprites();
   const resourceSprites = useResourceSprites();
+  const tileSprites = useTileSprites();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
@@ -1341,14 +1341,14 @@ export function MapView({
   const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(
     new Map(npcs.map((n) => [n.id, { ...n.position }])),
   );
-  const lastTickMsRef = useRef<number>(performance.now());
+  const lastTickMsRef = useRef<number>(0);
   // Ref que guarda los npcs del RENDER ANTERIOR — necesario para
   // capturar las posiciones viejas ANTES de que npcs cambie.
   const npcsSnapshotRef = useRef<readonly typeof npcs[0][]>(npcs);
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
-    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
+    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
   });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
@@ -1435,7 +1435,7 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites,
+      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
     };
   });
 
@@ -1479,7 +1479,7 @@ export function MapView({
 
       canvas.width = currentDims.screenWidth;
       canvas.height = currentDims.screenHeight;
-      renderTiles(ctx, rp.world, currentDims, currentViewport);
+      renderTiles(ctx, rp.world, currentDims, currentViewport, rp.tileSprites);
       renderResources(ctx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
       renderStructures(ctx, rp.structures, currentDims, currentViewport);
       renderBuildProject(ctx, rp.buildProject, currentDims, currentViewport);
@@ -1507,7 +1507,6 @@ export function MapView({
     };
     rafId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(rafId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dims, viewport, tickIntervalMs]);
 
   // Drag.

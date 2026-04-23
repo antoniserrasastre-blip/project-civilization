@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Postes Verticales -->
+  <rect x="6" y="4" width="2" height="24" fill="#5d2906"/>
+  <rect x="24" y="4" width="2" height="24" fill="#5d2906"/>
+  <rect x="15" y="4" width="2" height="24" fill="#5d2906"/>
+  <!-- Vigas Horizontales -->
+  <rect x="6" y="8" width="20" height="2" fill="#a0522d"/>
+  <rect x="6" y="18" width="20" height="2" fill="#a0522d"/>
+  <rect x="6" y="26" width="20" height="2" fill="#a0522d"/>
+  <!-- Diagonales/Refuerzos -->
+  <rect x="8" y="10" width="2" height="2" fill="#5d2906"/>
+  <rect x="10" y="12" width="2" height="2" fill="#5d2906"/>
+  <rect x="12" y="14" width="2" height="2" fill="#5d2906"/>
+  <rect x="18" y="14" width="2" height="2" fill="#5d2906"/>
+  <rect x="20" y="12" width="2" height="2" fill="#5d2906"/>
+  <rect x="22" y="10" width="2" height="2" fill="#5d2906"/>
+</svg>

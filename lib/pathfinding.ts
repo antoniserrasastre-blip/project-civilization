@@ -38,6 +38,7 @@ export interface FindPathResult {
 const DEFAULT_MAX_EXPAND = 10_000;
 
 function defaultPassable(tile: TileId): boolean {
+  // RIVER es transitable (río vadeable a pie)
   return tile !== TILE.WATER && tile !== TILE.SHALLOW_WATER;
 }
 

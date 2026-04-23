@@ -15,6 +15,7 @@
  */
 
 import { decideDestination, tickNeeds, NEED_THRESHOLDS } from './needs';
+import { findBuildSite, cohesionMultiplier } from './village-siting';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
@@ -238,12 +239,14 @@ function selectBuilders(
  *  Una construcción por tick. */
 function tryAutoBuild(state: GameState): GameState {
   if (state.buildProject) {
-    // Solo los builders designados contribuyen al progreso.
     const activeBuilders = selectBuilders(
       state.npcs,
       NEED_THRESHOLDS.supervivenciaBuildReady,
     );
-    const progress = state.buildProject.progress + activeBuilders.length;
+    // Bono de cohesión: edificio cerca del fuego se construye 20% más rápido.
+    const mult = cohesionMultiplier(state.buildProject.position, state.structures);
+    const progressDelta = Math.round(activeBuilders.length * mult);
+    const progress = state.buildProject.progress + progressDelta;
     if (progress < state.buildProject.required) {
       return {
         ...state,
@@ -267,18 +270,22 @@ function tryAutoBuild(state: GameState): GameState {
   const recipe = RECIPES[kind];
   if (!canBuild(recipe, inv)) return state;
   const npcs = consumeForRecipe(state.npcs, recipe);
-  // Posición: el primer NPC vivo (determinista). La plaza real
-  // del clan la decidiremos con diseño mejorado; por ahora el
-  // asentamiento no tiene "centro" canónico.
-  const anchor =
-    state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
+  // Posición inteligente: evalúa el terreno, respeta radio de exclusión,
+  // prioriza agua/recursos para la fogata.
+  const anchorNpc = state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
+  const buildPos = findBuildSite(
+    state.world,
+    state.structures,
+    kind,
+    anchorNpc.position,
+  );
   return {
     ...state,
     npcs,
     buildProject: {
       id: `bp-${kind}-${state.tick}`,
       kind,
-      position: { ...anchor.position },
+      position: { ...buildPos },
       startedAtTick: state.tick,
       progress: 0,
       required: recipe.daysWork * TICKS_PER_DAY,
@@ -410,7 +417,7 @@ export function tick(state: GameState): GameState {
   // needs también puede ver el mismo spawn antes de agotarse.
   const currentReserves = state.world.reserves ??
     new Array<number>(state.world.width * state.world.height).fill(0);
-  const harvested = tickHarvests(newNPCs, regen, state.tick + 1, currentReserves, state.world.width);
+  const harvested = tickHarvests(newNPCs, regen, state.tick + 1, currentReserves, state.world.width, state.structures);
   const nextWorld = {
     ...state.world,
     resources: harvested.resources,

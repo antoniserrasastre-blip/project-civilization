@@ -1,0 +1,18 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Shell -->
+  <rect x="6" y="8" width="20" height="16" fill="#228b22" />
+  <!-- Shell Pattern -->
+  <rect x="10" y="10" width="4" height="4" fill="#32cd32" />
+  <rect x="18" y="10" width="4" height="4" fill="#32cd32" />
+  <rect x="14" y="14" width="4" height="4" fill="#32cd32" />
+  <rect x="10" y="18" width="4" height="4" fill="#32cd32" />
+  <rect x="18" y="18" width="4" height="4" fill="#32cd32" />
+  <!-- Head -->
+  <rect x="26" y="14" width="4" height="4" fill="#32cd32" />
+  <rect x="28" y="15" width="2" height="2" fill="#000000" />
+  <!-- Flippers -->
+  <rect x="8" y="4" width="4" height="4" fill="#32cd32" />
+  <rect x="20" y="4" width="4" height="4" fill="#32cd32" />
+  <rect x="8" y="24" width="4" height="4" fill="#32cd32" />
+  <rect x="20" y="24" width="4" height="4" fill="#32cd32" />
+</svg>

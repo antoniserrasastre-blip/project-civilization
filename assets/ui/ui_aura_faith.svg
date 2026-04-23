@@ -1,0 +1,25 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Faith Aura (Glow) -->
+  <!-- Outer glow (Dithered) -->
+  <g fill="#ffd700">
+    <path d="M12 2h8v2h-8zM8 4h4v2H8zM20 4h4v2h-4zM6 6h2v4H6zM24 6h2v4h-2zM4 12h2v8H4zM26 12h2v8h-2zM6 22h2v4H6zM24 22h2v4h-2zM8 26h4v2H8zM20 26h4v2h-4zM12 28h8v2h-8z"/>
+    <!-- Random dithered dots -->
+    <rect x="15" y="0" width="2" height="2" />
+    <rect x="15" y="30" width="2" height="2" />
+    <rect x="0" y="15" width="2" height="2" />
+    <rect x="30" y="15" width="2" height="2" />
+  </g>
+  <!-- Inner ring -->
+  <g fill="#ffffff">
+    <rect x="12" y="8" width="8" height="2" />
+    <rect x="12" y="22" width="8" height="2" />
+    <rect x="8" y="12" width="2" height="8" />
+    <rect x="22" y="12" width="2" height="8" />
+  </g>
+  <!-- Center sparkle -->
+  <g fill="#ffd700">
+    <rect x="14" y="14" width="4" height="4" />
+    <rect x="15" y="12" width="2" height="8" />
+    <rect x="12" y="15" width="8" height="2" />
+  </g>
+</svg>

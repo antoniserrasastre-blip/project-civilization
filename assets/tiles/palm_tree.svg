@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Tronco de Palmera -->
+  <rect x="14" y="24" width="4" height="4" fill="#a0522d"/>
+  <rect x="15" y="20" width="3" height="4" fill="#a0522d"/>
+  <rect x="16" y="14" width="2" height="6" fill="#a0522d"/>
+  <!-- Hojas -->
+  <rect x="10" y="10" width="6" height="2" fill="#228b22"/>
+  <rect x="18" y="10" width="6" height="2" fill="#228b22"/>
+  <rect x="8" y="12" width="2" height="4" fill="#228b22"/>
+  <rect x="24" y="12" width="2" height="4" fill="#228b22"/>
+  <rect x="14" y="8" width="4" height="2" fill="#32cd32"/>
+</svg>

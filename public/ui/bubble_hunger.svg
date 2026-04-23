@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Burbuja -->
+  <path d="M8 6h16v2h4v16h-4v2h-2v4l-4-4h-10v-2h-4v-16h4v-2z" fill="#e65100"/>
+  <path d="M8 8h16v16h-12l-2 2v-2h-2v-16z" fill="#f57c00"/>
+  <!-- Hueso -->
+  <path d="M12 12h2v2h4v-2h2v2h-2v4h2v2h-2v-2h-4v2h-2v-2h2v-4h-2v-2z" fill="#ffffff"/>
+  <!-- Brillo -->
+  <rect x="10" y="10" width="2" height="2" fill="#ffb74d"/>
+</svg>

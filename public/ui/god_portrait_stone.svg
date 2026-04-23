@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="crispEdges">
+  <!-- Forma de la cabeza (Rocosa y Angular) -->
+  <rect x="12" y="8" width="40" height="48" fill="#718096"/>
+  <rect x="10" y="14" width="44" height="36" fill="#718096"/>
+  
+  <!-- Sombra lateral (Luz dramática desde la izquierda) -->
+  <rect x="32" y="8" width="20" height="48" fill="#4a5568"/>
+  <rect x="42" y="14" width="12" height="36" fill="#2d3748"/>
+  
+  <!-- Grietas de la tierra y Ochre -->
+  <rect x="16" y="16" width="12" height="2" fill="#a0522d"/>
+  <rect x="36" y="20" width="14" height="2" fill="#a0522d"/>
+  <rect x="20" y="50" width="24" height="4" fill="#5d2906"/>
+  
+  <!-- Ojos (Huecos profundos con brillo de ámbar) -->
+  <rect x="18" y="26" width="10" height="8" fill="#1a202c"/>
+  <rect x="36" y="26" width="10" height="8" fill="#1a202c"/>
+  <rect x="20" y="28" width="4" height="4" fill="#ed8936"/>
+  <rect x="38" y="28" width="4" height="4" fill="#ed8936"/>
+  
+  <!-- Nariz de piedra -->
+  <rect x="28" y="30" width="8" height="12" fill="#4a5568"/>
+  
+  <!-- Mandíbula de acantilado -->
+  <rect x="14" y="52" width="36" height="8" fill="#2d3748"/>
+  <rect x="12" y="54" width="4" height="4" fill="#1a202c"/>
+  <rect x="48" y="54" width="4" height="4" fill="#1a202c"/>
+</svg>

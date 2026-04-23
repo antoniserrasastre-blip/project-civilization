@@ -1,0 +1,15 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Shield Outline -->
+  <path d="M6 4H26V20L16 30L6 20V4Z" fill="#2e1065"/>
+  
+  <!-- Shield Body -->
+  <path d="M8 6H24V19L16 27L8 19V6Z" fill="#800080"/>
+  
+  <!-- Decoration (Gold Cross) -->
+  <rect x="14" y="8" width="4" height="16" fill="#FFD700"/>
+  <rect x="10" y="14" width="12" height="4" fill="#FFD700"/>
+  
+  <!-- Highlights -->
+  <rect x="8" y="6" width="16" height="2" fill="#a855f7"/>
+  <rect x="8" y="8" width="2" height="11" fill="#a855f7"/>
+</svg>

@@ -342,6 +342,7 @@ export function HUD({
                   fontSize: '0.76rem',
                 }}
               >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/resources/${key}.svg`}
                   alt={label}
