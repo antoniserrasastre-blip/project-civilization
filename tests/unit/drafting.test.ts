@@ -164,6 +164,8 @@ describe('finalizeBlockA — invariantes duras', () => {
         { archetype: ARCHETYPE.LIDER, sex: SEX.F }, // 4 → total 16 > 10
       ],
       budgetRemaining: -6,
+      traitSelections: [[], [], [], []],
+      scenarioId: null,
     };
     expect(() => finalizeBlockA(d)).toThrow(/presupuesto/i);
   });

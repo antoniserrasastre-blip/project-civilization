@@ -23,6 +23,15 @@ import {
   type NPC,
   type Sex,
 } from './npcs';
+import {
+  TRAIT_BUDGET,
+  traitBudgetCost,
+  applyTraits,
+  type TraitId,
+} from './traits';
+import { type ScenarioId, applyScenario } from './scenarios';
+
+export const TRAIT_BUDGET_DRAFT = TRAIT_BUDGET;
 
 export const CHOSEN_SLOTS = 4;
 export const CHOSEN_BUDGET = 10;
@@ -50,6 +59,10 @@ export interface DraftState {
   seed: number;
   slots: ChosenSlot[];
   budgetRemaining: number;
+  /** Rasgos seleccionados por slot. Un array por slot (misma longitud que `slots`). */
+  traitSelections: TraitId[][];
+  /** Escenario de arranque. null = sin escenario (sandbox / tests). */
+  scenarioId: ScenarioId | null;
 }
 
 export function startDraft(seed: number): DraftState {
@@ -60,6 +73,8 @@ export function startDraft(seed: number): DraftState {
       sex: null,
     })),
     budgetRemaining: CHOSEN_BUDGET,
+    traitSelections: Array.from({ length: CHOSEN_SLOTS }, () => []),
+    scenarioId: null,
   };
 }
 
@@ -141,6 +156,62 @@ function archetypeBaseSkills(arch: Archetype): {
   }
 }
 
+/** Coste neto de todos los rasgos seleccionados en el draft. */
+export function traitsBudgetUsed(draft: DraftState): number {
+  const all = draft.traitSelections.flat() as TraitId[];
+  return traitBudgetCost(all);
+}
+
+/** Selecciona (o reemplaza) el escenario de arranque. */
+export function pickScenario(
+  draft: DraftState,
+  scenarioId: ScenarioId,
+): DraftState {
+  return { ...draft, scenarioId };
+}
+
+/** Añade un rasgo a un slot. Lanza si se supera TRAIT_BUDGET_DRAFT
+ *  o si el rasgo ya está en el slot. */
+export function addTrait(
+  draft: DraftState,
+  slotIdx: number,
+  traitId: TraitId,
+): DraftState {
+  requireSlotInRange(slotIdx);
+  const current = draft.traitSelections[slotIdx];
+  if (current.includes(traitId)) {
+    throw new Error(`rasgo duplicado en slot ${slotIdx}: ${traitId}`);
+  }
+  const newSelections = draft.traitSelections.map((s, i) =>
+    i === slotIdx ? [...s, traitId] : [...s],
+  );
+  const nextCost =
+    traitBudgetCost(newSelections.flat() as TraitId[]);
+  if (nextCost > TRAIT_BUDGET_DRAFT) {
+    throw new Error(
+      `presupuesto de rasgos excedido: coste neto ${nextCost} > ${TRAIT_BUDGET_DRAFT}`,
+    );
+  }
+  return { ...draft, traitSelections: newSelections };
+}
+
+/** Elimina un rasgo de un slot. Lanza si el rasgo no estaba. */
+export function removeTrait(
+  draft: DraftState,
+  slotIdx: number,
+  traitId: TraitId,
+): DraftState {
+  requireSlotInRange(slotIdx);
+  const current = draft.traitSelections[slotIdx];
+  if (!current.includes(traitId)) {
+    throw new Error(`rasgo no encontrado en slot ${slotIdx}: ${traitId}`);
+  }
+  const newSelections = draft.traitSelections.map((s, i) =>
+    i === slotIdx ? s.filter((t) => t !== traitId) : [...s],
+  );
+  return { ...draft, traitSelections: newSelections };
+}
+
 /** Valida todas las invariantes de Bloque A y produce 4 NPCs.
  *  `excludeNames` permite al caller coordinar unicidad de nombres
  *  entre Bloque A y Bloque B (Sprint #4 Fase 5). */
@@ -196,7 +267,7 @@ export function finalizeBlockA(
     if (sex === SEX.M) nameCursorM = pick.nextCursor;
     else nameCursorF = pick.nextCursor;
     usedNames.add(pick.name);
-    return {
+    const base: NPC = {
       id,
       name: pick.name,
       sex,
@@ -215,9 +286,15 @@ export function finalizeBlockA(
       equippedItemId: null,
       lastReproducedTick: null,
     };
+    // Aplicar rasgos del slot (puro — devuelve NPC nuevo con traits y mods).
+    const slotTraits = draft.traitSelections[i] as TraitId[];
+    const withTraits = slotTraits.length > 0 ? applyTraits(base, slotTraits) : base;
+    // Aplicar escenario (puro — stats de arranque ajustados).
+    return draft.scenarioId ? applyScenario(withTraits, draft.scenarioId) : withTraits;
   });
   return npcs;
 }
+
 
 // --- Bloque B — 10 Ciudadanos en 4 tiers (decisión #3) ---
 
