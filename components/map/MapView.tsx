@@ -26,7 +26,7 @@ import type { BuildProject, Structure } from '@/lib/structures';
 import type { FogState } from '@/lib/fog';
 import type { Edge } from '@/lib/relations';
 import type { EquippableItem } from '@/lib/items';
-import { itemForNpc } from '@/lib/items';
+import { itemForNpc, ITEM_KIND } from '@/lib/items';
 import { CRAFTABLE } from '@/lib/crafting';
 import { computeNpcMarker, type NpcMarker } from '@/lib/npc-marker';
 import { computeRole, roleColor, ROLE } from '@/lib/roles';
@@ -236,6 +236,105 @@ function drawSprite(
   ctx.restore();
 }
 
+/**
+ * Dibuja el overlay de herramienta/arma encima del sprite.
+ * Cada ítem tiene una forma característica dibujada en canvas.
+ * sz = tamaño del sprite en pantalla.
+ */
+function drawItemOverlay(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  sz: number,
+  itemKind: string,
+) {
+  const u = sz / 16; // unidad = 1/16 del tamaño del sprite
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  switch (itemKind) {
+    case ITEM_KIND.SPEAR: {
+      // Lanza: palo diagonal + punta metálica, lado derecho
+      const x0 = cx + u * 5;   const y0 = cy - u * 6;
+      const x1 = cx + u * 9;   const y1 = cy + u * 4;
+      ctx.strokeStyle = '#7a5a14'; ctx.lineWidth = Math.max(1.5, u * 1.2);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+      // Punta
+      ctx.fillStyle = '#c0c0c0';
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 - u * 1.5, y0 + u * 3);
+      ctx.lineTo(x0 + u * 1.5, y0 + u * 3);
+      ctx.closePath(); ctx.fill();
+      break;
+    }
+    case ITEM_KIND.HAND_AXE: {
+      // Hacha: mango corto + cabeza de hacha
+      const hx = cx + u * 6; const hy = cy - u * 2;
+      ctx.strokeStyle = '#7a5a14'; ctx.lineWidth = Math.max(1.5, u);
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + u * 2, hy + u * 5); ctx.stroke();
+      ctx.fillStyle = '#909090';
+      ctx.beginPath();
+      ctx.moveTo(hx, hy);
+      ctx.lineTo(hx + u * 3.5, hy - u * 2);
+      ctx.lineTo(hx + u * 4, hy + u * 2);
+      ctx.lineTo(hx + u, hy + u * 1.5);
+      ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = '#606060'; ctx.lineWidth = 0.5; ctx.stroke();
+      break;
+    }
+    case ITEM_KIND.BONE_NEEDLE: {
+      // Aguja: línea diagonal delgada marfil
+      const nx = cx - u * 2; const ny = cy - u * 1;
+      ctx.strokeStyle = '#e8d8b0'; ctx.lineWidth = Math.max(1, u * 0.8);
+      ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx + u * 5, ny + u * 6); ctx.stroke();
+      // Ojo de la aguja
+      ctx.strokeStyle = '#a09070'; ctx.lineWidth = Math.max(0.5, u * 0.5);
+      ctx.beginPath(); ctx.arc(nx + u * 0.5, ny + u * 0.8, u * 0.6, 0, Math.PI * 2); ctx.stroke();
+      break;
+    }
+    case ITEM_KIND.BASKET: {
+      // Cesta: caja tejida lado izquierdo
+      const bx = cx - u * 9; const by = cy - u;
+      const bw = u * 5; const bh = u * 4;
+      ctx.fillStyle = '#8b5a14';
+      ctx.fillRect(bx, by, bw, bh);
+      // Asas
+      ctx.strokeStyle = '#7a4a10'; ctx.lineWidth = Math.max(1, u * 0.8);
+      ctx.beginPath(); ctx.arc(bx + bw / 2, by, bw / 2, Math.PI, 0); ctx.stroke();
+      // Tramado
+      ctx.strokeStyle = '#c8901c'; ctx.lineWidth = Math.max(0.5, u * 0.4);
+      ctx.beginPath(); ctx.moveTo(bx, by + bh / 2); ctx.lineTo(bx + bw, by + bh / 2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx + bw / 2, by); ctx.lineTo(bx + bw / 2, by + bh); ctx.stroke();
+      break;
+    }
+    case ITEM_KIND.RELIC_CHARM: {
+      // Reliquia: diamante brillante flotando sobre el hombro izquierdo
+      const rx = cx - u * 6; const ry = cy - u * 7;
+      const rs = u * 3;
+      ctx.fillStyle = 'rgba(160,100,220,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(rx, ry - rs);
+      ctx.lineTo(rx + rs, ry);
+      ctx.lineTo(rx, ry + rs);
+      ctx.lineTo(rx - rs, ry);
+      ctx.closePath(); ctx.fill();
+      // Destello
+      ctx.fillStyle = 'rgba(255,220,255,0.7)';
+      ctx.beginPath();
+      ctx.moveTo(rx, ry - rs * 0.6);
+      ctx.lineTo(rx + rs * 0.4, ry);
+      ctx.lineTo(rx, ry + rs * 0.3);
+      ctx.lineTo(rx - rs * 0.4, ry);
+      ctx.closePath(); ctx.fill();
+      break;
+    }
+  }
+
+  ctx.restore();
+}
+
 function renderNPCs(
   ctx: CanvasRenderingContext2D,
   placements: readonly MarkerPlacement[],
@@ -264,8 +363,9 @@ function renderNPCs(
     // Sprite o fallback geométrico.
     const spriteKey = spriteKeyFor(npc, items);
     const img = sprites.get(spriteKey);
+    const spriteSize = marker.size * 2.2; // más grandes y legibles
     if (img) {
-      drawSprite(ctx, img, cx, cy, marker.size * 1.1, i, now);
+      drawSprite(ctx, img, cx, cy, spriteSize, i, now);
     } else {
       if (marker.shape === 'diamond') {
         drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
@@ -276,7 +376,13 @@ function renderNPCs(
       }
     }
 
-    // Píxel de oficio — siempre visible encima del sprite.
+    // Overlay de herramienta/arma según ítem equipado.
+    const equippedItem = itemForNpc(npc, items);
+    if (equippedItem) {
+      drawItemOverlay(ctx, cx, cy, spriteSize, equippedItem.kind);
+    }
+
+    // Píxel de oficio encima de todo.
     if (professionLayer) {
       const offset = Math.max(1, Math.round(marker.size * 0.24));
       ctx.fillStyle = professionColor(npc, items);
