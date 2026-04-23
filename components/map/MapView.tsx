@@ -1738,19 +1738,22 @@ export function MapView({
     [placements, onNpcClick],
   );
 
-  // Zoom con rueda.
-  const onWheel = useCallback(
-    (e: React.WheelEvent) => {
+  // Zoom con rueda — listener nativo con passive:false para poder llamar
+  // preventDefault() (React 17+ registra onWheel como pasivo por defecto).
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const handler = (e: WheelEvent) => {
       e.preventDefault();
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      const rect = canvas.getBoundingClientRect();
       const pivotX = e.clientX - rect.left;
       const pivotY = e.clientY - rect.top;
       const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
       setViewport((prev) => applyZoom(dims, prev, factor, pivotX, pivotY));
-    },
-    [dims],
-  );
+    };
+    canvas.addEventListener('wheel', handler, { passive: false });
+    return () => canvas.removeEventListener('wheel', handler);
+  }, [dims]);
 
   // El hover se resetea al empezar un drag, así que basta con
   // mirarlo; evita leer el ref en render (prohibido por reglas de
@@ -1791,7 +1794,6 @@ export function MapView({
           setHover(null);
         }}
         onClick={onClick}
-        onWheel={onWheel}
       />
       {hover && (
         <div
