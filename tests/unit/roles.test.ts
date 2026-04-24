@@ -22,18 +22,17 @@ import {
 import { makeTestNPC } from '@/lib/npcs';
 import { createItem, ITEM_KIND } from '@/lib/items';
 import { RESOURCE } from '@/lib/world-state';
-
 describe('ROLE catálogo', () => {
-  it('declara los 7 roles iniciales', () => {
+  it('declara los 8 roles iniciales', () => {
     const values = Object.values(ROLE) as Role[];
-    expect(values).toHaveLength(7);
-    expect(new Set(values).size).toBe(7);
+    expect(values).toHaveLength(8);
+    expect(new Set(values).size).toBe(8);
     for (const r of values) {
       expect(roleLabel(r)).toMatch(/[A-Za-zÀ-ÿ]/);
     }
   });
 
-  it('contiene exactamente los 7 roles canónicos del sprint', () => {
+  it('contiene exactamente los 8 roles canónicos del sprint', () => {
     const values = new Set(Object.values(ROLE) as string[]);
     for (const k of [
       'cazador',
@@ -43,6 +42,7 @@ describe('ROLE catálogo', () => {
       'tallador',
       'tejedor',
       'curandero',
+      'transportista',
     ]) {
       expect(values.has(k)).toBe(true);
     }
@@ -50,7 +50,7 @@ describe('ROLE catálogo', () => {
 });
 
 describe('roleColor — paleta estable por rol', () => {
-  it('todos los 7 roles tienen color asignado', () => {
+  it('todos los 8 roles tienen color asignado', () => {
     for (const r of Object.values(ROLE) as Role[]) {
       expect(roleColor(r)).toMatch(/^#[0-9a-f]{6}$/i);
     }
@@ -61,7 +61,7 @@ describe('roleColor — paleta estable por rol', () => {
     for (const r of Object.values(ROLE) as Role[]) {
       seen.add(roleColor(r));
     }
-    expect(seen.size).toBe(7);
+    expect(seen.size).toBe(8);
   });
 });
 

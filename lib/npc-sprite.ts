@@ -53,6 +53,12 @@ export const SPRITE_KEY = {
   ITEM_CLUB:      'weapon_club',
   ITEM_SHIELD:    'weapon_shield',
   ITEM_SLING:     'weapon_sling',
+  // Estructuras (Sprint 15)
+  STRUCT_FIRE_PIT:       'struct_fire_pit',
+  STRUCT_SHELTER:        'struct_shelter_wood',
+  STRUCT_PANTRY:         'struct_shaman_hut_2',
+  STRUCT_STOCKPILE_WOOD: 'struct_stockpile_wood',
+  STRUCT_STOCKPILE_STONE: 'struct_stockpile_stone',
 } as const;
 
 export type SpriteKey = (typeof SPRITE_KEY)[keyof typeof SPRITE_KEY] | string;
@@ -92,6 +98,12 @@ export const SPRITE_URLS: Record<string, string> = {
   weapon_club:    '/resources/weapon_club.svg',
   weapon_shield:  '/resources/weapon_shield.svg',
   weapon_sling:   '/resources/weapon_sling.svg',
+  // Estructuras
+  struct_fire_pit:       '/structures/struct_fire_pit.svg',
+  struct_shelter_wood:   '/structures/struct_shelter_wood.svg',
+  struct_shaman_hut_2:   '/structures/struct_shaman_hut_2.svg',
+  struct_stockpile_wood:  '/structures/struct_stockpile_wood.svg',
+  struct_stockpile_stone: '/structures/struct_stockpile_stone.svg',
 };
 
 function archetypeToKey(archetype: string | null): SpriteKey {

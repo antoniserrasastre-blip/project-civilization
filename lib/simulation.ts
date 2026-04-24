@@ -46,6 +46,8 @@ import {
   clanInventoryTotal,
   consumeForRecipe,
   RECIPES,
+  STORAGE_SPECIALTY,
+  STOCKPILE_CAPACITY,
   type CraftableId,
 } from './crafting';
 import { addStructure } from './structures';
@@ -272,24 +274,25 @@ function tryAutoBuild(state: GameState): GameState {
   }
 
   const existing = new Set(state.structures.map((s) => s.kind));
-  const inv = clanInventoryTotal(state.npcs);
+  const inv = clanInventoryTotal(state.npcs, state.structures);
   const kind = BUILD_PRIORITY.find((k) => !existing.has(k));
   if (!kind) return state;
   const recipe = RECIPES[kind];
   if (!canBuild(recipe, inv)) return state;
-  const npcs = consumeForRecipe(state.npcs, recipe);
+  const { npcs, structures } = consumeForRecipe(state.npcs, recipe, state.structures);
   // Posición inteligente: evalúa el terreno, respeta radio de exclusión,
   // prioriza agua/recursos para la fogata.
   const anchorNpc = state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
   const buildPos = findBuildSite(
     state.world,
-    state.structures,
+    structures,
     kind,
     anchorNpc.position,
   );
   return {
     ...state,
     npcs,
+    structures,
     buildProject: {
       id: `bp-${kind}-${state.tick}`,
       kind,
@@ -308,6 +311,38 @@ export function nextBuildPriority(state: GameState): CraftableId | undefined {
     if (!existing.has(kind)) return kind;
   }
   return undefined;
+}
+
+/** Procesa la transferencia de recursos de NPCs a Almacenes (Sprint 15). */
+function tickLogistics(npcs: readonly NPC[], structures: readonly Structure[]): { npcs: NPC[]; structures: Structure[] } {
+  const outNpcs = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
+  const outStructures = structures.map((s) => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} }));
+
+  for (const n of outNpcs) {
+    if (!n.alive) continue;
+    // Buscar si el NPC está sobre una estructura de almacenamiento
+    const s = outStructures.find((s) => s.position.x === n.position.x && s.position.y === n.position.y);
+    if (!s) continue;
+
+    const specialty = STORAGE_SPECIALTY[s.kind] ?? [];
+    if (specialty.length === 0) continue;
+
+    for (const key of specialty) {
+      const amount = n.inventory[key];
+      if (amount <= 0) continue;
+
+      const current = s.inventory![key] || 0;
+      const space = STOCKPILE_CAPACITY - current;
+      const transfer = Math.min(amount, space);
+
+      if (transfer > 0) {
+        n.inventory[key] -= transfer;
+        s.inventory![key] = current + transfer;
+      }
+    }
+  }
+
+  return { npcs: outNpcs, structures: outStructures };
 }
 
 export function tick(state: GameState): GameState {
@@ -426,16 +461,22 @@ export function tick(state: GameState): GameState {
   // needs también puede ver el mismo spawn antes de agotarse.
   const currentReserves = state.world.reserves ??
     new Array<number>(state.world.width * state.world.height).fill(0);
-  const harvested = tickHarvests(newNPCs, regen, state.tick + 1, currentReserves, state.world.width, state.structures);
+  const harvested = tickHarvests(
+    newNPCs, regen, state.tick + 1, currentReserves, state.world.width, state.structures, state.items
+  );
+  
+  // Logística (Drop-off) — Sprint 15.
+  const logistics = tickLogistics(harvested.npcs, state.structures);
+
   const nextWorld = {
     ...state.world,
     resources: harvested.resources,
     influence: nextInfluence,
     reserves: harvested.reserves,
   };
-  const npcsAfterNeeds = tickNeeds(harvested.npcs, {
+  const npcsAfterNeeds = tickNeeds(logistics.npcs, {
     world: nextWorld,
-    npcs: harvested.npcs,
+    npcs: logistics.npcs,
   });
 
   // Auto-build antes del night-check para que una fogata construida
@@ -444,6 +485,7 @@ export function tick(state: GameState): GameState {
     ...state,
     world: nextWorld,
     npcs: npcsAfterNeeds,
+    structures: logistics.structures, // <-- USAR LAS ESTRUCTURAS DE LOGÍSTICA
     fog,
     tick: state.tick + 1,
     prng,
@@ -487,7 +529,7 @@ export function tick(state: GameState): GameState {
   }
 
   // Detección de triggers de desbloqueo Eureka (primera herida / exceso wood).
-  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy);
+  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy, afterBuild.structures);
   const newlyUnlocked = detectUnlockTrigger(state.npcs, npcsAfterLegacy, clanInvForTrigger);
   const unlockedSet = new Set([
     ...(afterBuild.unlockedItemKinds ?? []),
@@ -505,16 +547,19 @@ export function tick(state: GameState): GameState {
   ] as const;
   let npcsAfterItemCraft = npcsAfterLegacy;
   let itemsAfterItemCraft = itemsAfterLegacy;
+  let structuresAfterItemCraft = afterBuild.structures;
+
   for (const kind of itemCraftPriority) {
     if (existingKinds.has(kind)) continue;
     if (!canAutoCraft(kind, unlockedSet)) continue;
-    if (!canCraftItem(kind, npcsAfterItemCraft)) continue;
+    if (!canCraftItem(kind, npcsAfterItemCraft, structuresAfterItemCraft)) continue;
     const anchor = npcsAfterItemCraft.find((n) => n.alive) ?? null;
     const result = craftItem(
       kind,
       npcsAfterItemCraft,
       afterBuild.tick,
       anchor?.id ?? null,
+      structuresAfterItemCraft,
     );
     // Equipar al craftero si no lleva ya herramienta
     const ownerIdx = anchor
@@ -528,6 +573,7 @@ export function tick(state: GameState): GameState {
     }
     itemsAfterItemCraft = [...itemsAfterItemCraft, result.item];
     npcsAfterItemCraft = result.npcs;
+    structuresAfterItemCraft = result.structures;
     break; // máximo un item por tick
   }
 
@@ -536,11 +582,12 @@ export function tick(state: GameState): GameState {
   const existingKindsAfterCraft = new Set(itemsAfterItemCraft.map((i) => i.kind));
   let npcsAfterEureka = npcsAfterItemCraft;
   let itemsAfterEureka = itemsAfterItemCraft;
+  let structuresAfterEureka = structuresAfterItemCraft;
   let eurekaFound = false;
   let eurekaPrng = afterBuild.prng;
   for (const npc of npcsAfterEureka) {
     if (!npc.alive || eurekaFound) continue;
-    const clanInv = clanInventoryTotal(npcsAfterEureka);
+    const clanInv = clanInventoryTotal(npcsAfterEureka, structuresAfterEureka);
     const eurekaCtx = {
       clanInventory: clanInv,
       existingItemKinds: existingKindsAfterCraft,
@@ -554,6 +601,7 @@ export function tick(state: GameState): GameState {
         npcsAfterEureka,
         afterBuild.tick,
         npc.id,
+        structuresAfterEureka,
         1,
       );
       const npcIdx = npcsAfterEureka.findIndex((n) => n.id === npc.id);
@@ -562,6 +610,7 @@ export function tick(state: GameState): GameState {
       }
       itemsAfterEureka = [...itemsAfterEureka, eItem.item];
       npcsAfterEureka = eItem.npcs;
+      structuresAfterEureka = eItem.structures;
       existingKindsAfterCraft.add(eureka.discovered);
       eurekaFound = true;
     }
@@ -674,10 +723,11 @@ export function tick(state: GameState): GameState {
   return {
     ...afterBuild,
     npcs: npcsWithSynergies,
+    structures: structuresAfterEureka,
     prng: prngAfterRepro,
     chronicle: chronicleAfterRepro,
     items: itemsAfterEureka,
-    unlockedItemKinds: Array.from(unlockedSet),
+    unlockedItemKinds: Array.from(existingKindsAfterCraft),
     relations: state.relations,
     village: nextVillage,
   };

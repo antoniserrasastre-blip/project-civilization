@@ -13,12 +13,15 @@
  */
 
 import type { NPC, NPCInventory } from './npcs';
+import type { Structure } from './structures';
 
 export const CRAFTABLE = {
   REFUGIO: 'refugio',
   FOGATA_PERMANENTE: 'fogata_permanente',
   PIEL_ROPA: 'piel_ropa',
   DESPENSA: 'despensa',
+  STOCKPILE_WOOD: 'stockpile_wood',
+  STOCKPILE_STONE: 'stockpile_stone',
 } as const;
 
 export type CraftableId = (typeof CRAFTABLE)[keyof typeof CRAFTABLE];
@@ -59,31 +62,56 @@ export const RECIPES: Record<CraftableId, Recipe> = {
     daysWork: 4,
     minSkill: 10,
   },
+  [CRAFTABLE.STOCKPILE_WOOD]: {
+    id: CRAFTABLE.STOCKPILE_WOOD,
+    inputs: { stone: 4 },
+    daysWork: 2,
+    minSkill: 5,
+  },
+  [CRAFTABLE.STOCKPILE_STONE]: {
+    id: CRAFTABLE.STOCKPILE_STONE,
+    inputs: { wood: 4 },
+    daysWork: 2,
+    minSkill: 5,
+  },
 };
 
-/** Suma del inventario de todos los NPCs vivos. */
-export function clanInventoryTotal(npcs: readonly NPC[]): NPCInventory {
+/** Suma del inventario de todos los NPCs vivos Y de todas las estructuras. */
+export function clanInventoryTotal(
+  npcs: readonly NPC[],
+  structures: readonly Structure[] = [],
+): NPCInventory {
   const total: NPCInventory = {
-    wood: 0,
-    stone: 0,
-    berry: 0,
-    game: 0,
-    fish: 0,
-    obsidian: 0,
-    shell: 0,
+    wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0,
   };
+  // 1. Mochilas de los NPCs
   for (const n of npcs) {
     if (!n.alive) continue;
-    total.wood += n.inventory.wood;
-    total.stone += n.inventory.stone;
-    total.berry += n.inventory.berry;
-    total.game += n.inventory.game;
-    total.fish += n.inventory.fish;
-    total.obsidian += n.inventory.obsidian;
-    total.shell += n.inventory.shell;
+    for (const [key, val] of Object.entries(n.inventory) as Array<[keyof NPCInventory, number]>) {
+      total[key] += val;
+    }
+  }
+  // 2. Almacenes (Sprint 15)
+  for (const s of structures) {
+    if (!s.inventory) continue;
+    for (const [key, val] of Object.entries(s.inventory) as Array<[keyof NPCInventory, number]>) {
+      total[key] += (val || 0);
+    }
   }
   return total;
 }
+
+export const STOCKPILE_CAPACITY = 50;
+
+/** Define la especialidad de cada almacén (Sprint 15). */
+export const STORAGE_SPECIALTY: Record<CraftableId, Array<keyof NPCInventory>> = {
+  [CRAFTABLE.STOCKPILE_WOOD]: ['wood'],
+  [CRAFTABLE.STOCKPILE_STONE]: ['stone', 'obsidian', 'shell'],
+  [CRAFTABLE.DESPENSA]: ['berry', 'game', 'fish'],
+  [CRAFTABLE.REFUGIO]: [],
+  [CRAFTABLE.FOGATA_PERMANENTE]: [],
+  [CRAFTABLE.PIEL_ROPA]: [],
+};
 
 export function canBuild(recipe: Recipe, clanInv: NPCInventory): boolean {
   for (const [key, needed] of Object.entries(recipe.inputs) as Array<
@@ -95,16 +123,16 @@ export function canBuild(recipe: Recipe, clanInv: NPCInventory): boolean {
 }
 
 /**
- * Consume las inputs del recipe del inventario pooled del clan.
- * Reparte la extracción entre NPCs vivos en orden lex de id para
- * determinismo. Retorna NPCs nuevos; no muta.
- * Si no hay suficiente, throw — el caller debe llamar canBuild primero.
+ * Consume las inputs del recipe del inventario pooled del clan (NPCs + Estructuras).
+ * Reparte la extracción entre estructuras primero (hub central) y luego NPCs.
+ * Retorna NPCs y Estructuras nuevas; no muta.
  */
 export function consumeForRecipe(
   npcs: readonly NPC[],
   recipe: Recipe,
-): NPC[] {
-  const inv = clanInventoryTotal(npcs);
+  structures: readonly Structure[] = [],
+): { npcs: NPC[]; structures: Structure[] } {
+  const inv = clanInventoryTotal(npcs, structures);
   if (!canBuild(recipe, inv)) {
     throw new Error(
       `clan sin recursos suficientes para ${recipe.id}: inv=${JSON.stringify(
@@ -112,19 +140,43 @@ export function consumeForRecipe(
       )}, needed=${JSON.stringify(recipe.inputs)}`,
     );
   }
-  const out = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
-  const sorted = [...out].sort((a, b) => (a.id < b.id ? -1 : 1));
+
+  // 1. Clonar estructuras para mutación controlada
+  const outStructures = structures.map((s) => ({
+    ...s,
+    inventory: s.inventory ? { ...s.inventory } : {},
+  }));
+
+  // 2. Clonar NPCs para mutación controlada
+  const outNpcs = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
+
   for (const [key, needed] of Object.entries(recipe.inputs) as Array<
     [keyof NPCInventory, number]
   >) {
     let remaining = needed;
-    for (const n of sorted) {
+
+    // A. Consumir de Almacenes primero
+    for (const s of outStructures) {
       if (remaining <= 0) break;
-      if (!n.alive) continue;
-      const take = Math.min(n.inventory[key], remaining);
-      n.inventory[key] -= take;
+      if (!s.inventory) continue;
+      const val = s.inventory[key] || 0;
+      const take = Math.min(val, remaining);
+      s.inventory[key] = val - take;
       remaining -= take;
     }
+
+    // B. Consumir de NPCs si falta
+    if (remaining > 0) {
+      const sorted = [...outNpcs].sort((a, b) => (a.id < b.id ? -1 : 1));
+      for (const n of sorted) {
+        if (remaining <= 0) break;
+        if (!n.alive) continue;
+        const take = Math.min(n.inventory[key], remaining);
+        n.inventory[key] -= take;
+        remaining -= take;
+      }
+    }
   }
-  return out;
+
+  return { npcs: outNpcs, structures: outStructures };
 }

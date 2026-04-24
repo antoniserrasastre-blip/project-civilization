@@ -553,6 +553,7 @@ function renderStructures(
   structures: readonly Structure[],
   dims: ViewportDims,
   state: ViewportState,
+  sprites: SpriteMap,
 ) {
   const tilePx = dims.tileSize * state.zoom;
   for (const structure of structures) {
@@ -569,24 +570,47 @@ function renderStructures(
 
     const cx = x + tilePx / 2;
     const cy = y + tilePx / 2;
-    const size = Math.max(9, Math.min(24, tilePx * 1.1));
+    const size = Math.max(9, Math.min(32, tilePx * 1.2));
 
+    let spriteKey: string | null = null;
     switch (structure.kind) {
-      case CRAFTABLE.FOGATA_PERMANENTE:
-        drawFireStructure(ctx, cx, cy, size);
-        break;
-      case CRAFTABLE.REFUGIO:
-        drawShelterStructure(ctx, cx, cy, size);
-        break;
-      // HERRAMIENTA_SILEX migrado a items en Sprint 9 — sin case aquí.
-      case CRAFTABLE.DESPENSA:
-        drawPantryStructure(ctx, cx, cy, size);
-        break;
-      case CRAFTABLE.PIEL_ROPA:
-        drawHideStructure(ctx, cx, cy, size);
-        break;
+      case CRAFTABLE.FOGATA_PERMANENTE: spriteKey = 'struct_fire_pit'; break;
+      case CRAFTABLE.REFUGIO:          spriteKey = 'struct_shelter_wood'; break;
+      case CRAFTABLE.DESPENSA:         spriteKey = 'struct_shaman_hut_2'; break;
+      case CRAFTABLE.STOCKPILE_WOOD:   spriteKey = 'struct_stockpile_wood'; break;
+      case CRAFTABLE.STOCKPILE_STONE:  spriteKey = 'struct_stockpile_stone'; break;
+    }
+
+    const img = spriteKey ? sprites.get(spriteKey) : null;
+    if (img && img.complete) {
+      ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
+    } else {
+      // Fallback geométrico (Sprint 4)
+      switch (structure.kind) {
+        case CRAFTABLE.FOGATA_PERMANENTE:
+          drawFireStructure(ctx, cx, cy, size * 0.8);
+          break;
+        case CRAFTABLE.REFUGIO:
+          drawShelterStructure(ctx, cx, cy, size * 0.8);
+          break;
+        case CRAFTABLE.DESPENSA:
+          drawPantryStructure(ctx, cx, cy, size * 0.8);
+          break;
+        case CRAFTABLE.STOCKPILE_WOOD:
+        case CRAFTABLE.STOCKPILE_STONE:
+          drawStockpileFallback(ctx, cx, cy, size * 0.8, structure.kind === CRAFTABLE.STOCKPILE_WOOD ? '#8a5a2b' : '#777');
+          break;
+      }
     }
   }
+}
+
+function drawStockpileFallback(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, color: string) {
+  ctx.fillStyle = color;
+  ctx.fillRect(cx - size / 2, cy - size / 4, size, size / 2);
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(cx - size / 2, cy - size / 4, size, size / 2);
 }
 
 function drawCrownOverlay(
@@ -1530,7 +1554,7 @@ export function MapView({
         if (tlCtx) {
           renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites);
           renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
-          renderStructures(tlCtx, rp.structures, currentDims, currentViewport);
+          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, rp.unitSprites);
           renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
           renderFogOverlay(tlCtx, rp.fog, currentDims, currentViewport, rp.world);
           if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);

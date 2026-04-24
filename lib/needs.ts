@@ -23,12 +23,13 @@ import {
   type ResourceSpawn,
   type WorldMap,
 } from './world-state';
-import { clanInventoryTotal, RECIPES, type Recipe } from './crafting';
+import { clanInventoryTotal, RECIPES, STORAGE_SPECIALTY, STOCKPILE_CAPACITY, type Recipe } from './crafting';
 import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
 import { ITEM_DEFS } from './items';
 import { computeRole, intentFilter, ROLE, type Role } from './roles';
-import { INVENTORY_CAP_PER_TYPE } from './harvest';
+import { INVENTORY_CAP_PER_TYPE, effectiveInventoryCap } from './harvest';
+import type { Structure } from './structures';
 
 /** Penalty en tiles efectivos para recursos ya reclamados por otros NPCs.
  *  Un NPC a distancia 12 prefiere un recurso libre a distancia 18 antes
@@ -77,28 +78,30 @@ const COOKED_FOOD_SOCIAL_BONUS = 3;
  *  Define el "deber de rol" — el NPC siempre tiene algo que hacer
  *  mientras sv > umbral, aunque no tenga hambre ni urgencia. */
 const ROLE_RESOURCES: Record<Role, ResourceId[]> = {
-  [ROLE.CAZADOR]:    [RESOURCE.GAME],
-  [ROLE.PESCADOR]:   [RESOURCE.FISH],
-  [ROLE.RECOLECTOR]: [RESOURCE.BERRY, RESOURCE.WOOD],
-  [ROLE.TALLADOR]:   [RESOURCE.STONE, RESOURCE.WOOD],
-  [ROLE.TEJEDOR]:    [RESOURCE.GAME, RESOURCE.SHELL],
-  [ROLE.CURANDERO]:  [RESOURCE.BERRY, RESOURCE.WATER],
-  [ROLE.RASTREADOR]: [RESOURCE.WOOD, RESOURCE.BERRY],
+  [ROLE.CAZADOR]:       [RESOURCE.GAME],
+  [ROLE.PESCADOR]:      [RESOURCE.FISH],
+  [ROLE.RECOLECTOR]:    [RESOURCE.BERRY, RESOURCE.WOOD],
+  [ROLE.TALLADOR]:      [RESOURCE.STONE, RESOURCE.WOOD],
+  [ROLE.TEJEDOR]:       [RESOURCE.GAME, RESOURCE.SHELL],
+  [ROLE.CURANDERO]:     [RESOURCE.BERRY, RESOURCE.WATER],
+  [ROLE.RASTREADOR]:    [RESOURCE.WOOD, RESOURCE.BERRY],
+  [ROLE.TRANSPORTISTA]: [RESOURCE.WOOD, RESOURCE.STONE],
 };
 
 export interface DestinationContext {
   world: WorldMap;
   npcs: readonly NPC[];
+  items?: readonly EquippableItem[];
+  structures?: readonly Structure[];
+  currentTick: number;
+  ticksPerDay: number;
   nextBuildPriority?: CraftableId;
   /** Posición del buildProject activo — builders se mueven aquí físicamente. */
   buildSitePosition?: { x: number; y: number };
   /** Si este NPC es uno de los builders designados para la obra activa. */
   isBuilder?: boolean;
   firePosition?: { x: number; y: number };
-  currentTick?: number;
-  ticksPerDay?: number;
   isReachable?: (from: Position, to: Position) => boolean;
-  items?: readonly EquippableItem[];
   /** Tiles ya reclamados por otros NPCs en este tick (anti-apilamiento). */
   claimedTiles?: ReadonlySet<string>;
 }
@@ -106,6 +109,35 @@ export interface DestinationContext {
 export interface Position {
   x: number;
   y: number;
+}
+
+/** Encuentra el almacén más cercano que acepte el recurso indicado y tenga espacio. */
+function findNearestStockpile(
+  from: Position,
+  structures: readonly Structure[],
+  resourceKey: keyof NPCInventory,
+  isReachable?: (from: Position, to: Position) => boolean,
+): Position | null {
+  let bestDist = Infinity;
+  let bestPos: Position | null = null;
+
+  for (const s of structures) {
+    const specialty = STORAGE_SPECIALTY[s.kind] ?? [];
+    if (!specialty.includes(resourceKey)) continue;
+
+    // Comprobar espacio (Sprint 15)
+    const current = s.inventory?.[resourceKey] || 0;
+    if (current >= STOCKPILE_CAPACITY) continue;
+
+    if (isReachable && !isReachable(from, s.position)) continue;
+
+    const d = manhattan(from.x, from.y, s.position.x, s.position.y);
+    if (d < bestDist) {
+      bestDist = d;
+      bestPos = s.position;
+    }
+  }
+  return bestPos;
 }
 
 function manhattan(ax: number, ay: number, bx: number, by: number): number {
@@ -300,10 +332,23 @@ export function decideDestination(
   // construcción y rol tienen prioridad sobre la socialización y el estatismo.
   const isHealthyOrHasFood = supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady || carriedFood(npc) > 0;
 
+  // DEBER LOGÍSTICO: Descargar recursos (Sprint 15)
+  // Si tenemos algún recurso al máximo del cap, buscamos un almacén compatible.
+  const cap = effectiveInventoryCap(npc, ctx.structures ?? [], ctx.items ?? []);
+  const keysToDrop = (Object.keys(npc.inventory) as Array<keyof NPCInventory>).filter(
+    (k) => (npc.inventory[k] ?? 0) >= cap
+  );
+  if (isHealthyOrHasFood && keysToDrop.length > 0 && ctx.structures) {
+    for (const k of keysToDrop) {
+      const hub = findNearestStockpile(npc.position, ctx.structures, k, ctx.isReachable);
+      if (hub) return hub;
+    }
+  }
+
   // DEBER 1: Materiales para la construcción activa.
   if (isHealthyOrHasFood && ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
-    const missing = missingResourceFor(recipe, ctx.npcs);
+    const missing = missingResourceFor(recipe, ctx.npcs, ctx.structures ?? []);
     if (missing) {
       const spawn = nearestResource(
         npc.position, ctx.world.resources,
@@ -381,7 +426,7 @@ export function decideDestination(
       x: Math.max(0, Math.min(ctx.world.width - 1, npc.position.x + rx)),
       y: Math.max(0, Math.min(ctx.world.height - 1, npc.position.y + ry)),
     };
-    if (ctx.isReachable && ctx.isReachable(wanderTarget.x, wanderTarget.y)) return wanderTarget;
+    if (ctx.isReachable && ctx.isReachable(npc.position, wanderTarget)) return wanderTarget;
   }
 
   // Fallback: ir hacia el centroide si estamos dispersos.
@@ -397,8 +442,9 @@ export function decideDestination(
 function missingResourceFor(
   recipe: Recipe,
   npcs: readonly NPC[],
+  structures: readonly Structure[],
 ): keyof NPCInventory | null {
-  const clan = clanInventoryTotal(npcs);
+  const clan = clanInventoryTotal(npcs, structures);
   for (const [key, needed] of Object.entries(recipe.inputs) as Array<
     [keyof NPCInventory, number]
   >) {

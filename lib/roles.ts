@@ -37,6 +37,7 @@ export const ROLE = {
   TALLADOR: 'tallador',
   TEJEDOR: 'tejedor',
   CURANDERO: 'curandero',
+  TRANSPORTISTA: 'transportista',
 } as const;
 
 export type Role = (typeof ROLE)[keyof typeof ROLE];
@@ -49,6 +50,7 @@ const LABELS: Record<Role, string> = {
   [ROLE.TALLADOR]: 'Tallador',
   [ROLE.TEJEDOR]: 'Tejedor',
   [ROLE.CURANDERO]: 'Curandero',
+  [ROLE.TRANSPORTISTA]: 'Transportista',
 };
 
 export function roleLabel(role: Role): string {
@@ -66,6 +68,7 @@ const COLORS: Record<Role, string> = {
   [ROLE.TALLADOR]: '#b7802d',
   [ROLE.TEJEDOR]: '#c66b9a',
   [ROLE.CURANDERO]: '#7a5ea8',
+  [ROLE.TRANSPORTISTA]: '#d2a35f',
 };
 
 export function roleColor(role: Role): string {
@@ -115,6 +118,8 @@ export function computeRole(
         return ROLE.TEJEDOR;
       case ITEM_KIND.RELIC_CHARM:
         return ROLE.CURANDERO;
+      case ITEM_KIND.BASKET:
+        return ROLE.TRANSPORTISTA;
     }
   }
 
@@ -189,6 +194,11 @@ const FILTERS: Record<Role, ResourceWeightMap> = {
     [RESOURCE.BERRY]: 0,
   },
   [ROLE.CURANDERO]: {},
+  [ROLE.TRANSPORTISTA]: {
+    [RESOURCE.WOOD]: 3,
+    [RESOURCE.STONE]: 3,
+    [RESOURCE.BERRY]: 2,
+  },
 };
 
 /** Pesos aditivos sobre distancia Manhattan. Peso w significa que

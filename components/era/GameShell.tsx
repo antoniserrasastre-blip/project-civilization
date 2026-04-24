@@ -188,7 +188,7 @@ export function GameShell({ seed }: GameShellProps) {
       const avgSv = aliveNpcs.reduce((acc, n) => acc + n.stats.supervivencia, 0) / aliveNpcs.length;
       const avgSoc = aliveNpcs.reduce((acc, n) => acc + n.stats.socializacion, 0) / aliveNpcs.length;
       const avgProp = aliveNpcs.reduce((acc, n) => acc + (n.stats.proposito || 0), 0) / aliveNpcs.length;
-      const inv = clanInventoryTotal(s.npcs);
+      const inv = clanInventoryTotal(s.npcs, s.structures);
       
       const sumX = aliveNpcs.reduce((acc, n) => acc + n.position.x, 0);
       const sumY = aliveNpcs.reduce((acc, n) => acc + n.position.y, 0);
@@ -277,8 +277,8 @@ export function GameShell({ seed }: GameShellProps) {
       .filter((status) => status.badges.length > 0);
   }, [state.npcs, state.world]);
   const communalInventory = useMemo<NPCInventory>(
-    () => clanInventoryTotal(state.npcs),
-    [state.npcs],
+    () => clanInventoryTotal(state.npcs, state.structures),
+    [state.npcs, state.structures],
   );
   const buildStatus = useMemo<BuildHudStatus>(() => {
     if (state.buildProject) {
@@ -295,7 +295,7 @@ export function GameShell({ seed }: GameShellProps) {
     }
     const next = nextBuildPriority(state) ?? null;
     if (!next) return { next: null, ready: true, missing: {} };
-    const inv = clanInventoryTotal(state.npcs);
+    const inv = clanInventoryTotal(state.npcs, state.structures);
     const recipe = RECIPES[next];
     const missing: Partial<Record<keyof NPCInventory, number>> = {};
     for (const [key, needed] of Object.entries(recipe.inputs) as Array<

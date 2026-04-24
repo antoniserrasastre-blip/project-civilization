@@ -61,6 +61,8 @@ const CRAFTABLE_ES: Record<CraftableId, string> = {
   fogata_permanente: 'Fogata',
   piel_ropa: 'Piel/ropa',
   despensa: 'Despensa',
+  stockpile_wood: 'Almacén madera',
+  stockpile_stone: 'Almacén piedra',
 };
 
 const INVENTORY_ES = {
@@ -203,7 +205,7 @@ export function HUD({
     .filter(([_, amount]) => amount > 0)
     .map(([id, amount]) => ({
       id,
-      name: RESOURCE_LABEL[id as any] || id,
+      name: (RESOURCE_LABEL as Record<string, string>)[id] || id,
       amount,
       // Los archivos se llaman berry.svg, wood.svg, etc.
       icon: `/resources/${id}.svg`,

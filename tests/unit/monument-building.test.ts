@@ -73,15 +73,16 @@ describe('canStartMonument', () => {
 describe('startMonument', () => {
   it('consume stone y wood del pooled inventory', () => {
     const npcs = stockedNpcs(10, { stone: 30, wood: 10 });
-    const { npcs: after, monument } = startMonument(
+    const { npcs: after, structures: afterStructures, monument } = startMonument(
       npcs,
+      [],
       initialMonumentState(),
       100,
     );
     expect(monument.phase).toBe('building');
     expect(monument.startedAtTick).toBe(100);
-    const totalStone = after.reduce((a, n) => a + n.inventory.stone, 0);
-    const totalWood = after.reduce((a, n) => a + n.inventory.wood, 0);
+    const totalStone = [...after, ...afterStructures].reduce((a, n) => a + (n.inventory?.stone ?? 0), 0);
+    const totalWood = [...after, ...afterStructures].reduce((a, n) => a + (n.inventory?.wood ?? 0), 0);
     expect(totalStone).toBe(10 * 30 - MONUMENT_COST.stone);
     expect(totalWood).toBe(10 * 10 - MONUMENT_COST.wood);
   });
@@ -92,7 +93,7 @@ describe('startMonument', () => {
       progress: 0,
       startedAtTick: 0,
     };
-    expect(() => startMonument(stockedNpcs(10), m, 0)).toThrow();
+    expect(() => startMonument(stockedNpcs(10), [], m, 0)).toThrow();
   });
 });
 

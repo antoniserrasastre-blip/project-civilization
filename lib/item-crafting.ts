@@ -56,13 +56,19 @@ export const ITEM_RECIPES: Record<ItemKind, ItemRecipe> = {
   },
 };
 
+import type { Structure } from './structures';
+
 /** Suma del inventario del clan — reutiliza la de crafting.ts. */
 export { clanInventoryTotal };
 
 /** Comprueba si el clan tiene recursos para craftear el item. */
-export function canCraftItem(kind: ItemKind, npcs: readonly NPC[]): boolean {
+export function canCraftItem(
+  kind: ItemKind,
+  npcs: readonly NPC[],
+  structures: readonly Structure[] = [],
+): boolean {
   const recipe = ITEM_RECIPES[kind];
-  const inv = clanInventoryTotal(npcs);
+  const inv = clanInventoryTotal(npcs, structures);
   for (const [k, needed] of Object.entries(recipe.inputs) as Array<
     [keyof NPCInventory, number]
   >) {
@@ -81,8 +87,9 @@ export function craftItem(
   npcs: readonly NPC[],
   tick: number,
   ownerNpcId: string | null,
+  structures: readonly Structure[] = [],
   suffix = 0,
-): { item: EquippableItem; npcs: NPC[] } {
+): { item: EquippableItem; npcs: NPC[]; structures: Structure[] } {
   const recipe = ITEM_RECIPES[kind];
   // Reutilizamos consumeForRecipe de crafting pero con la firma
   // adaptada para ItemRecipe.
@@ -92,7 +99,11 @@ export function craftItem(
     daysWork: recipe.daysWork,
     minSkill: 0,
   };
-  const updatedNpcs = consumeForBuildRecipe(npcs, buildRecipeLike as Parameters<typeof consumeForBuildRecipe>[1]);
+  const { npcs: updatedNpcs, structures: updatedStructures } = consumeForBuildRecipe(
+    npcs,
+    buildRecipeLike as Parameters<typeof consumeForBuildRecipe>[1],
+    structures,
+  );
   const item = createItem(kind, ownerNpcId, tick, suffix);
-  return { item, npcs: updatedNpcs };
+  return { item, npcs: updatedNpcs, structures: updatedStructures };
 }

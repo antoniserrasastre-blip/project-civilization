@@ -7,6 +7,7 @@
  */
 
 import type { CraftableId } from './crafting';
+import type { NPCInventory } from './npcs';
 import type { Position } from './needs';
 
 export interface Structure {
@@ -14,6 +15,8 @@ export interface Structure {
   kind: CraftableId;
   position: Position;
   builtAtTick: number;
+  /** Inventario de recursos almacenados en esta estructura (Sprint 15). */
+  inventory?: Partial<NPCInventory>;
 }
 
 export interface BuildProject {

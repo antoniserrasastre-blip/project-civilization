@@ -11,7 +11,7 @@
  *   obra el clan sigue operativo. Colapso → ruina.
  */
 
-import { CRAFTABLE, clanInventoryTotal, type CraftableId } from './crafting';
+import { CRAFTABLE, clanInventoryTotal, consumeForRecipe, type CraftableId } from './crafting';
 import { hasStructure, type Structure } from './structures';
 import type { NPC } from './npcs';
 import type { VillageState } from './village';
@@ -103,30 +103,16 @@ export function initialMonumentState(): MonumentState {
 
 /** Devuelve un NPCs con inventario reducido para pagar el coste.
  *  No valida desbloqueo ni fase — eso es trabajo del caller. */
-function payBuildCost(npcs: readonly NPC[]): NPC[] {
-  // Copias.
-  const out = npcs.map((n) => ({
-    ...n,
-    inventory: { ...n.inventory },
-  }));
-  const sorted = [...out].sort((a, b) => (a.id < b.id ? -1 : 1));
-  let remainingStone = MONUMENT_COST.stone;
-  let remainingWood = MONUMENT_COST.wood;
-  for (const n of sorted) {
-    if (!n.alive) continue;
-    if (remainingStone > 0) {
-      const take = Math.min(n.inventory.stone, remainingStone);
-      n.inventory.stone -= take;
-      remainingStone -= take;
-    }
-    if (remainingWood > 0) {
-      const take = Math.min(n.inventory.wood, remainingWood);
-      n.inventory.wood -= take;
-      remainingWood -= take;
-    }
-    if (remainingStone <= 0 && remainingWood <= 0) break;
-  }
-  return out;
+function payBuildCost(
+  npcs: readonly NPC[],
+  structures: readonly Structure[],
+): { npcs: NPC[]; structures: Structure[] } {
+  return consumeForRecipe(npcs, {
+    id: 'monumento' as any,
+    inputs: MONUMENT_COST,
+    daysWork: 0,
+    minSkill: 0,
+  }, structures);
 }
 
 export function canStartMonument(
@@ -137,21 +123,23 @@ export function canStartMonument(
 ): boolean {
   if (monument.phase === 'built' || monument.phase === 'building') return false;
   if (!isMonumentUnlocked(structures, npcs, village)) return false;
-  const inv = clanInventoryTotal(npcs);
+  const inv = clanInventoryTotal(npcs, structures);
   return inv.stone >= MONUMENT_COST.stone && inv.wood >= MONUMENT_COST.wood;
 }
 
 export function startMonument(
   npcs: readonly NPC[],
+  structures: readonly Structure[],
   monument: MonumentState,
   tick: number,
-): { npcs: NPC[]; monument: MonumentState } {
+): { npcs: NPC[]; structures: Structure[]; monument: MonumentState } {
   if (monument.phase === 'built' || monument.phase === 'building') {
     throw new Error(`monumento en fase ${monument.phase}, no iniciable`);
   }
-  const nextNpcs = payBuildCost(npcs);
+  const { npcs: nextNpcs, structures: nextStructures } = payBuildCost(npcs, structures);
   return {
     npcs: nextNpcs,
+    structures: nextStructures,
     monument: { phase: 'building', progress: 0, startedAtTick: tick },
   };
 }
