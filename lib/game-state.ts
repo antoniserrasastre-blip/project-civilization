@@ -28,13 +28,15 @@ export interface TechState {
 
 export type Era = 'primigenia' | 'tribal';
 
-/** Entrada persistida de crónica — narrativa ya evaluada, lista
- *  para pintar. Se acumula en `GameState.chronicle` durante `tick()`.
- *  String entero + día simplifica el feed sin perder determinismo. */
+/** Entrada persistida de crónica — Memoria Colectiva del clan.
+ *  No solo narra, sino que afecta mecánicamente al clan. */
 export interface ChronicleEntry {
   day: number;
   tick: number;
   text: string;
+  type: 'death' | 'birth' | 'wisdom' | 'discovery' | 'system';
+  impact: number;      // Valor del impacto (positivo o negativo)
+  expiresAtTick: number; // Cuándo deja de afectar a la memoria colectiva
 }
 
 /** Cap de entradas conservadas — descarte FIFO para que el estado
