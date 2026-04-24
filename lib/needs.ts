@@ -117,7 +117,8 @@ export interface Position { x: number; y: number; }
 export interface DecisionResult { position: Position; next: PRNGState; }
 
 export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionResult {
-  let currentPrng = ctx.prng;
+  // SEGURIDAD: Fallback si el PRNG falta (típico en renderizado de UI)
+  let currentPrng = ctx.prng || { seed: 1, cursor: (npc.id.length + ctx.currentTick) };
   const aliveCount = ctx.npcs.filter(n => n.alive).length;
   const traditions = ctx.world.traditions || {};
   const currentRole = computeRole(npc, null);

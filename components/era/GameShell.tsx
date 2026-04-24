@@ -370,8 +370,10 @@ export function GameShell({ seed }: GameShellProps) {
       currentTick: state.tick,
       ticksPerDay: TICKS_PER_DAY,
       isReachable: makeNpcReachabilityChecker(state),
+      prng: state.prng,
+      synergies: [],
     };
-    const destination = decideDestination(selectedNpc, ctx);
+    const { position: destination } = decideDestination(selectedNpc, ctx as any);
     const tile = state.world.tiles[
       selectedNpc.position.y * state.world.width + selectedNpc.position.x
     ] as TileId;
