@@ -28,7 +28,7 @@ import {
   resetGratitudeDailyTracking,
 } from './gratitude';
 import type { VillageState } from './village';
-import { firstStructureOfKind, addStructure } from './structures';
+import { firstStructureOfKind, addStructure, type Structure } from './structures';
 import {
   canBuild,
   CRAFTABLE,
@@ -51,6 +51,7 @@ import { nextInt } from './prng';
 const SWIM_TICK_INTERVAL = 3;
 const MAX_DENSITY_THRESHOLD = 5; 
 const FOREMAN_FOLLOW_RADIUS = 3;
+const STRUCTURE_LIFESPAN = 10 * TICKS_PER_DAY; // 10 días antes de la decadencia total
 
 const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.FOGATA_PERMANENTE,
@@ -122,7 +123,6 @@ function tickMovement(state: GameState): GameState {
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
   const groupsByDest = new Map<string, NPC[]>();
   
-  // 1. Fase de decisión (encadenando PRNG)
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
     const ctx = {
@@ -135,7 +135,7 @@ function tickMovement(state: GameState): GameState {
     };
     const decision = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
     (npc as any)._nextDest = decision.position;
-    currentPrng = decision.next; // Propagar PRNG
+    currentPrng = decision.next; 
     const key = `${decision.position.x},${decision.position.y}`;
     if (!groupsByDest.has(key)) groupsByDest.set(key, []);
     groupsByDest.get(key)!.push(npc);
@@ -145,7 +145,6 @@ function tickMovement(state: GameState): GameState {
   let fog: FogState = state.fog;
   const foremanPaths = new Map<string, { x: number, y: number }>();
 
-  // 2. Fase de ejecución de movimiento
   for (const npc of state.npcs) {
     if (!npc.alive) { newNPCs.push(npc); continue; }
     const dest = (npc as any)._nextDest;
@@ -195,13 +194,66 @@ function tickWorldSystems(state: GameState): GameState {
   return { ...state, world: { ...state.world, influence: nextInfluence, resources: nextResources.resources, reserves: nextResources.reserves } };
 }
 
+/** Fase 3: OBSOLESCENCIA. Los edificios viejos fallan y pierden recursos. */
+function tickInfrastructureDecay(state: GameState): { structures: Structure[], chronicle: ChronicleEntry[] } {
+  let structures = state.structures.map(s => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} }));
+  let chronicle = [...state.chronicle];
+  let currentPrng = state.prng;
+
+  const nextStructures = [];
+  for (const s of structures) {
+    const age = state.tick - s.builtAtTick;
+    if (age < STRUCTURE_LIFESPAN) {
+      nextStructures.push(s);
+      continue;
+    }
+
+    // Almacenes viejos pierden recursos (humedad/plagas)
+    if (s.kind === CRAFTABLE.DESPENSA) {
+      const { value: roll, next: nextP } = nextInt(currentPrng, 0, 100);
+      currentPrng = nextP;
+      if (roll < 5) { // 5% de perder algo cada tick tras 10 días
+        const foods: (keyof NPCInventory)[] = ['berry', 'fish', 'game'];
+        const food = foods[roll % 3];
+        if (s.inventory[food] && s.inventory[food]! > 0) {
+          s.inventory[food]!--;
+        }
+      }
+    }
+
+    // Probabilidad de colapso total (0.01% por tick tras vida útil)
+    const { value: collapseRoll, next: nextP2 } = nextInt(currentPrng, 0, 10000);
+    currentPrng = nextP2;
+    if (collapseRoll === 0) {
+      const entry = narrate({ type: 'system', tick: state.tick } as any); // Reutilizamos narrador
+      (entry as any).text = `Día ${Math.floor(state.tick / TICKS_PER_DAY)}: Una estructura de ${s.kind} ha colapsado por vejez.`;
+      chronicle = [...chronicle.slice(-(CHRONICLE_MAX - 1)), { 
+        day: Math.floor(state.tick / TICKS_PER_DAY), 
+        tick: state.tick, 
+        text: (entry as any).text,
+        type: 'system',
+        impact: -10,
+        expiresAtTick: state.tick + TICKS_PER_DAY
+      }];
+      continue; // No se añade a nextStructures -> Eliminada
+    }
+
+    nextStructures.push(s);
+  }
+
+  return { structures: nextStructures, chronicle };
+}
+
 function tickClanSystems(state: GameState): GameState {
   const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items);
   const logistics = tickLogistics(harvested.npcs, state.structures);
   const traditions = { ...(state.world.traditions || {}) };
   for (const npc of state.npcs) { if (npc.alive) { const role = computeRole(npc, null); traditions[role] = (traditions[role] || 0) + 1; } }
 
-  const moodModifier = calculateCollectiveMemoryModifier(state.chronicle, state.tick);
+  // Aplicar Decadencia de Infraestructura
+  const { structures: decayedStructures, chronicle: nextChronicle } = tickInfrastructureDecay({ ...state, structures: logistics.structures });
+
+  const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
   const npcsWithNeeds = tickNeeds(logistics.npcs, { 
     world: state.world, npcs: logistics.npcs,
     faith: state.village.faith, gratitude: state.village.gratitude,
@@ -209,7 +261,7 @@ function tickClanSystems(state: GameState): GameState {
   });
 
   return {
-    ...state, npcs: npcsWithNeeds, structures: logistics.structures,
+    ...state, npcs: npcsWithNeeds, structures: decayedStructures, chronicle: nextChronicle,
     world: { ...state.world, resources: harvested.resources, reserves: harvested.reserves, traditions }
   };
 }
