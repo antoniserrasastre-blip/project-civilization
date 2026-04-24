@@ -51,7 +51,7 @@ import { nextInt } from './prng';
 const SWIM_TICK_INTERVAL = 3;
 const MAX_DENSITY_THRESHOLD = 5; 
 const FOREMAN_FOLLOW_RADIUS = 3;
-const STRUCTURE_LIFESPAN = 10 * TICKS_PER_DAY; // 10 días antes de la decadencia total
+const STRUCTURE_LIFESPAN = 10 * TICKS_PER_DAY;
 
 const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.FOGATA_PERMANENTE,
@@ -194,7 +194,6 @@ function tickWorldSystems(state: GameState): GameState {
   return { ...state, world: { ...state.world, influence: nextInfluence, resources: nextResources.resources, reserves: nextResources.reserves } };
 }
 
-/** Fase 3: OBSOLESCENCIA. Los edificios viejos fallan y pierden recursos. */
 function tickInfrastructureDecay(state: GameState): { structures: Structure[], chronicle: ChronicleEntry[] } {
   let structures = state.structures.map(s => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} }));
   let chronicle = [...state.chronicle];
@@ -208,39 +207,29 @@ function tickInfrastructureDecay(state: GameState): { structures: Structure[], c
       continue;
     }
 
-    // Almacenes viejos pierden recursos (humedad/plagas)
     if (s.kind === CRAFTABLE.DESPENSA) {
       const { value: roll, next: nextP } = nextInt(currentPrng, 0, 100);
       currentPrng = nextP;
-      if (roll < 5) { // 5% de perder algo cada tick tras 10 días
+      if (roll < 5) { 
         const foods: (keyof NPCInventory)[] = ['berry', 'fish', 'game'];
         const food = foods[roll % 3];
-        if (s.inventory[food] && s.inventory[food]! > 0) {
-          s.inventory[food]!--;
-        }
+        if (s.inventory[food] && s.inventory[food]! > 0) s.inventory[food]!--;
       }
     }
 
-    // Probabilidad de colapso total (0.01% por tick tras vida útil)
-    const { value: collapseRoll, next: nextP2 } = nextInt(currentPrng, 0, 10000);
+    const { value: collapseRoll, next: nextP2 } = nextInt(currentPrng, 0, 20000); // Vida extendida si se repara
     currentPrng = nextP2;
     if (collapseRoll === 0) {
-      const entry = narrate({ type: 'system', tick: state.tick } as any); // Reutilizamos narrador
-      (entry as any).text = `Día ${Math.floor(state.tick / TICKS_PER_DAY)}: Una estructura de ${s.kind} ha colapsado por vejez.`;
       chronicle = [...chronicle.slice(-(CHRONICLE_MAX - 1)), { 
         day: Math.floor(state.tick / TICKS_PER_DAY), 
         tick: state.tick, 
-        text: (entry as any).text,
-        type: 'system',
-        impact: -10,
-        expiresAtTick: state.tick + TICKS_PER_DAY
+        text: `Día ${Math.floor(state.tick / TICKS_PER_DAY)}: Una estructura de ${s.kind} ha colapsado por vejez.`,
+        type: 'system', impact: -10, expiresAtTick: state.tick + TICKS_PER_DAY
       }];
-      continue; // No se añade a nextStructures -> Eliminada
+      continue; 
     }
-
     nextStructures.push(s);
   }
-
   return { structures: nextStructures, chronicle };
 }
 
@@ -250,9 +239,7 @@ function tickClanSystems(state: GameState): GameState {
   const traditions = { ...(state.world.traditions || {}) };
   for (const npc of state.npcs) { if (npc.alive) { const role = computeRole(npc, null); traditions[role] = (traditions[role] || 0) + 1; } }
 
-  // Aplicar Decadencia de Infraestructura
   const { structures: decayedStructures, chronicle: nextChronicle } = tickInfrastructureDecay({ ...state, structures: logistics.structures });
-
   const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
   const npcsWithNeeds = tickNeeds(logistics.npcs, { 
     world: state.world, npcs: logistics.npcs,
@@ -338,10 +325,41 @@ function tryAutoBuild(state: GameState): GameState {
     const progress = state.buildProject.progress + Math.round(activeBuilders.length * mult);
     const builderIds = new Set(activeBuilders.map((b) => b.id));
     const nextNpcs = state.npcs.map((n) => builderIds.has(n.id) ? updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 }) : n);
+
     if (progress < state.buildProject.required) return { ...state, npcs: nextNpcs, buildProject: { ...state.buildProject, progress } };
+
+    // AL FINALIZAR: ¿Es una reparación o construcción nueva?
+    if (state.buildProject.targetStructureId) {
+      const structures = state.structures.map(s => 
+        s.id === state.buildProject!.targetStructureId ? { ...s, builtAtTick: state.tick } : s
+      );
+      return { ...state, npcs: nextNpcs, structures, buildProject: null };
+    }
+
     const structures = addStructure(state.structures, state.buildProject.kind, state.buildProject.position, state.tick, state.structures.length);
     return { ...state, npcs: nextNpcs, structures, buildProject: null };
   }
+
+  // LÓGICA DE SELECCIÓN: 1. Reparaciones prioritarias
+  const decaying = state.structures.find(s => (state.tick - s.builtAtTick) > STRUCTURE_LIFESPAN);
+  if (decaying) {
+    const recipe = RECIPES[decaying.kind];
+    const repairInputs: any = {};
+    for (const [k, v] of Object.entries(recipe.inputs)) repairInputs[k] = Math.ceil((v as number) * 0.5);
+    const repairRecipe = { ...recipe, inputs: repairInputs, daysWork: Math.ceil(recipe.daysWork * 0.5) };
+
+    const inv = clanInventoryTotal(state.npcs, state.structures);
+    if (canBuild(repairRecipe, inv)) {
+      const { npcs, structures } = consumeForRecipe(state.npcs, repairRecipe, state.structures);
+      return { ...state, npcs, structures, buildProject: { 
+        id: `repair-${decaying.id}-${state.tick}`, kind: decaying.kind, position: decaying.position, 
+        startedAtTick: state.tick, progress: 0, required: repairRecipe.daysWork * TICKS_PER_DAY,
+        targetStructureId: decaying.id
+      }};
+    }
+  }
+
+  // 2. Construcciones nuevas
   const existing = new Set(state.structures.map((s) => s.kind));
   const inv = clanInventoryTotal(state.npcs, state.structures);
   const kind = BUILD_PRIORITY.find((k) => !existing.has(k));

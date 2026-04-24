@@ -26,6 +26,8 @@ export interface BuildProject {
   startedAtTick: number;
   progress: number;
   required: number;
+  /** Si está presente, el proyecto es de mantenimiento/reparación de esta estructura. */
+  targetStructureId?: string;
 }
 
 export function hasStructure(
