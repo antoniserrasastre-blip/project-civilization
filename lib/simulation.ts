@@ -52,7 +52,8 @@ import { transferLegacyItem } from './legacy';
 import { computeRole, ROLE } from './roles';
 
 const SWIM_TICK_INTERVAL = 3;
-const MAX_DENSITY_THRESHOLD = 5; // Cuello de botella orgánico
+const MAX_DENSITY_THRESHOLD = 5; 
+const FOREMAN_FOLLOW_RADIUS = 3; // Radio para copiar movimiento del capataz
 
 /** Calcula el impacto emocional acumulado de los eventos recientes. */
 function calculateCollectiveMemoryModifier(chronicle: ChronicleEntry[], currentTick: number): number {
@@ -62,19 +63,10 @@ function calculateCollectiveMemoryModifier(chronicle: ChronicleEntry[], currentT
 }
 
 export function tick(state: GameState): GameState {
-  // 1. Movimiento y Exploración (incluye huellas y atascos)
   let nextState = tickMovement(state);
-  
-  // 2. Sistemas de Mundo (Recursos, Influencia)
   nextState = tickWorldSystems(nextState);
-  
-  // 3. Sistemas de Clan (Necesidades, Logística, Memoria Colectiva)
   nextState = tickClanSystems(nextState);
-  
-  // 4. Desarrollo (Construcción, Tecnología)
   nextState = tickDevelopment(nextState);
-  
-  // 5. Cultura y Social (Reproducción, Legado, Global Metrics)
   nextState = tickCultureAndSocial(nextState, state);
 
   return {
@@ -103,11 +95,6 @@ function tickMovement(state: GameState): GameState {
     buildSitePosition: state.buildProject?.position,
   };
 
-  const newNPCs: NPC[] = [];
-  let fog: FogState = state.fog;
-  let currentPrng = state.prng;
-
-  // NUEVO: Calcular densidad antes del movimiento
   const nextDensity = new Array<number>(state.world.width * state.world.height).fill(0);
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
@@ -115,27 +102,49 @@ function tickMovement(state: GameState): GameState {
     nextDensity[idx]++;
   }
 
-  // NUEVO: El tráfico (huellas) decae muy lentamente (1% por tick)
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0))
     .map(v => Math.floor(v * 0.99));
+
+  // JERARQUÍA AUTOMÁTICA: Agrupar por destino para elegir capataces
+  const groupsByDest = new Map<string, NPC[]>();
+  for (const npc of state.npcs) {
+    if (!npc.alive) continue;
+    const dest = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
+    (npc as any)._nextDest = dest; // Temp storage for this tick
+    const key = `${dest.x},${dest.y}`;
+    if (!groupsByDest.has(key)) groupsByDest.set(key, []);
+    groupsByDest.get(key)!.push(npc);
+  }
+
+  const newNPCs: NPC[] = [];
+  let fog: FogState = state.fog;
+  let currentPrng = state.prng;
+
+  // Mapa de caminos calculados por capataces para este tick
+  const foremanPaths = new Map<string, { x: number, y: number }>();
 
   for (const npc of state.npcs) {
     if (!npc.alive) {
       newNPCs.push(npc);
       continue;
     }
-    const dest = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
+
+    const dest = (npc as any)._nextDest;
+    const group = groupsByDest.get(`${dest.x},${dest.y}`) || [];
     
+    // El "Capataz" es el primero del grupo (podríamos mejorar la selección por skill)
+    const foreman = group[0];
+    const isForeman = foreman.id === npc.id;
+
     if (dest.x === npc.position.x && dest.y === npc.position.y) {
       newNPCs.push({ ...npc, destination: dest });
       fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
       continue;
     }
 
-    // Cuello de botella: si la celda está muy llena, hay probabilidad de atasco
+    // Cuello de botella
     const currentIdx = npc.position.y * state.world.width + npc.position.x;
     if (nextDensity[currentIdx] > MAX_DENSITY_THRESHOLD) {
-      // 50% de probabilidad de quedarse bloqueado por "choque de hombros"
       const [roll, nextPrng] = nextInt(currentPrng, 100);
       currentPrng = nextPrng;
       if (roll < 50) {
@@ -144,22 +153,45 @@ function tickMovement(state: GameState): GameState {
       }
     }
 
-    const r = findPath(state.world, npc.position, dest, currentPrng);
-    currentPrng = r.next;
+    let nextStep: { x: number, y: number } | null = null;
+
+    if (isForeman) {
+      // El capataz calcula el camino real
+      const r = findPath(state.world, npc.position, dest, currentPrng);
+      currentPrng = r.next;
+      if (r.path && r.path.length > 1) {
+        nextStep = r.path[1];
+        foremanPaths.set(`${dest.x},${dest.y}`, { 
+          x: nextStep.x - npc.position.x, 
+          y: nextStep.y - npc.position.y 
+        });
+      }
+    } else {
+      // Los seguidores intentan copiar al capataz si están cerca
+      const distToForeman = Math.abs(npc.position.x - foreman.position.x) + Math.abs(npc.position.y - foreman.position.y);
+      const vector = foremanPaths.get(`${dest.x},${dest.y}`);
+      
+      if (distToForeman <= FOREMAN_FOLLOW_RADIUS && vector) {
+        // AHORRO DE PATHFINDING: Copiar vector del capataz
+        nextStep = { x: npc.position.x + vector.x, y: npc.position.y + vector.y };
+      } else {
+        // Demasiado lejos o sin camino de capataz, calcula propio
+        const r = findPath(state.world, npc.position, dest, currentPrng);
+        currentPrng = r.next;
+        if (r.path && r.path.length > 1) nextStep = r.path[1];
+      }
+    }
     
-    if (!r.path || r.path.length < 2) {
+    if (!nextStep) {
       newNPCs.push({ ...npc, destination: dest });
       continue;
     }
 
-    const nextStep = r.path[1];
     const moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
     newNPCs.push(moved);
     
-    // Registrar huella (tráfico)
     const nextIdx = nextStep.y * state.world.width + nextStep.x;
     nextTraffic[nextIdx] = Math.min(1000, (nextTraffic[nextIdx] || 0) + 10);
-    
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }
 
@@ -168,25 +200,14 @@ function tickMovement(state: GameState): GameState {
     npcs: newNPCs, 
     fog, 
     prng: currentPrng,
-    world: {
-      ...state.world,
-      density: nextDensity,
-      traffic: nextTraffic
-    }
+    world: { ...state.world, density: nextDensity, traffic: nextTraffic }
   };
 }
 
 function tickWorldSystems(state: GameState): GameState {
   const influenceSources = state.structures.map(s => ({ position: s.position, kind: s.kind }));
   const nextInfluence = tickInfluence(state.world.influence || [], state.npcs, state.world.width, state.world.height, influenceSources);
-  
-  const nextResources = tickResources(
-    state.world.resources,
-    state.tick,
-    nextInfluence,
-    state.world.width,
-    state.world.reserves || []
-  );
+  const nextResources = tickResources(state.world.resources, state.tick, nextInfluence, state.world.width, state.world.reserves || []);
 
   return {
     ...state,
@@ -197,15 +218,13 @@ function tickWorldSystems(state: GameState): GameState {
 function tickClanSystems(state: GameState): GameState {
   const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items);
   const logistics = tickLogistics(harvested.npcs, state.structures);
-  
-  // Aplicar Memoria Colectiva
   const moodModifier = calculateCollectiveMemoryModifier(state.chronicle, state.tick);
   const npcsWithNeeds = tickNeeds(logistics.npcs, { 
     world: state.world, 
     npcs: logistics.npcs,
     faith: state.village.faith,
     gratitude: state.village.gratitude,
-    moodModifier // Pasamos el humor global
+    moodModifier
   });
 
   return {
@@ -225,16 +244,12 @@ function tickDevelopment(state: GameState): GameState {
 function tickCultureAndSocial(state: GameState, prevState: GameState): GameState {
   let { npcs, items, chronicle, village, prng } = state;
 
-  // 1. Legado y Muertes
   for (const prev of prevState.npcs) {
     if (!prev.alive) continue;
     const cur = npcs.find(n => n.id === prev.id);
     if (cur && !cur.alive) {
-      // Registrar muerte en memoria colectiva
       const entry = narrate({ type: 'death', npcName: cur.name, cause: 'agotamiento', tick: state.tick });
       chronicle = addChronicleEntry(chronicle, entry, state.tick);
-      
-      // Transferir items de prestigio
       if (prev.equippedItemId) {
         const item = items.find(i => i.id === prev.equippedItemId);
         if (item && item.prestige > 0) {
@@ -246,7 +261,6 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
     }
   }
 
-  // 2. Reproducción
   const repro = tickReproduction(npcs, state.tick, prng, new Set(npcs.map(n => n.name)));
   npcs = repro.npcs;
   prng = repro.prng;
@@ -271,7 +285,6 @@ function addChronicleEntry(chronicle: ChronicleEntry[], result: any, tick: numbe
   return [...chronicle.slice(-(CHRONICLE_MAX - 1)), entry];
 }
 
-// Helpers de selección y lógica (versión simplificada para el pipeline)
 function selectBuilders(npcs: readonly NPC[], minSurvival: number): NPC[] {
   return [...npcs]
     .filter(n => n.alive && n.stats.supervivencia >= minSurvival)
@@ -280,25 +293,21 @@ function selectBuilders(npcs: readonly NPC[], minSurvival: number): NPC[] {
 }
 
 function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs: NPC[], structures: any[] } {
-  // Implementación simplificada e inmutable
   return { npcs: [...npcs], structures: [...structures] };
 }
 
 function tryAutoBuild(state: GameState): GameState {
-  // Versión purgada de efectos secundarios, solo lógica de construcción
   return state; 
 }
 
 function tickTech(state: GameState): GameState {
-  // Lógica de sabiduría
   return state;
 }
 
 function makeNpcReachabilityChecker(state: GameState) {
-  return () => true; // Simplificado para brevedad
+  return () => true;
 }
 
 function nextInt(prng: any, max: number): [number, any] {
-  // Mock simple de PRNG para este turno, asumiendo que prng.ts está operativo
   return [Math.floor(Math.random() * max), prng];
 }
