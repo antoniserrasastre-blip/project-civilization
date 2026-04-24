@@ -1,15 +1,3 @@
-/**
- * GameState — estado completo de una partida primigenia.
- *
- * Ensambla WorldMap (Fase 1), NPCs (Fase 2), pool de gratitud
- * (Fase 5), fog (Fase 2), PRNG cursor y tick global. §A4 —
- * todo serializable vía JSON.
- *
- * `initialGameState(seed, npcs, worldOverride?)` es el único
- * constructor recomendado. Recibe los NPCs drafteados y los
- * coloca en el spawn inicial del clan.
- */
-
 import { createFog, type FogState } from './fog';
 import type { NPC } from './npcs';
 import type { PRNGState } from './prng';
@@ -24,6 +12,19 @@ import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
 
 import type { MonumentState } from './monument';
 import { initialMonumentState } from './monument';
+import type { TechId } from './technologies';
+import { initialTechState } from './technologies';
+
+export interface TechState {
+  /** Puntos de Sabiduría acumulados. */
+  wisdom: number;
+  /** IDs de las tecnologías ya investigadas. */
+  unlocked: TechId[];
+  /** Tecnología actualmente en investigación (o null). */
+  researching: TechId | null;
+  /** Progreso de la investigación actual. */
+  researchProgress: number;
+}
 
 export type Era = 'primigenia' | 'tribal';
 
@@ -60,6 +61,7 @@ export interface GameState {
   era: Era;
   tick: number;
   prng: PRNGState;
+  tech: TechState; // Nuevo estado para tecnologías
 }
 
 /** Construye una partida nueva. Los NPCs llegan drafteados (Sprint
@@ -125,6 +127,7 @@ export function initialGameState(
     era: 'primigenia',
     tick: 0,
     prng: seedState(seed),
+    tech: initialTechState(), // Inicializar el estado de tecnología
   };
 }
 

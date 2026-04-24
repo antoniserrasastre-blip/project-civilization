@@ -61,6 +61,7 @@ import { ITEM_KIND, type EquippableItem } from './items';
 import { canCraftItem, craftItem, ITEM_RECIPES } from './item-crafting';
 import { checkEureka, detectUnlockTrigger, canAutoCraft } from './eureka';
 import { transferLegacyItem } from './legacy';
+import { computeRole, ROLE } from './roles'; // Ensure roles are imported
 
 /** Umbrales de detección de `hunger_escape` — §diseño gratitud v2. */
 const HUNGER_ESCAPE_LOW = 20;
@@ -491,12 +492,17 @@ export function tick(state: GameState): GameState {
     prng,
   });
 
-  let nextVillage: VillageState = isNightCheckTick(afterBuild.tick)
+  // ****** NEW: Integrate tickTech for wisdom generation ******
+  // Use the state after auto-build as input for tickTech.
+  let stateAfterTech = tickTech(afterBuild);
+
+  // Now, all subsequent operations should use stateAfterTech.
+  let nextVillage: VillageState = isNightCheckTick(stateAfterTech.tick) // Use stateAfterTech.tick
     ? {
-        ...state.village,
+        ...state.village, // Village state is managed separately and updated here.
         consecutiveNightsAtFire: evaluateNight(
-          afterBuild.structures,
-          afterBuild.npcs,
+          stateAfterTech.structures, // Use stateAfterTech.structures
+          stateAfterTech.npcs,       // Use stateAfterTech.npcs
           state.village.consecutiveNightsAtFire,
         ),
       }
@@ -505,14 +511,15 @@ export function tick(state: GameState): GameState {
   // ── Cultura material (Sprint 9) ───────────────────────────────────────────
 
   // Legado Divino — herramientas de prestige pasan al heredero cuando
-  // el portador muere. Detectamos muertes comparando state.npcs vs afterBuild.
-  let itemsAfterLegacy = afterBuild.items ?? [];
-  let npcsAfterLegacy = afterBuild.npcs;
-  for (const prev of state.npcs) {
+  // el portador muere. Detectamos muertes comparando state.npcs vs stateAfterTech.npcs.
+  let itemsAfterLegacy = stateAfterTech.items ?? [];
+  let npcsAfterLegacy = stateAfterTech.npcs; // NPCs after tickTech might have been modified by it.
+  for (const prev of state.npcs) { // Original state.npcs is used for comparison reference of deaths.
     if (!prev.alive) continue;
-    const cur = afterBuild.npcs.find((n) => n.id === prev.id);
-    if (!cur || cur.alive) continue;
-    // NPC murió este tick
+    // Find the NPC in the NEW state (stateAfterTech)
+    const cur = stateAfterTech.npcs.find((n) => n.id === prev.id);
+    if (!cur || cur.alive) continue; // NPC died this tick
+    
     const equippedItem = prev.equippedItemId
       ? itemsAfterLegacy.find((i) => i.id === prev.equippedItemId)
       : null;
@@ -521,7 +528,7 @@ export function tick(state: GameState): GameState {
         cur,
         equippedItem,
         itemsAfterLegacy,
-        npcsAfterLegacy,
+        npcsAfterLegacy, // NPCs array being modified
       );
       itemsAfterLegacy = result.items;
       npcsAfterLegacy = result.npcs;
@@ -529,16 +536,17 @@ export function tick(state: GameState): GameState {
   }
 
   // Detección de triggers de desbloqueo Eureka (primera herida / exceso wood).
-  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy, afterBuild.structures);
+  const clanInvForTrigger = clanInventoryTotal(npcsAfterLegacy, stateAfterTech.structures); // Use stateAfterTech.structures
   const newlyUnlocked = detectUnlockTrigger(state.npcs, npcsAfterLegacy, clanInvForTrigger);
   const unlockedSet = new Set([
-    ...(afterBuild.unlockedItemKinds ?? []),
+    ...(stateAfterTech.unlockedItemKinds ?? []), // Use stateAfterTech.unlockedItemKinds
     ...newlyUnlocked,
   ]);
 
-  // Item auto-craft — un item por tick, orden por ITEM_KIND. Similar al
-  // auto-build de estructuras pero produce EquippableItem, no Structure.
-  const existingKinds = new Set(itemsAfterLegacy.map((i) => i.kind));
+  // Item auto-craft — un item por tick, orden por ITEM_KIND.
+  // Declare existingKindsBeforeCraft here to be accessible by Eureka and the return statement.
+  // This set will track all unique item kinds available after crafting and discovery.
+  let existingKindsBeforeCraft = new Set(itemsAfterLegacy.map((i) => i.kind)); // Initialize with items already present.
   const itemCraftPriority = [
     ITEM_KIND.BASKET,
     ITEM_KIND.HAND_AXE,
@@ -547,17 +555,17 @@ export function tick(state: GameState): GameState {
   ] as const;
   let npcsAfterItemCraft = npcsAfterLegacy;
   let itemsAfterItemCraft = itemsAfterLegacy;
-  let structuresAfterItemCraft = afterBuild.structures;
+  let structuresAfterItemCraft = stateAfterTech.structures; // Use stateAfterTech.structures
 
   for (const kind of itemCraftPriority) {
-    if (existingKinds.has(kind)) continue;
+    if (existingKindsBeforeCraft.has(kind)) continue; // Check against the current set of known kinds
     if (!canAutoCraft(kind, unlockedSet)) continue;
     if (!canCraftItem(kind, npcsAfterItemCraft, structuresAfterItemCraft)) continue;
     const anchor = npcsAfterItemCraft.find((n) => n.alive) ?? null;
     const result = craftItem(
       kind,
       npcsAfterItemCraft,
-      afterBuild.tick,
+      stateAfterTech.tick, // Use stateAfterTech.tick
       anchor?.id ?? null,
       structuresAfterItemCraft,
     );
@@ -574,24 +582,24 @@ export function tick(state: GameState): GameState {
     itemsAfterItemCraft = [...itemsAfterItemCraft, result.item];
     npcsAfterItemCraft = result.npcs;
     structuresAfterItemCraft = result.structures;
+    existingKindsBeforeCraft.add(kind); // Add the newly crafted item kind to the set
     break; // máximo un item por tick
   }
 
   // Eureka — NPCs en necesidad crítica pueden descubrir herramientas.
   // Se comprueba por NPC; máx 1 descubrimiento por tick global.
-  const existingKindsAfterCraft = new Set(itemsAfterItemCraft.map((i) => i.kind));
   let npcsAfterEureka = npcsAfterItemCraft;
   let itemsAfterEureka = itemsAfterItemCraft;
   let structuresAfterEureka = structuresAfterItemCraft;
   let eurekaFound = false;
-  let eurekaPrng = afterBuild.prng;
+  let eurekaPrng = stateAfterTech.prng; // Use stateAfterTech.prng
   for (const npc of npcsAfterEureka) {
     if (!npc.alive || eurekaFound) continue;
     const clanInv = clanInventoryTotal(npcsAfterEureka, structuresAfterEureka);
     const eurekaCtx = {
       clanInventory: clanInv,
-      existingItemKinds: existingKindsAfterCraft,
-      currentTick: afterBuild.tick,
+      existingItemKinds: existingKindsBeforeCraft, // Pass the outer scope variable
+      currentTick: stateAfterTech.tick, // Use stateAfterTech.tick
     };
     const eureka = checkEureka(npc, eurekaCtx, eurekaPrng);
     eurekaPrng = eureka.prng;
@@ -599,7 +607,7 @@ export function tick(state: GameState): GameState {
       const eItem = craftItem(
         eureka.discovered,
         npcsAfterEureka,
-        afterBuild.tick,
+        stateAfterTech.tick, // Use stateAfterTech.tick
         npc.id,
         structuresAfterEureka,
         1,
@@ -611,7 +619,7 @@ export function tick(state: GameState): GameState {
       itemsAfterEureka = [...itemsAfterEureka, eItem.item];
       npcsAfterEureka = eItem.npcs;
       structuresAfterEureka = eItem.structures;
-      existingKindsAfterCraft.add(eureka.discovered);
+      existingKindsBeforeCraft.add(eureka.discovered); // Modify the outer scope variable
       eurekaFound = true;
     }
   }
@@ -620,29 +628,31 @@ export function tick(state: GameState): GameState {
   const npcsAfterCasta = applyEsclavoDrain(npcsAfterEureka);
 
   // Reproducción — pairing + nacimientos. PRNG explícito (§A4).
-  const usedNames = new Set(afterBuild.npcs.map((n) => n.name));
+  const usedNames = new Set(stateAfterTech.npcs.map((n) => n.name)); // Use stateAfterTech.npcs
+  // Declare prngAfterRepro here to be accessible by the return statement.
+  let prngAfterRepro = stateAfterTech.prng; // Initialize with current PRNG state.
   const repro = tickReproduction(
     npcsAfterCasta,
-    afterBuild.tick,
-    eurekaPrng,
+    stateAfterTech.tick, // Use stateAfterTech.tick
+    eurekaPrng, // PRNG used here is from eureka phase
     usedNames,
   );
   const npcsAfterRepro = repro.npcs;
-  let prngAfterRepro = repro.prng;
+  prngAfterRepro = repro.prng; // Update prngAfterRepro with the PRNG state after reproduction.
 
   // Crónica y gratitud por nacimientos
-  let chronicleAfterRepro = afterBuild.chronicle;
-  let villageAfterRepro = nextVillage;
+  let chronicleAfterRepro = stateAfterTech.chronicle; // Use stateAfterTech.chronicle
+  let villageAfterRepro = nextVillage; // nextVillage was computed based on stateAfterTech
   for (const born of repro.newBorns) {
     const text = narrate({
       type: 'birth',
       childName: born.name,
       parents: born.parents as [string, string],
-      tick: Math.floor(afterBuild.tick / TICKS_PER_DAY),
+      tick: Math.floor(stateAfterTech.tick / TICKS_PER_DAY), // Use stateAfterTech.tick
     });
     const entry: ChronicleEntry = {
-      day: Math.floor(afterBuild.tick / TICKS_PER_DAY),
-      tick: afterBuild.tick,
+      day: Math.floor(stateAfterTech.tick / TICKS_PER_DAY), // Use stateAfterTech.tick
+      tick: stateAfterTech.tick, // Use stateAfterTech.tick
       text,
     };
     chronicleAfterRepro = [
@@ -681,18 +691,12 @@ export function tick(state: GameState): GameState {
   // Hunger-escape + muerte de Elegido. §A4 — sin PRNG.
   nextVillage = applyGratitudeEventsForTick(
     nextVillage,
-    state.npcs,
-    npcsAfterRepro,
+    state.npcs, // Original state.npcs for death comparison reference
+    npcsAfterRepro, // Current NPCs after reproduction
   );
 
   // Flujo de amanecer (tick > 0, múltiplo de TICKS_PER_DAY):
-  //   1. Decrementar gracia del silencio-por-default.
-  //   2. Drain de silencio si activeMessage === null y gracia agotada.
-  //   3. Pulsos B sobre el susurro activo persistente.
-  //   4. Reset de tracking diario.
-  // Nota: no hay `archiveAtDawn` — el susurro persiste (§3.7). Se
-  // archiva al cambiar, vía `applyPlayerIntent`.
-  if (isDawn(afterBuild.tick) && afterBuild.tick > 0) {
+  if (isDawn(stateAfterTech.tick) && stateAfterTech.tick > 0) { // Use stateAfterTech.tick
     if (
       nextVillage.activeMessage === null &&
       nextVillage.silenceGraceDaysRemaining > 0
@@ -714,21 +718,101 @@ export function tick(state: GameState): GameState {
     nextVillage = resetGratitudeDailyTracking(nextVillage);
   }
 
-  // Aplicar sinergias activas como bono pasivo sobre los stats/skills.
+  // AplicAR sinergias activas como bono pasivo sobre los stats/skills.
   const activeSynergies = computeActiveSynergies(npcsAfterRepro);
   const npcsWithSynergies = activeSynergies.length > 0
     ? npcsAfterRepro.map((n) => n.alive ? applySynergyModifiers(n, activeSynergies) : n)
     : npcsAfterRepro;
 
+  // FINAL RETURN
   return {
-    ...afterBuild,
-    npcs: npcsWithSynergies,
-    structures: structuresAfterEureka,
-    prng: prngAfterRepro,
-    chronicle: chronicleAfterRepro,
-    items: itemsAfterEureka,
-    unlockedItemKinds: Array.from(existingKindsAfterCraft),
-    relations: state.relations,
-    village: nextVillage,
+    ...stateAfterTech, // Base state is now stateAfterTech, incorporating tickTech's changes.
+    npcs: npcsWithSynergies, // NPCs might be further modified by synergies.
+    structures: structuresAfterEureka, // Structures might be further modified by Eureka logic if applicable.
+    prng: prngAfterRepro, // Use the final PRNG.
+    chronicle: chronicleAfterRepro, // Use the updated chronicle.
+    items: itemsAfterEureka, // Use the final items list.
+    unlockedItemKinds: Array.from(existingKindsBeforeCraft), // Use the final set of unlocked kinds.
+    relations: state.relations, // Relations seem to be unchanged in this tick logic.
+    village: nextVillage, // Use the final village state, which was computed using stateAfterTech.
   };
+}
+
+// Wisdom Generation Logic
+// Defined within lib/simulation.ts, likely near other tick helper functions.
+
+const CURANDERO_PROXIMITY_THRESHOLD = 5; // Manhattan distance
+const WISDOM_PER_CURANDERO = 10; // Example value: wisdom generated per curandero near a SHAMAN_HUT
+
+/**
+ * Tick logic for generating wisdom from SHAMAN_HUTs and nearby CURANDEROS.
+ * Requires access to state.structures, state.npcs, state.items, state.tech, state.chronicle.
+ * Assumes computeRole and ROLE enum are imported from './roles', and CRAFTABLE from './crafting'.
+ */
+function tickTech(state: GameState): GameState {
+  let wisdomGained = 0;
+
+  // 1. Identify SHAMAN_HUT structures.
+  const shamanHuts = state.structures.filter(
+    (s) => s.kind === CRAFTABLE.SHAMAN_HUT,
+  );
+
+  if (shamanHuts.length === 0) {
+    return state; // No SHAMAN_HUTs to generate wisdom.
+  }
+
+  // Prepare a map of equipped items for quick lookup.
+  const equippedItemsMap = new Map<string, EquippableItem>();
+  if (state.items) {
+    state.items.forEach(item => {
+      if (item.equippedByNpcId) {
+        equippedItemsMap.set(item.equippedByNpcId, item as EquippableItem);
+      }
+    });
+  }
+
+  // 2. Verify proximity of NPCs with the CURANDERO role.
+  for (const hut of shamanHuts) {
+    for (const npc of state.npcs) {
+      if (!npc.alive) continue;
+
+      const equippedItem = equippedItemsMap.get(npc.id) || null;
+      const role = computeRole(npc, equippedItem); // computeRole and ROLE are already imported/available
+
+      if (role === ROLE.CURANDERO) {
+        // Calculate Manhattan distance.
+        const dx = Math.abs(npc.position.x - hut.position.x);
+        const dy = Math.abs(npc.position.y - hut.position.y);
+        const distance = dx + dy;
+
+        if (distance <= CURANDERO_PROXIMITY_THRESHOLD) {
+          // 3. If conditions met, generate wisdom.
+          wisdomGained += WISDOM_PER_CURANDERO;
+        }
+      }
+    }
+  }
+
+  // If wisdom was gained, update GameState.tech.wisdom.
+  if (wisdomGained > 0) {
+    const currentWisdom = state.tech?.wisdom ?? 0;
+    const updatedTech = {
+      ...(state.tech || {}), // Preserve other tech properties if they exist
+      wisdom: currentWisdom + wisdomGained,
+    };
+    // Add a chronicle entry for the generated wisdom.
+    const chronicleEntry = {
+      day: Math.floor(state.tick / TICKS_PER_DAY),
+      tick: state.tick,
+      text: `Generated ${wisdomGained} wisdom from SHAMAN_HUTs and nearby CURANDEROS.`,
+    };
+
+    return {
+      ...state,
+      tech: updatedTech,
+      chronicle: [...(state.chronicle || []).slice(-(CHRONICLE_MAX - 1)), chronicleEntry],
+    };
+  }
+
+  return state;
 }

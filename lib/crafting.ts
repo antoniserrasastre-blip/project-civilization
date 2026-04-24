@@ -22,6 +22,7 @@ export const CRAFTABLE = {
   DESPENSA: 'despensa',
   STOCKPILE_WOOD: 'stockpile_wood',
   STOCKPILE_STONE: 'stockpile_stone',
+  SHAMAN_HUT: 'shaman_hut', // Nuevo crafteable para el rol de Chamán/Sabiduría
 } as const;
 
 export type CraftableId = (typeof CRAFTABLE)[keyof typeof CRAFTABLE];
@@ -33,6 +34,8 @@ export interface Recipe {
   daysWork: number;
   /** Skill mínimo del crafter (usa max de los builders en construcción). */
   minSkill: number;
+  /** Tecnologías requeridas para poder craftear esto. */
+  requiresUnlock?: ItemKind[];
 }
 
 /** Decisión #20 — 4 estructuras umbral (HERRAMIENTA_SILEX migrado a
@@ -74,6 +77,12 @@ export const RECIPES: Record<CraftableId, Recipe> = {
     daysWork: 2,
     minSkill: 5,
   },
+  [CRAFTABLE.SHAMAN_HUT]: {
+    id: CRAFTABLE.SHAMAN_HUT,
+    inputs: { wood: 20, stone: 10, obsidian: 5 },
+    daysWork: 8,
+    minSkill: 20,
+  },
 };
 
 /** Suma del inventario de todos los NPCs vivos Y de todas las estructuras. */
@@ -100,6 +109,7 @@ export function clanInventoryTotal(
   }
   return total;
 }
+
 
 export const STOCKPILE_CAPACITY = 50;
 

@@ -1554,7 +1554,7 @@ export function MapView({
         if (tlCtx) {
           renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites);
           renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
-          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, rp.unitSprites);
+          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, sprites); // Usar 'sprites' del hook
           renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
           renderFogOverlay(tlCtx, rp.fog, currentDims, currentViewport, rp.world);
           if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);
