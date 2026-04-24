@@ -240,14 +240,19 @@ export function GameShell({ seed }: GameShellProps) {
       currentTick: state.tick,
       ticksPerDay: TICKS_PER_DAY,
       isReachable,
+      prng: state.prng,
+      synergies: [], // Mock for visual trails
     };
     return state.npcs
       .filter((npc) => npc.alive)
-      .map((npc) => ({
-        npcId: npc.id,
-        from: npc.position,
-        to: decideDestination(npc, ctx),
-      }))
+      .map((npc) => {
+        const { position } = decideDestination(npc, ctx as any);
+        return {
+          npcId: npc.id,
+          from: npc.position,
+          to: position,
+        };
+      })
       .filter(
         (trail) =>
           trail.from.x !== trail.to.x || trail.from.y !== trail.to.y,
