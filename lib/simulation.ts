@@ -58,8 +58,6 @@ const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.DESPENSA,
 ];
 
-// --- HELPERS EXPORTADOS PARA LA UI ---
-
 export function nextBuildPriority(state: GameState): CraftableId | undefined {
   if (state.buildProject) return undefined;
   const existing = new Set(state.structures.map((s) => s.kind));
@@ -75,23 +73,16 @@ function isMovementPassable(tile: TileId): boolean {
 
 const REACHABILITY_BFS_LIMIT = 25000;
 
-function reachableTilesByNpcMovement(
-  state: GameState,
-  from: { x: number; y: number },
-): Set<number> {
+function reachableTilesByNpcMovement(state: GameState, from: { x: number; y: number }): Set<number> {
   const { world } = state;
   const start = from.y * world.width + from.x;
   const seen = new Set<number>();
-  if (from.x < 0 || from.y < 0 || from.x >= world.width || from.y >= world.height || !isMovementPassable(world.tiles[start] as TileId)) {
-    return seen;
-  }
+  if (from.x < 0 || from.y < 0 || from.x >= world.width || from.y >= world.height || !isMovementPassable(world.tiles[start] as TileId)) return seen;
   const queue: number[] = [start];
-  let head = 0;
-  seen.add(start);
+  let head = 0; seen.add(start);
   while (head < queue.length && seen.size < REACHABILITY_BFS_LIMIT) {
     const cur = queue[head++];
-    const x = cur % world.width;
-    const y = Math.floor(cur / world.width);
+    const x = cur % world.width; const y = Math.floor(cur / world.width);
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
       const nx = x + dx; const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= world.width || ny >= world.height) continue;
@@ -103,22 +94,15 @@ function reachableTilesByNpcMovement(
   return seen;
 }
 
-export function makeNpcReachabilityChecker(
-  state: GameState,
-): (from: { x: number; y: number }, to: { x: number; y: number }) => boolean {
+export function makeNpcReachabilityChecker(state: GameState): (from: { x: number; y: number }, to: { x: number; y: number }) => boolean {
   const cache = new Map<string, Set<number>>();
   return (from, to) => {
     const key = `${from.x},${from.y}`;
     let reachable = cache.get(key);
-    if (!reachable) {
-      reachable = reachableTilesByNpcMovement(state, from);
-      cache.set(key, reachable);
-    }
+    if (!reachable) { reachable = reachableTilesByNpcMovement(state, from); cache.set(key, reachable); }
     return reachable.has(to.y * state.world.width + to.x);
   };
 }
-
-// --- LOGICA DE TICK ---
 
 export function tick(state: GameState): GameState {
   let nextState = tickMovement(state);
@@ -132,40 +116,40 @@ export function tick(state: GameState): GameState {
 function tickMovement(state: GameState): GameState {
   const fire = firstStructureOfKind(state.structures, CRAFTABLE.FOGATA_PERMANENTE);
   const buildPrio = nextBuildPriority(state);
-  const builders = selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady);
-  const activeBuilderIds = new Set(builders.map(n => n.id));
+  const activeBuilderIds = new Set(selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady).map(n => n.id));
   
-  const ctx = {
-    world: state.world, npcs: state.npcs, firePosition: fire?.position,
-    currentTick: state.tick, ticksPerDay: TICKS_PER_DAY,
-    isReachable: makeNpcReachabilityChecker(state), items: state.items ?? [],
-    faith: state.village.faith, gratitude: state.village.gratitude,
-    synergies: computeActiveSynergies(state.npcs), buildSitePosition: state.buildProject?.position,
-    nextBuildPriority: buildPrio,
-  };
-
+  let currentPrng = state.prng;
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
-  
   const groupsByDest = new Map<string, NPC[]>();
+  
+  // 1. Fase de decisión (encadenando PRNG)
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
-    const dest = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
-    (npc as any)._nextDest = dest;
-    const key = `${dest.x},${dest.y}`;
+    const ctx = {
+      world: state.world, npcs: state.npcs, firePosition: fire?.position,
+      currentTick: state.tick, ticksPerDay: TICKS_PER_DAY,
+      isReachable: makeNpcReachabilityChecker(state), items: state.items ?? [],
+      faith: state.village.faith, gratitude: state.village.gratitude,
+      synergies: computeActiveSynergies(state.npcs), buildSitePosition: state.buildProject?.position,
+      nextBuildPriority: buildPrio, prng: currentPrng
+    };
+    const decision = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
+    (npc as any)._nextDest = decision.position;
+    currentPrng = decision.next; // Propagar PRNG
+    const key = `${decision.position.x},${decision.position.y}`;
     if (!groupsByDest.has(key)) groupsByDest.set(key, []);
     groupsByDest.get(key)!.push(npc);
   }
 
   const newNPCs: NPC[] = [];
   let fog: FogState = state.fog;
-  let currentPrng = state.prng;
   const foremanPaths = new Map<string, { x: number, y: number }>();
 
+  // 2. Fase de ejecución de movimiento
   for (const npc of state.npcs) {
     if (!npc.alive) { newNPCs.push(npc); continue; }
     const dest = (npc as any)._nextDest;
-    const group = groupsByDest.get(`${dest.x},${dest.y}`) || [];
-    const foreman = group[0];
+    const foreman = (groupsByDest.get(`${dest.x},${dest.y}`) || [])[0];
     const isForeman = foreman.id === npc.id;
 
     if (dest.x === npc.position.x && dest.y === npc.position.y) {
@@ -221,7 +205,7 @@ function tickClanSystems(state: GameState): GameState {
   const npcsWithNeeds = tickNeeds(logistics.npcs, { 
     world: state.world, npcs: logistics.npcs,
     faith: state.village.faith, gratitude: state.village.gratitude,
-    moodModifier
+    moodModifier, prng: state.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: []
   });
 
   return {
@@ -231,9 +215,7 @@ function tickClanSystems(state: GameState): GameState {
 }
 
 function tickDevelopment(state: GameState): GameState {
-  let nextState = tryAutoBuild(state);
-  // tickTech logic can be expanded here
-  return nextState;
+  return tryAutoBuild(state);
 }
 
 function tickCultureAndSocial(state: GameState, prevState: GameState): GameState {

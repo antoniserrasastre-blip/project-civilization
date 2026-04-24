@@ -17,16 +17,13 @@ import { ITEM_DEFS } from './items';
 import { computeRole, intentFilter, ROLE, type Role } from './roles';
 import { INVENTORY_CAP_PER_TYPE, effectiveInventoryCap } from './harvest';
 import type { Structure } from './structures';
+import type { PRNGState } from './prng';
+import { nextInt } from './prng';
+import type { Synergy } from './synergies';
 
 const CLAIM_PENALTY = 8;
-const CURSED_PENALTY = 100; // La IA evita lugares de muerte
+const CURSED_PENALTY = 100; 
 const HYSTERESIS = 5;
-
-function nextInt(seed: string | number, max: number): [number] {
-  let h = 0; const s = String(seed);
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  h = Math.abs(h); return [h % max];
-}
 
 function manhattan(ax: number, ay: number, bx: number, by: number): number {
   return Math.abs(ax - bx) + Math.abs(ay - by);
@@ -50,13 +47,9 @@ function nearestResource(
     
     let score = manhattan(from.x, from.y, r.x, r.y) - (intentWeight ? intentWeight(r.id) : 0);
     
-    // MEMORIA DEL TERRENO: Evitar zonas malditas
     const posKey = `${r.x},${r.y}`;
-    if (ctx.world.terrainTags?.[posKey]?.includes('maldita')) {
-      score += CURSED_PENALTY;
-    }
+    if (ctx.world.terrainTags?.[posKey]?.includes('maldita')) score += CURSED_PENALTY;
 
-    // SABIDURÍA COLECTIVA
     let claimedPenalty = ctx.claimedTiles?.has(posKey) ? CLAIM_PENALTY : 0;
     if (claimedPenalty > 0 && role) {
       const peersNear = ctx.npcs.filter(n => n.id !== npcId && n.alive && computeRole(n, undefined) === role && manhattan(n.position.x, n.position.y, r.x, r.y) < 5).length;
@@ -85,23 +78,30 @@ export interface DestinationContext {
   nextBuildPriority?: CraftableId; buildSitePosition?: { x: number; y: number };
   isBuilder?: boolean; firePosition?: { x: number; y: number };
   isReachable?: (from: Position, to: Position) => boolean; claimedTiles?: ReadonlySet<string>;
-  moodModifier?: number;
+  moodModifier?: number; prng: PRNGState; synergies: Synergy[];
 }
 
 export interface Position { x: number; y: number; }
 
-export function decideDestination(npc: NPC, ctx: DestinationContext): Position {
+export interface DecisionResult {
+  position: Position;
+  next: PRNGState;
+}
+
+export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionResult {
+  let currentPrng = ctx.prng;
   const aliveCount = ctx.npcs.filter(n => n.alive).length;
   
-  // TRADICIONES: Inercia de tareas. Si el rol no es el tradicional, hay más "fricción" mental.
   const traditions = ctx.world.traditions || {};
   const currentRole = computeRole(npc, null);
   const topTradition = Object.entries(traditions).sort((a,b) => b[1] - a[1])[0]?.[0];
   const traditionFriction = (topTradition && currentRole !== topTradition) ? 10 : 0;
 
   const bystanderChance = Math.min(70, (aliveCount * 0.5) + traditionFriction);
-  const [roll] = nextInt(npc.id + ctx.currentTick, 100);
-  if (roll < bystanderChance) return npc.position;
+  const { value: roll, next: nextP } = nextInt(currentPrng, 0, 100);
+  currentPrng = nextP;
+
+  if (roll < bystanderChance) return { position: npc.position, next: currentPrng };
 
   const { supervivencia, socializacion } = npc.stats;
   const id = npc.id;
@@ -109,31 +109,32 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): Position {
   // Supervivencia Crítica
   if (supervivencia < NEED_THRESHOLDS.supervivenciaCritical) {
     const water = nearestResource(npc.position, ctx.world.resources, rid => rid === RESOURCE.WATER, ctx, undefined, id);
-    if (water) return water;
+    if (water) return { position: water, next: currentPrng };
   }
 
   // Hambre
   if (supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady && (npc.inventory.berry + npc.inventory.fish + npc.inventory.game) === 0) {
     const food = nearestResource(npc.position, ctx.world.resources, rid => [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH].includes(rid), ctx, undefined, id);
-    if (food) return food;
+    if (food) return { position: food, next: currentPrng };
   }
 
   // Deber Rol
   const roleResources = ROLE_RESOURCES[currentRole] ?? [];
   if (supervivencia >= 55 && roleResources.length > 0) {
     const roleTarget = nearestResource(npc.position, ctx.world.resources, rid => roleResources.includes(rid), ctx, undefined, id);
-    if (roleTarget) return roleTarget;
+    if (roleTarget) return { position: roleTarget, next: currentPrng };
   }
 
   // Social
   if (socializacion < NEED_THRESHOLDS.socializacionLow) {
     let sx = 0, sy = 0, c = 0;
     for (const n of ctx.npcs) { if (n.alive) { sx += n.position.x; sy += n.position.y; c++; } }
-    if (c > 0) return { x: Math.round(sx/c), y: Math.round(sy/c) };
+    if (c > 0) return { position: { x: Math.round(sx/c), y: Math.round(sy/c) }, next: currentPrng };
   }
 
-  if (ctx.isBuilder && ctx.buildSitePosition) return ctx.buildSitePosition;
-  return npc.position;
+  if (ctx.isBuilder && ctx.buildSitePosition) return { position: ctx.buildSitePosition, next: currentPrng };
+
+  return { position: npc.position, next: currentPrng };
 }
 
 export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] {

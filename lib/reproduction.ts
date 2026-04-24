@@ -3,14 +3,10 @@
  */
 
 import type { NPC } from './npcs';
-import { CASTA, createNPC } from './npcs';
+import { CASTA } from './npcs';
 import type { PRNGState } from './prng';
 import { nextInt } from './prng';
 import { TICKS_PER_DAY } from './resources';
-
-const REPRO_AGE_MIN = 18 * TICKS_PER_DAY;
-const REPRO_AGE_MAX = 45 * TICKS_PER_DAY;
-const GESTATION_TICKS = 3 * TICKS_PER_DAY;
 
 export interface ReproResult {
   npcs: NPC[];
@@ -26,23 +22,21 @@ export function tickReproduction(
   currentTick: number,
   prng: PRNGState,
   usedNames: Set<string>,
-  traditions?: Record<string, number>, // Añadido para Linajes
+  traditions?: Record<string, number>,
 ): ReproResult {
   const nextNpcs = [...npcs];
   const newBorns: NPC[] = [];
   let currentPrng = prng;
 
-  // Lógica de emparejamiento y nacimiento simplificada para este hito
-  // (Asumiendo que el clan tiene un 1% de probabilidad de nacimiento por día)
+  // 5% de probabilidad de un nuevo miembro cada amanecer
   if (currentTick % TICKS_PER_DAY === 0) {
-    const [roll, nextP] = nextInt(currentPrng, 100);
+    const { value: roll, next: nextP } = nextInt(currentPrng, 0, 100);
     currentPrng = nextP;
 
-    if (roll < 5) { // 5% de probabilidad de un nuevo miembro cada amanecer
+    if (roll < 5) {
       const id = `npc-born-${currentTick}`;
       const name = `Hijo de ${currentTick}`;
       
-      // LINAJES DE OFICIO: Heredar bonus de la tradición más fuerte
       const topTradition = traditions ? Object.entries(traditions).sort((a,b) => b[1] - a[1])[0]?.[0] : null;
       
       const skills = {
