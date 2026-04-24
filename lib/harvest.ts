@@ -1,85 +1,49 @@
 /**
- * Recolección activa — Sprint 4.2.
- *
- * NPC sobre tile con spawn activo recoge 1 unidad por tick hasta
- * su cap de inventario (INVENTORY_CAP_PER_TYPE). Agua NO se
- * recolecta — se consume vía tickNeeds on-the-spot.
- *
- * Puro: devuelve npcs + resources nuevos sin mutar los inputs.
- * Si dos NPCs comparten tile, el de id-lex-menor recolecta primero.
+ * Lógica de recolección y bonos de crafteo.
  */
 
-import type { NPC, NPCInventory } from './npcs';
-import { updateNpcStats } from './npcs';
+import type { NPC } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
   type ResourceSpawn,
 } from './world-state';
 import type { Structure } from './structures';
-import { CRAFTABLE } from './crafting';
-import { DESPENSA_BONUS_RADIUS, DESPENSA_INVENTORY_BONUS } from './village-siting';
-import { ROLE, computeRole } from './roles';
 import type { EquippableItem } from './items';
+import { ITEM_DEFS, calculateItemEfficiency } from './items';
 
-/** Cap por tipo en el inventario del NPC (decisión operativa v1;
- *  revalidar en playtest Fase 4). */
-export const INVENTORY_CAP_PER_TYPE = 5;
-export const TRANSPORTISTA_INVENTORY_BONUS = 15;
-
-/** IDs que se acumulan en inventario. Agua queda fuera. */
-const INVENTORY_KEYS: Record<string, keyof NPCInventory | null> = {
-  [RESOURCE.WOOD]: 'wood',
-  [RESOURCE.STONE]: 'stone',
-  [RESOURCE.BERRY]: 'berry',
-  [RESOURCE.GAME]: 'game',
-  [RESOURCE.FISH]: 'fish',
-  [RESOURCE.WATER]: null,
-  [RESOURCE.OBSIDIAN]: 'obsidian',
-  [RESOURCE.SHELL]: 'shell',
-};
-
-function inventoryKeyFor(id: ResourceId): keyof NPCInventory | null {
-  return INVENTORY_KEYS[id] ?? null;
-}
+export const INVENTORY_CAP_PER_TYPE = 20;
+const DESPENSA_BONUS_RADIUS = 3;
+const DESPENSA_INVENTORY_BONUS = 30;
 
 export interface HarvestTickResult {
   npcs: NPC[];
   resources: ResourceSpawn[];
-  /** Reserves actualizadas (mismo array plano que WorldMap.reserves). */
   reserves: number[];
+  items: EquippableItem[]; // Añadido para evolución
 }
 
-/** Recolecta 1 unidad por NPC que esté sobre un spawn válido. Un
- *  spawn con múltiples visitantes reparte 1 al primero según orden
- *  lex de id (estable y determinista).
- *
- *  Si se pasa `reservesIn` + `worldWidth`, aplica depleción acumulativa:
- *  tiles con reserves = 0 están agotados y no pueden cosecharse aunque
- *  el spawn tenga quantity > 0. */
-/** Devuelve el cap de inventario efectivo para un NPC según proximidad
- *  a una Despensa (bono +DESPENSA_INVENTORY_BONUS si está en radio 5)
- *  y si tiene el rol de TRANSPORTISTA (bono +15). */
-export function effectiveInventoryCap(
-  npc: NPC,
-  structures: readonly Structure[],
-  items: readonly EquippableItem[] = [],
-): number {
-  const item = items.find((i) => i.id === npc.equippedItemId) ?? null;
-  const role = computeRole(npc, item);
+function inventoryKeyFor(id: ResourceId): keyof NPC['inventory'] | null {
+  if (id === RESOURCE.WOOD) return 'wood';
+  if (id === RESOURCE.STONE) return 'stone';
+  if (id === RESOURCE.BERRY) return 'berry';
+  if (id === RESOURCE.GAME) return 'game';
+  if (id === RESOURCE.FISH) return 'fish';
+  if (id === RESOURCE.OBSIDIAN) return 'obsidian';
+  if (id === RESOURCE.SHELL) return 'shell';
+  if (id === RESOURCE.CLAY) return 'clay';
+  if (id === RESOURCE.COCONUT) return 'coconut';
+  if (id === RESOURCE.FLINT) return 'flint';
+  if (id === RESOURCE.MUSHROOM) return 'mushroom';
+  return null;
+}
 
+export function effectiveInventoryCap(npc: NPC, structures: readonly Structure[], items: readonly EquippableItem[]): number {
   let cap = INVENTORY_CAP_PER_TYPE;
-  if (role === ROLE.TRANSPORTISTA) {
-    cap += TRANSPORTISTA_INVENTORY_BONUS;
-  }
-
-  const hasDespensaNear = structures.some((s) => {
-    if (s.kind !== CRAFTABLE.DESPENSA) return false;
-    return (
-      Math.abs(s.position.x - npc.position.x) +
-      Math.abs(s.position.y - npc.position.y) <= DESPENSA_BONUS_RADIUS
-    );
-  });
+  const equipped = npc.equippedItemId ? items.find(i => i.id === npc.equippedItemId) : null;
+  if (equipped && equipped.kind === 'basket') cap += 20 * calculateItemEfficiency(equipped);
+  
+  const hasDespensaNear = structures.some(s => s.kind === 'despensa' && Math.abs(s.position.x - npc.position.x) <= 3 && Math.abs(s.position.y - npc.position.y) <= 3);
   return hasDespensaNear ? cap + DESPENSA_INVENTORY_BONUS : cap;
 }
 
@@ -87,61 +51,64 @@ export function tickHarvests(
   npcsIn: readonly NPC[],
   resourcesIn: readonly ResourceSpawn[],
   currentTick: number,
-  reservesIn?: readonly number[],
-  worldWidth?: number,
-  /** Estructuras del clan — para aplicar bono de Despensa. */
+  reservesIn: readonly number[],
+  worldWidth: number,
   structures: readonly Structure[] = [],
-  /** Items del clan — para el bono de Transportista. */
-  items: readonly EquippableItem[] = [],
+  itemsIn: readonly EquippableItem[] = [],
 ): HarvestTickResult {
-  // Clonamos arrays / elementos que mutaremos.
-  const npcs = npcsIn.map((n) => ({
-    ...n,
-    inventory: { ...n.inventory },
-    stats: { ...n.stats },
-  }));
-  const resources = resourcesIn.map((r) => ({ ...r }));
-  const reserves = reservesIn ? [...reservesIn] : null;
+  const npcs = npcsIn.map(n => ({ ...n, inventory: { ...n.inventory } }));
+  const resources = resourcesIn.map(r => ({ ...r }));
+  const reserves = [...reservesIn];
+  const items = itemsIn.map(i => ({ ...i }));
 
-  // Orden estable por id para resolver simultaneidad.
   const npcOrder = [...npcs].sort((a, b) => (a.id < b.id ? -1 : 1));
 
   for (const npc of npcOrder) {
     if (!npc.alive) continue;
-    const invKey = null; // placeholder — real check en loop.
-    void invKey;
+    const invCap = effectiveInventoryCap(npc, structures, items);
+    
     for (const r of resources) {
-      if (r.x !== npc.position.x || r.y !== npc.position.y) continue;
-      if (r.quantity <= 0) continue;
+      if (r.x !== npc.position.x || r.y !== npc.position.y || r.quantity <= 0) continue;
+      
       const key = inventoryKeyFor(r.id);
-      if (!key) continue; // agua
-      if (npc.inventory[key] >= effectiveInventoryCap(npc, structures, items)) continue;
-      // Comprobar reserva acumulativa del tile.
-      if (reserves && worldWidth !== undefined) {
-        const idx = r.y * worldWidth + r.x;
-        if (reserves[idx] <= 0) continue; // tile agotado
-        reserves[idx] = Math.max(0, reserves[idx] - 1);
-      }
-      // Transferir 1 unidad.
-      npc.inventory[key] += 1;
-      r.quantity -= 1;
-      const updated = updateNpcStats(npc, {
-        proposito: (npc.stats.proposito || 100) - 2,
-      });
-      // Volcar stats actualizados al objeto mutable npc de la iteración
-      npc.stats = updated.stats;
+      if (!key || npc.inventory[key] >= invCap) continue;
 
-      if (r.quantity === 0 && r.regime === 'regenerable') {
-        r.depletedAtTick = currentTick;
-      } else if (r.quantity === 0 && r.regime === 'depletable') {
-        r.depletedAtTick = currentTick;
+      // RECOLECCIÓN
+      const idx = r.y * worldWidth + r.x;
+      const amount = Math.min(r.quantity, 2, reserves[idx]);
+      if (amount <= 0) continue;
+
+      npc.inventory[key] += amount;
+      r.quantity -= amount;
+      reserves[idx] -= amount;
+
+      // EVOLUCIÓN DE ARTEFACTO (XP por uso)
+      if (npc.equippedItemId) {
+        const item = items.find(i => i.id === npc.equippedItemId);
+        if (item) {
+          const def = ITEM_DEFS[item.kind];
+          if (def.skillAffinity) { // Si la herramienta sirve para la tarea
+            item.xp += 1;
+            if (item.xp >= 10) { // LEVEL UP!
+              item.level++;
+              item.xp = 0;
+              item.durability = item.maxDurability; // Se auto-repara al subir nivel
+              
+              // ASCENSIÓN DE RANGO
+              if (item.level === 5) {
+                item.rank = 'proven';
+                item.name = `Legendaria ${def.label} de ${npc.name}`;
+              } else if (item.level === 10) {
+                item.rank = 'heroic';
+              } else if (item.level === 20) {
+                item.rank = 'legendary';
+              }
+            }
+          }
+        }
       }
-      // Un solo recurso por NPC por tick — realista y evita bursty.
-      break;
     }
   }
 
-  // Los NPCs se devuelven en el orden original del input; npcs[i]
-  // ha sido mutado in-place (es copia) durante la iteración sorted.
-  return { npcs, resources, reserves: reserves ?? [] };
+  return { npcs, resources, reserves, items };
 }
