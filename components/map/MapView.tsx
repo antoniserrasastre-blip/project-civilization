@@ -292,139 +292,22 @@ function drawSprite(
   ctx.restore();
 }
 
-/** Dibuja corona dorada encima del sprite para Elegidos. */
-function drawCrownOverlay(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  sz: number,
-) {
-  const u = sz / 16;
-  const top = cy - sz / 2 - u * 1.5;
-  ctx.save();
-  ctx.fillStyle = '#f0c030';
-  // Base de la corona
-  ctx.fillRect(cx - u * 3, top + u * 2, u * 6, u * 1.5);
-  // Tres puntas
-  ctx.beginPath();
-  ctx.moveTo(cx - u * 3, top + u * 2);
-  ctx.lineTo(cx - u * 3, top);
-  ctx.lineTo(cx - u * 1.5, top + u * 1.5);
-  ctx.lineTo(cx, top - u * 0.5);
-  ctx.lineTo(cx + u * 1.5, top + u * 1.5);
-  ctx.lineTo(cx + u * 3, top);
-  ctx.lineTo(cx + u * 3, top + u * 2);
-  ctx.closePath();
-  ctx.fill();
-  // Contorno oscuro
-  ctx.strokeStyle = '#7a5810';
-  ctx.lineWidth = Math.max(0.5, u * 0.4);
-  ctx.stroke();
-  // Piedra central (joya)
-  ctx.fillStyle = '#e63946';
-  ctx.beginPath();
-  ctx.arc(cx, top + u * 0.5, u * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
 /**
- * Dibuja el overlay de herramienta/arma encima del sprite.
- * Cada ítem tiene una forma característica dibujada en canvas.
- * sz = tamaño del sprite en pantalla.
+ * Dibuja el overlay de herramienta/arma encima del sprite usando los assets del Artista.
  */
 function drawItemOverlay(
   ctx: CanvasRenderingContext2D,
   cx: number,
   cy: number,
-  sz: number,
-  itemKind: string,
+  size: number,
+  kind: string,
+  sprites: SpriteMap,
 ) {
-  const u = sz / 16; // unidad = 1/16 del tamaño del sprite
-
-  ctx.save();
-  ctx.imageSmoothingEnabled = false;
-
-  switch (itemKind) {
-    case ITEM_KIND.SPEAR: {
-      // Lanza: palo diagonal + punta metálica, lado derecho
-      const x0 = cx + u * 5;   const y0 = cy - u * 6;
-      const x1 = cx + u * 9;   const y1 = cy + u * 4;
-      ctx.strokeStyle = '#7a5a14'; ctx.lineWidth = Math.max(1.5, u * 1.2);
-      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      // Punta
-      ctx.fillStyle = '#c0c0c0';
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x0 - u * 1.5, y0 + u * 3);
-      ctx.lineTo(x0 + u * 1.5, y0 + u * 3);
-      ctx.closePath(); ctx.fill();
-      break;
-    }
-    case ITEM_KIND.HAND_AXE: {
-      // Hacha: mango corto + cabeza de hacha
-      const hx = cx + u * 6; const hy = cy - u * 2;
-      ctx.strokeStyle = '#7a5a14'; ctx.lineWidth = Math.max(1.5, u);
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(hx + u * 2, hy + u * 5); ctx.stroke();
-      ctx.fillStyle = '#909090';
-      ctx.beginPath();
-      ctx.moveTo(hx, hy);
-      ctx.lineTo(hx + u * 3.5, hy - u * 2);
-      ctx.lineTo(hx + u * 4, hy + u * 2);
-      ctx.lineTo(hx + u, hy + u * 1.5);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#606060'; ctx.lineWidth = 0.5; ctx.stroke();
-      break;
-    }
-    case ITEM_KIND.BONE_NEEDLE: {
-      // Aguja: línea diagonal delgada marfil
-      const nx = cx - u * 2; const ny = cy - u * 1;
-      ctx.strokeStyle = '#e8d8b0'; ctx.lineWidth = Math.max(1, u * 0.8);
-      ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx + u * 5, ny + u * 6); ctx.stroke();
-      // Ojo de la aguja
-      ctx.strokeStyle = '#a09070'; ctx.lineWidth = Math.max(0.5, u * 0.5);
-      ctx.beginPath(); ctx.arc(nx + u * 0.5, ny + u * 0.8, u * 0.6, 0, Math.PI * 2); ctx.stroke();
-      break;
-    }
-    case ITEM_KIND.BASKET: {
-      // Cesta: caja tejida lado izquierdo
-      const bx = cx - u * 9; const by = cy - u;
-      const bw = u * 5; const bh = u * 4;
-      ctx.fillStyle = '#8b5a14';
-      ctx.fillRect(bx, by, bw, bh);
-      // Asas
-      ctx.strokeStyle = '#7a4a10'; ctx.lineWidth = Math.max(1, u * 0.8);
-      ctx.beginPath(); ctx.arc(bx + bw / 2, by, bw / 2, Math.PI, 0); ctx.stroke();
-      // Tramado
-      ctx.strokeStyle = '#c8901c'; ctx.lineWidth = Math.max(0.5, u * 0.4);
-      ctx.beginPath(); ctx.moveTo(bx, by + bh / 2); ctx.lineTo(bx + bw, by + bh / 2); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(bx + bw / 2, by); ctx.lineTo(bx + bw / 2, by + bh); ctx.stroke();
-      break;
-    }
-    case ITEM_KIND.RELIC_CHARM: {
-      // Reliquia: diamante brillante flotando sobre el hombro izquierdo
-      const rx = cx - u * 6; const ry = cy - u * 7;
-      const rs = u * 3;
-      ctx.fillStyle = 'rgba(160,100,220,0.85)';
-      ctx.beginPath();
-      ctx.moveTo(rx, ry - rs);
-      ctx.lineTo(rx + rs, ry);
-      ctx.lineTo(rx, ry + rs);
-      ctx.lineTo(rx - rs, ry);
-      ctx.closePath(); ctx.fill();
-      // Destello
-      ctx.fillStyle = 'rgba(255,220,255,0.7)';
-      ctx.beginPath();
-      ctx.moveTo(rx, ry - rs * 0.6);
-      ctx.lineTo(rx + rs * 0.4, ry);
-      ctx.lineTo(rx, ry + rs * 0.3);
-      ctx.lineTo(rx - rs * 0.4, ry);
-      ctx.closePath(); ctx.fill();
-      break;
-    }
+  const itemImg = sprites.get(kind);
+  if (itemImg && itemImg.complete) {
+    // La herramienta se posiciona sutilmente a un lado (mano)
+    ctx.drawImage(itemImg, cx + size * 0.15, cy + size * 0.05, size * 0.7, size * 0.7);
   }
-
-  ctx.restore();
 }
 
 function renderNPCs(
@@ -453,7 +336,6 @@ function renderNPCs(
 
   for (let i = 0; i < placements.length; i++) {
     const { npc, marker, cx, cy } = placements[i];
-    const { fill, outline, highlight } = marker.colors;
 
     // Acción actual del NPC
     const badges = badgeMap.get(npc.id) ?? [];
@@ -461,64 +343,50 @@ function renderNPCs(
     const tileIdx = npc.position.y * worldWidth + npc.position.x;
     const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
 
-    // spriteSize proporcional a tilePx — escala con el zoom igual que recursos.
-    // Sin mínimo fijo: a zoom bajo son pequeños, a zoom alto son grandes.
-    const spriteSize = Math.max(3, tilePx * 0.82);
+    // spriteSize proporcional a tilePx
+    const spriteSize = Math.max(8, tilePx * 0.85);
 
-    // Anillo de linaje escalado con el sprite
-    const ringR = spriteSize / 2 + 1.5;
-    ctx.beginPath();
-    ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
-    ctx.strokeStyle = marker.linajeBorderColor;
-    ctx.globalAlpha = 0.72 * pulseAlpha;
-    ctx.lineWidth = Math.max(0.5, tilePx * 0.04);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
+    // 1. Dibujar el cuerpo (base)
     const spriteKey = spriteKeyFor(npc, items);
     const img = sprites.get(spriteKey);
 
     if (img) {
       drawSprite(ctx, img, cx, cy, spriteSize, i, now, action, npc.linaje);
     } else {
-      if (marker.shape === 'diamond') {
-        drawDiamond(ctx, cx, cy, marker.size, fill, outline, marker.outline);
-        ctx.fillStyle = highlight;
-        ctx.fillRect(Math.round(cx) - 1, Math.round(cy) - 1, 2, 2);
-      } else {
-        drawCircle(ctx, cx, cy, marker.size, fill, outline, marker.outline);
-      }
+      // Fallback si no carga la imagen
+      ctx.fillStyle = marker.colors.fill;
+      ctx.beginPath();
+      ctx.arc(cx, cy, spriteSize / 2, 0, Math.PI * 2);
+      ctx.fill();
     }
 
-    // Corona para Elegidos (encima del sprite)
-    if (shouldShowCrown(npc)) {
-      drawCrownOverlay(ctx, cx, cy, spriteSize);
+    // 2. Corona para Elegidos (encima del sprite)
+    if (npc.casta === 'elegido') {
+      drawCrownOverlay(ctx, cx, cy, spriteSize, sprites);
     }
 
-    // Overlay de herramienta/arma
+    // 3. Overlay de herramienta/arma
     const equippedItem = itemForNpc(npc, items);
     if (equippedItem) {
-      drawItemOverlay(ctx, cx, cy, spriteSize, equippedItem.kind);
+      drawItemOverlay(ctx, cx, cy, spriteSize, equippedItem.kind, sprites);
     }
 
-    // Píxel de oficio — resumen del rol activo
-    if (professionLayer) {
-      const offset = Math.max(1, Math.round(marker.size * 0.24));
-      ctx.fillStyle = professionColor(npc, items);
-      ctx.fillRect(Math.round(cx) + offset - 1, Math.round(cy) + offset - 1, 2, 2);
+    // 4. Burbujas de estado (NUEVO)
+    if (badges.length > 0) {
+      drawBubble(ctx, cx, cy, spriteSize, badges[0], sprites);
     }
 
-    // Nombre flotante — visible a zoom alto (tilePx > 20) para distinguir
-    // NPCs superpuestos en el mismo tile.
-    if (tilePx >= 20) {
+    // Nombre flotante a zoom alto
+    if (tilePx >= 30) {
       const firstName = npc.name.split(' ')[0];
-      const fontSize = Math.max(6, Math.min(10, tilePx * 0.28));
+      const fontSize = Math.max(8, Math.min(12, tilePx * 0.3));
       ctx.save();
-      ctx.font = `${fontSize}px monospace`;
+      ctx.font = `bold ${fontSize}px monospace`;
       ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(10,8,4,0.7)';
-      ctx.fillText(firstName, cx + 1, cy - spriteSize / 2 - 1);
-      ctx.fillStyle = marker.linajeBorderColor;
-      ctx.fillText(firstName, cx, cy - spriteSize / 2 - 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillText(firstName, cx + 1, cy - spriteSize * 0.8 + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(firstName, cx, cy - spriteSize * 0.8);
       ctx.restore();
     }
   }
@@ -718,6 +586,40 @@ function renderStructures(
         drawHideStructure(ctx, cx, cy, size);
         break;
     }
+  }
+}
+
+function drawCrownOverlay(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  sprites: SpriteMap,
+) {
+  const crown = sprites.get('crown_leader');
+  if (crown && crown.complete) {
+    ctx.drawImage(crown, cx - size * 0.4, cy - size * 0.8, size * 0.8, size * 0.8);
+  }
+}
+
+function drawBubble(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  badge: string,
+  sprites: SpriteMap,
+) {
+  const iconMap: Record<string, string> = {
+    hungry: 'bubble_hunger',
+    lonely: 'bubble_social',
+    critical: 'bubble_fear',
+    working: 'bubble_work',
+  };
+  const spriteKey = iconMap[badge] || `bubble_${badge}`;
+  const img = sprites.get(spriteKey);
+  if (img && img.complete) {
+    ctx.drawImage(img, cx + size * 0.2, cy - size * 0.7, size * 0.6, size * 0.6);
   }
 }
 
@@ -1272,27 +1174,15 @@ function renderNpcStatusBadges(
   ctx: CanvasRenderingContext2D,
   placements: readonly MarkerPlacement[],
   statuses: readonly NpcStatusVisual[],
+  sprites: SpriteMap,
 ) {
   if (statuses.length === 0) return;
   const byNpc = new Map(statuses.map((s) => [s.npcId, s.badges]));
   for (const placement of placements) {
     const badges = byNpc.get(placement.npc.id);
     if (!badges || badges.length === 0) continue;
-    const count = Math.min(3, badges.length);
-    const r = Math.max(2, Math.min(4, placement.marker.size * 0.22));
-    const y = placement.cy - placement.marker.size * 0.72;
-    const startX = placement.cx - ((count - 1) * r * 2.4) / 2;
-    for (let i = 0; i < count; i++) {
-      const x = startX + i * r * 2.4;
-      ctx.fillStyle = '#16110c';
-      ctx.beginPath();
-      ctx.arc(x, y, r + 1, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = badgeColor(badges[i]);
-      ctx.beginPath();
-      ctx.arc(x, y, r, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    // Dibujar solo la burbuja más prioritaria (primera de la lista)
+    drawBubble(ctx, placement.cx, placement.cy, placement.marker.size, badges[0], sprites);
   }
 }
 
@@ -1667,7 +1557,7 @@ export function MapView({
         rp.npcStatuses, rp.intentTrails, resourceTileSet, rp.world.width,
         currentTilePx,
       );
-      renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses);
+      renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses, rp.sprites);
 
       rafId = requestAnimationFrame(loop);
     };

@@ -122,7 +122,7 @@ export function birthNPC(
     casta,
     linaje: father.linaje,
     archetype: null,
-    stats: { supervivencia: 50, socializacion: 40 },
+    stats: { supervivencia: 50, socializacion: 40, proposito: 100 },
     skills: inherited.skills,
     position: { ...father.position },
     visionRadius: 5,

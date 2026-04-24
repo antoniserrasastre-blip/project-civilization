@@ -37,7 +37,6 @@ import { SCENARIO, getScenarioDef, type ScenarioId } from '@/lib/scenarios';
 import type { MapType } from '@/lib/world-gen';
 import { TRAIT, TRAIT_CATALOG, type TraitId } from '@/lib/traits';
 import type { NPC } from '@/lib/npcs';
-import { spawnClanForScenario } from '@/lib/default-clan';
 
 export interface DraftResult {
   seed: number;
@@ -245,7 +244,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       });
       const usedNames = new Set(elegidos.map((n) => n.name));
       const ciudadanos = finalizeBlockB(fd, usedNames);
-      const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], qs.scenarioId);
+      const npcs = [...elegidos, ...ciudadanos];
       onStart({ seed, npcs, mapType: d.mapType });
     } catch { /* no debería fallar */ }
   };
@@ -255,9 +254,7 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       const elegidos = finalizeBlockA(draft);
       const usedNames = new Set(elegidos.map((n) => n.name));
       const ciudadanos = finalizeBlockB(followerDraft, usedNames);
-      // Aplicar posiciones de spawn según escenario — sin esto todos
-      // los NPCs quedan en {x:0,y:0} (esquina del mapa).
-      const npcs = spawnClanForScenario(seed, [...elegidos, ...ciudadanos], draft.scenarioId);
+      const npcs = [...elegidos, ...ciudadanos];
       onStart({ seed, npcs, mapType: draft.mapType });
     } catch { /* validación */ }
   };

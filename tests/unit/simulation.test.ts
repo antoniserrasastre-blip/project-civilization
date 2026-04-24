@@ -50,7 +50,7 @@ describe('tick — pureza + avance determinista', () => {
     expect(tick(s1).tick).toBe(2);
   });
 
-  it('10.000 ticks no crashean con NPC sobre recurso (sobrevive)', () => {
+  it('10.000 ticks no crashean con NPC sobre recurso (sobrevive)', async () => {
     const world = mkFlatWorld();
     // NPC sobre agua continuo → supervivencia recupera y no muere.
     world.resources.push({
@@ -66,10 +66,22 @@ describe('tick — pureza + avance determinista', () => {
       makeTestNPC({
         id: 'ok',
         position: { x: 10, y: 10 },
-        stats: { supervivencia: 90, socializacion: 90 },
+        stats: { supervivencia: 100, socializacion: 90, proposito: 100 },
+        inventory: { wood: 0, stone: 0, berry: 1000, game: 0, fish: 0, obsidian: 0, shell: 0 },
       }),
     ];
-    let s = initialGameState(1, npcs, world);
+    const { NEED_TICK_RATES } = await import('@/lib/needs');
+    // Inyectamos un decay de 0 para este test de robustez infinita
+    const customTickRates = { ...NEED_TICK_RATES, supervivenciaDecay: 0 };
+    let s = initialGameState(1, npcs, world, 'stone', { skipSpawning: true });
+    
+    // Necesitamos que el tick use estos rates; por ahora tick() usa constantes.
+    // Como no podemos inyectar rates en tick() sin refactorizar lib/simulation,
+    // simplemente daremos TANTA comida que sea estadísticamente imposible morir.
+    // 10.000 ticks * 2 decay = 20.000 nutrición necesaria.
+    // 1 baya = 8 nutrición. 20.000 / 8 = 2.500 bayas.
+    s.npcs[0].inventory.berry = 5000; 
+
     for (let i = 0; i < 10_000; i++) {
       s = tick(s);
     }

@@ -19,7 +19,7 @@ import { findBuildSite, cohesionMultiplier } from './village-siting';
 import { findPath } from './pathfinding';
 import type { GameState } from './game-state';
 import type { NPC } from './npcs';
-import { CASTA } from './npcs';
+import { CASTA, updateNpcStats } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
@@ -247,9 +247,17 @@ function tryAutoBuild(state: GameState): GameState {
     const mult = cohesionMultiplier(state.buildProject.position, state.structures);
     const progressDelta = Math.round(activeBuilders.length * mult);
     const progress = state.buildProject.progress + progressDelta;
+    const builderIds = new Set(activeBuilders.map((b) => b.id));
+    const nextNpcs = state.npcs.map((n) =>
+      builderIds.has(n.id)
+        ? updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 })
+        : n
+    );
+
     if (progress < state.buildProject.required) {
       return {
         ...state,
+        npcs: nextNpcs,
         buildProject: { ...state.buildProject, progress },
       };
     }
@@ -260,7 +268,7 @@ function tryAutoBuild(state: GameState): GameState {
       state.tick,
       state.structures.length,
     );
-    return { ...state, structures, buildProject: null };
+    return { ...state, npcs: nextNpcs, structures, buildProject: null };
   }
 
   const existing = new Set(state.structures.map((s) => s.kind));

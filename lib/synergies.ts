@@ -9,7 +9,7 @@
  */
 
 import type { NPC } from './npcs';
-import { ARCHETYPE, LINAJE } from './npcs';
+import { ARCHETYPE, LINAJE, updateNpcStats } from './npcs';
 
 export const SYNERGY = {
   TRIPULACIO_PESQUERA: 'tripulacio_pesquera',
@@ -133,10 +133,17 @@ export function applySynergyModifiers(npc: NPC, synergies: readonly ActiveSynerg
   let fishing = npc.skills.fishing;
   let healing = npc.skills.healing;
 
+  const updates: Partial<{ supervivencia: number; socializacion: number }> = {};
   for (const active of synergies) {
     const m = SYNERGY_CATALOG[active.id].modifiers;
-    if (m.supervivencia) sv += m.supervivencia;
-    if (m.socializacion) so += m.socializacion;
+    // Las sinergias de stats ahora actúan como recuperación extra, 
+    // no como suma plana infinita. Se aplican solo si el NPC no está al máximo.
+    if (m.supervivencia && npc.stats.supervivencia < 100) {
+      updates.supervivencia = (updates.supervivencia ?? npc.stats.supervivencia) + m.supervivencia;
+    }
+    if (m.socializacion && npc.stats.socializacion < 100) {
+      updates.socializacion = (updates.socializacion ?? npc.stats.socializacion) + m.socializacion;
+    }
     if (m.hunting)       hunting += m.hunting;
     if (m.gathering)     gathering += m.gathering;
     if (m.crafting)      crafting += m.crafting;
@@ -144,12 +151,10 @@ export function applySynergyModifiers(npc: NPC, synergies: readonly ActiveSynerg
     if (m.healing)       healing += m.healing;
   }
 
+  const updated = updateNpcStats(npc, updates);
+
   return {
-    ...npc,
-    stats: {
-      supervivencia: Math.max(0, Math.min(100, sv)),
-      socializacion: Math.max(0, Math.min(100, so)),
-    },
+    ...updated,
     skills: {
       hunting:  Math.max(0, Math.min(200, hunting)),
       gathering: Math.max(0, Math.min(200, gathering)),

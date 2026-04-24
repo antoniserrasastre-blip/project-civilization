@@ -16,6 +16,7 @@
  */
 
 import type { NPC, NPCInventory } from './npcs';
+import { updateNpcStats } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
@@ -285,7 +286,6 @@ export function decideDestination(
     if (water) return water;
   }
 
-  // Hambre → buscar comida con histéresis para evitar oscilación.
   if (supervivencia < NEED_THRESHOLDS.supervivenciaBuildReady && carriedFood(npc) === 0) {
     const food = nearestResource(
       npc.position, ctx.world.resources,
@@ -295,22 +295,13 @@ export function decideDestination(
     if (food) return withHysteresis(food) ?? food;
   }
 
-  if (socializacion < NEED_THRESHOLDS.socializacionLow) {
-    const c = centroidOfAlive(ctx.npcs);
-    if (c) return c;
-  }
-
-  // ── Tres deberes activos cuando no hay urgencias vitales ──
-
-  // DEBER 0 (solo builders): ir físicamente al sitio de obra.
-  //   Los no-builders ignoran esto y siguen su vida normal.
-  if (ctx.isBuilder && ctx.buildSitePosition) {
-    return ctx.buildSitePosition;
-  }
+  // ── Deberes activos (Proactividad) ──
+  // Si el NPC está sano (>55) o tiene comida encima, los deberes de
+  // construcción y rol tienen prioridad sobre la socialización y el estatismo.
+  const isHealthyOrHasFood = supervivencia >= NEED_THRESHOLDS.supervivenciaBuildReady || carriedFood(npc) > 0;
 
   // DEBER 1: Materiales para la construcción activa.
-  //   Todos los NPCs contribuyen, no solo los builders designados.
-  if (ctx.nextBuildPriority) {
+  if (isHealthyOrHasFood && ctx.nextBuildPriority) {
     const recipe = RECIPES[ctx.nextBuildPriority];
     const missing = missingResourceFor(recipe, ctx.npcs);
     if (missing) {
@@ -323,7 +314,37 @@ export function decideDestination(
     }
   }
 
-  // DEBER 2: Herramienta equipada toma el mando — recurso afín al oficio.
+  // DEBER 2: Rol activo — El "motor" del diorama vivo.
+  const item = ctx.items?.find((i) => i.id === npc.equippedItemId) ?? null;
+  const role = computeRole(npc, item);
+  const roleResources = ROLE_RESOURCES[role] ?? [];
+  if (isHealthyOrHasFood && roleResources.length > 0) {
+    const canCarryMore = roleResources.some((rid) => {
+      const key = rid as keyof typeof npc.inventory;
+      return (npc.inventory[key] ?? 0) < INVENTORY_CAP_PER_TYPE;
+    });
+    if (canCarryMore) {
+      const roleTarget = nearestResource(
+        npc.position, ctx.world.resources,
+        (rid) => roleResources.includes(rid),
+        ctx.isReachable, undefined, claimed, id,
+      );
+      if (roleTarget) return withHysteresis(roleTarget) ?? roleTarget;
+    }
+  }
+
+  // Socialización (pasa a prioridad media-baja)
+  if (socializacion < NEED_THRESHOLDS.socializacionLow) {
+    const c = centroidOfAlive(ctx.npcs);
+    if (c) return c;
+  }
+
+  // DEBER 0 (solo builders): ir físicamente al sitio de obra.
+  if (ctx.isBuilder && ctx.buildSitePosition) {
+    return ctx.buildSitePosition;
+  }
+
+  // DEBER 3: Herramienta equipada (fallback de rol)
   if (ctx.items && npc.equippedItemId) {
     const equipped = ctx.items.find((i) => i.id === npc.equippedItemId);
     if (equipped) {
@@ -340,29 +361,7 @@ export function decideDestination(
     }
   }
 
-  // DEBER 3: Rol activo — siempre hay algo que hacer mientras sv > umbral.
-  //   Cada NPC actúa según su rol aunque no tenga hambre ni urgencia.
-  //   Solo si el inventario del recurso preferido no está al tope.
-  const item = ctx.items?.find((i) => i.id === npc.equippedItemId) ?? null;
-  const role = computeRole(npc, item);
-  const roleResources = ROLE_RESOURCES[role] ?? [];
-  if (roleResources.length > 0) {
-    // Comprobamos si puede llevar más de alguno de sus recursos preferidos
-    const canCarryMore = roleResources.some((rid) => {
-      const key = rid as keyof typeof npc.inventory;
-      return (npc.inventory[key] ?? 0) < INVENTORY_CAP_PER_TYPE;
-    });
-    if (canCarryMore) {
-      const roleTarget = nearestResource(
-        npc.position, ctx.world.resources,
-        (rid) => roleResources.includes(rid),
-        ctx.isReachable, undefined, claimed, id,
-      );
-      if (roleTarget) return withHysteresis(roleTarget) ?? roleTarget;
-    }
-  }
-
-  // Buffer mínimo de comida cuando el rol no tiene preferencia clara.
+  // Buffer mínimo de comida
   if (carriedFood(npc) < 2) {
     const proactiveFood = nearestResource(
       npc.position, ctx.world.resources,
@@ -370,6 +369,19 @@ export function decideDestination(
       ctx.isReachable, undefined, claimed, id,
     );
     if (proactiveFood) return withHysteresis(proactiveFood) ?? proactiveFood;
+  }
+
+  // DEBER 4: Exploración / Patrulla (Wonderlust)
+  // Si el propósito está alto (>90) y tiene provisiones (>2 comida), nos movemos 
+  // un poco de forma pseudo-aleatoria para romper el estatismo.
+  if ((npc.stats.proposito ?? 100) >= 90 && carriedFood(npc) >= 2) {
+    const rx = (id.charCodeAt(0) + ctx.currentTick) % 15 - 7;
+    const ry = (id.charCodeAt(id.length - 1) + ctx.currentTick) % 15 - 7;
+    const wanderTarget = {
+      x: Math.max(0, Math.min(ctx.world.width - 1, npc.position.x + rx)),
+      y: Math.max(0, Math.min(ctx.world.height - 1, npc.position.y + ry)),
+    };
+    if (ctx.isReachable && ctx.isReachable(wanderTarget.x, wanderTarget.y)) return wanderTarget;
   }
 
   // Fallback: ir hacia el centroide si estamos dispersos.
@@ -414,8 +426,8 @@ function matchesMissing(
 
 export const NEED_TICK_RATES = {
   /** Decay pasivo de supervivencia por tick (entropía).
-   *  Valor 2 calibrado para TICKS_PER_DAY=480: sv 100→55 en ~22 ticks. */
-  supervivenciaDecay: 2,
+   *  Valor 2.0 calibrado para TICKS_PER_DAY=480. */
+  supervivenciaDecay: 2.0,
   /** Recovery cuando el NPC está sobre un recurso activo. */
   supervivenciaRecover: 2,
   /** Socialización al estar en soledad (sin NPCs en radio). */
@@ -531,38 +543,44 @@ export function tickNeeds(
     // La COMIDA no cura on-tile — se cosecha al inventario y se come
     // cuando hay urgencia. Esto elimina el bucle recovery-parálisis.
     const recoveryResource = recoveryResourceAtPosition(npc.position, ctx.world);
-    if (recoveryResource === RESOURCE.WATER) {
+    let onWaterHealing = false;
+    if (recoveryResource === RESOURCE.WATER && sv < NEED_THRESHOLDS.supervivenciaHungry) {
       sv += NEED_TICK_RATES.supervivenciaRecover;
-    } else if (
-      sv < NEED_THRESHOLDS.supervivenciaEatFromInventory &&
-      carriedFood(npc) > 0
-    ) {
-      const meal = consumeInventoryFood(npc);
-      npc = meal.npc;
-      const cooked = ctx.firePosition !== undefined;
-      sv += cooked
-        ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER)
-        : meal.nutrition;
-      if (cooked && meal.kind) so += COOKED_FOOD_SOCIAL_BONUS;
-    } else if (sv < NEED_THRESHOLDS.supervivenciaEatFromInventory) {
-      const donorIndex = findFoodDonorIndex(
-        npc,
-        out,
-        ctx.firePosition !== undefined,
-      );
-      if (donorIndex !== -1) {
-        const meal = consumeInventoryFood(out[donorIndex]);
-        out[donorIndex] = meal.npc;
+      onWaterHealing = true;
+    }
+
+    if (!onWaterHealing) {
+      if (
+        sv < NEED_THRESHOLDS.supervivenciaEatFromInventory &&
+        carriedFood(npc) > 0
+      ) {
+        const meal = consumeInventoryFood(npc);
+        npc = meal.npc;
         const cooked = ctx.firePosition !== undefined;
         sv += cooked
           ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER)
           : meal.nutrition;
-        so += cooked ? COOKED_FOOD_SOCIAL_BONUS : 1;
+        if (cooked && meal.kind) so += COOKED_FOOD_SOCIAL_BONUS;
+      } else if (sv < NEED_THRESHOLDS.supervivenciaEatFromInventory) {
+        const donorIndex = findFoodDonorIndex(
+          npc,
+          out,
+          ctx.firePosition !== undefined,
+        );
+        if (donorIndex !== -1) {
+          const meal = consumeInventoryFood(out[donorIndex]);
+          out[donorIndex] = meal.npc;
+          const cooked = ctx.firePosition !== undefined;
+          sv += cooked
+            ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER)
+            : meal.nutrition;
+          so += cooked ? COOKED_FOOD_SOCIAL_BONUS : 1;
+        } else {
+          sv -= NEED_TICK_RATES.supervivenciaDecay;
+        }
       } else {
         sv -= NEED_TICK_RATES.supervivenciaDecay;
       }
-    } else {
-      sv -= NEED_TICK_RATES.supervivenciaDecay;
     }
 
     const companions = companionsInRadius(n, ctx.npcs);
@@ -586,13 +604,17 @@ export function tickNeeds(
       }
     }
 
-    sv = clamp(sv, 0, 100);
-    so = clamp(so, 0, 100);
-    const alive = sv > 0;
+    let pr = (n.stats.proposito ?? 100) + 1;
+    
+    npc = updateNpcStats(npc, {
+      supervivencia: sv,
+      socializacion: so,
+      proposito: pr,
+    });
+    const alive = npc.stats.supervivencia > 0;
 
     out[i] = {
       ...npc,
-      stats: { supervivencia: sv, socializacion: so },
       alive,
     };
   }

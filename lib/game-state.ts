@@ -20,6 +20,7 @@ import { initialVillageState, type VillageState } from './village';
 import { generateWorld } from './world-gen';
 import type { WorldMap } from './world-state';
 import type { EquippableItem } from './items';
+import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
 
 import type { MonumentState } from './monument';
 import { initialMonumentState } from './monument';
@@ -43,6 +44,7 @@ export const CHRONICLE_MAX = 300;
 export interface GameState {
   world: WorldMap;
   npcs: NPC[];
+  godType: 'sea' | 'stone' | 'wind';
   fog: FogState;
   structures: Structure[];
   buildProject: BuildProject | null;
@@ -66,6 +68,8 @@ export function initialGameState(
   seed: number,
   npcs: readonly NPC[],
   worldOverride?: WorldMap,
+  godType: 'sea' | 'stone' | 'wind' = 'stone',
+  options: { skipSpawning?: boolean } = {},
 ): GameState {
   // Generación procedimental por defecto — Sprint 14.5 GEOLOGÍA-SAGRADA.
   // Mata el fixture estático world-map.v1.json.
@@ -83,13 +87,32 @@ export function initialGameState(
     influence: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
     reserves,
   };
-  // Por ahora todos parten en (0, 0); la colocación real en el
-  // spawn costero entra en un sprint posterior (decide por mapa).
-  // Los NPCs drafteados tienen position: { x: 0, y: 0 } por
-  // convención; lo preservamos.
+
+  let nextNpcs = [...npcs];
+
+  // Por defecto se salta el spawn si hay un worldOverride (caso típico de tests),
+  // a menos que se fuerce vía options.
+  const skip = options.skipSpawning ?? (worldOverride !== undefined);
+
+  if (!skip) {
+    // Posicionamiento dinámico del clan — Sprint 14.5
+    // Encuentra la isla y el spawn costero sobre el mapa GENERADO (no el fixture).
+    const islands = findIslands(world);
+    const spawn = pickClanSpawn(seed, islands);
+    const cells = pickLandCells(world, spawn.center, npcs.length);
+    nextNpcs = npcs.map((n, i) => ({
+      ...n,
+      position: { x: cells[i].x, y: cells[i].y },
+    }));
+  }
+
   return {
     world,
-    npcs: npcs.map((n) => ({ ...n })),
+    npcs: nextNpcs.map((n) => ({
+      ...n,
+      stats: { ...n.stats, proposito: n.stats.proposito ?? 100 },
+    })),
+    godType,
     fog: createFog(world.width, world.height),
     structures: [],
     buildProject: null,

@@ -48,6 +48,21 @@ export const RESOURCE = {
 
 export type ResourceId = (typeof RESOURCE)[keyof typeof RESOURCE];
 
+export const RESOURCE_LABEL: Record<ResourceId, string> = {
+  [RESOURCE.WOOD]:     'Madera',
+  [RESOURCE.STONE]:    'Piedra',
+  [RESOURCE.BERRY]:    'Bayas',
+  [RESOURCE.GAME]:     'Caza',
+  [RESOURCE.WATER]:    'Agua',
+  [RESOURCE.FISH]:     'Pescado',
+  [RESOURCE.OBSIDIAN]: 'Obsidiana',
+  [RESOURCE.SHELL]:    'Concha',
+  [RESOURCE.CLAY]:     'Arcilla',
+  [RESOURCE.COCONUT]:  'Coco',
+  [RESOURCE.FLINT]:    'Sílex',
+  [RESOURCE.MUSHROOM]: 'Seta',
+};
+
 /** Régimen de regeneración de un recurso (decisión #21). */
 export type ResourceRegime = 'regenerable' | 'depletable' | 'continuous';
 

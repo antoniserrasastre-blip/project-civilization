@@ -26,12 +26,11 @@ export const ResourceMonitor: React.FC<ResourceMonitorProps> = ({ resources }) =
           >
             <div className="relative w-6 h-6 flex-shrink-0">
                <Image 
-                src={`/resources/resource_${res.id}.svg`} 
+                src={`/resources/${res.id}.svg`} 
                 alt={res.name}
                 width={24}
                 height={24}
                 className="image-pixelated object-contain"
-                // Fallback handled by onError or just assuming it exists for this UI task
               />
             </div>
             <div className="flex flex-col">

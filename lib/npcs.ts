@@ -62,6 +62,9 @@ export type Archetype = (typeof ARCHETYPE)[keyof typeof ARCHETYPE];
 export interface NPCStats {
   supervivencia: number;
   socializacion: number;
+  /** Tercera pulsión: ganas de trabajar / ambición.
+   *  Baja al trabajar, sube al descansar o por milagros. */
+  proposito: number;
 }
 
 /** Skills individuales (decisión #11: herencia 50%). */
@@ -137,6 +140,20 @@ export interface NPC {
   destination?: { x: number; y: number } | null;
 }
 
+/** Helper para actualizar stats de forma segura, preservando campos y aplicando clamps. 
+ * Centraliza la lógica para evitar borrados accidentales de stats como 'proposito'. */
+export function updateNpcStats(npc: NPC, updates: Partial<NPCStats>): NPC {
+  const nextStats = { ...npc.stats, ...updates };
+  return {
+    ...npc,
+    stats: {
+      supervivencia: Math.max(0, Math.min(100, nextStats.supervivencia)),
+      socializacion: Math.max(0, Math.min(100, nextStats.socializacion)),
+      proposito:     Math.max(0, Math.min(100, nextStats.proposito ?? 100)),
+    },
+  };
+}
+
 /** Helper para tests — construye un NPC con defaults razonables y
  *  overrides por nombre. No se usa en producción. */
 export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
@@ -146,7 +163,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     casta: CASTA.CIUDADANO,
     linaje: LINAJE.TRAMUNTANA,
     archetype: null,
-    stats: { supervivencia: 80, socializacion: 60 },
+    stats: { supervivencia: 80, socializacion: 60, proposito: 100 },
     skills: {
       hunting: 20,
       gathering: 20,

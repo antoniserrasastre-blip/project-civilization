@@ -21,7 +21,7 @@
  * tick() sigue siendo puro y el state se pasa inmutable a React.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { MapView, type NpcIntentTrail } from '@/components/map/MapView';
 import type { NpcStatusVisual } from '@/components/map/MapView';
 import { WhisperSelector } from '@/components/era/WhisperSelector';
@@ -33,10 +33,11 @@ import {
   type NpcOperationalStatus,
 } from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
+import { DivineLogPanel, type DivineLogEntry } from '@/components/era/DivineLogPanel';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
 import { generateWorld } from '@/lib/world-gen';
-import { defaultClanSpawn, makeDefaultClan } from '@/lib/default-clan';
+import { makeDefaultClan } from '@/lib/default-clan';
 import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import {
@@ -143,13 +144,75 @@ export function GameShell({ seed }: GameShellProps) {
   // Todos los hooks deben declararse antes de cualquier return condicional.
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
+  const [dismissedEurekas, setDismissedEurekas] = useState<Set<string>>(new Set());
+  const [divineLogs, setDivineLogs] = useState<DivineLogEntry[]>([]);
+  const [isLogOpen, setIsLogOpen] = useState(false);
+
+  // Ref para acceder al estado actual dentro del intervalo sin reiniciarlo
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  });
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Atajo Ctrl + < (o Ctrl + ` dependiendo del teclado)
+      if (e.ctrlKey && (e.key === '<' || e.key === '`')) {
+        e.preventDefault();
+        setIsLogOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleDraftStart = (result: DraftResult) => {
     const world = generateWorld(result.seed, { type: result.mapType });
-    setState(initialGameState(result.seed, result.npcs, world));
+    setState(initialGameState(result.seed, result.npcs, world, 'stone', { skipSpawning: false }));
     setDraftDone(true);
   };
-  const spawnCenter = useMemo(() => defaultClanSpawn(seed).center, [seed]);
+
+  const handleDismissEureka = (id: string) => {
+    setDismissedEurekas((prev) => new Set([...prev, id]));
+  };
+
+  // Monitor Divino: Volcado analítico cada 5 segundos
+  useEffect(() => {
+    if (!draftDone) return;
+    const monitorId = setInterval(() => {
+      if (paused) return;
+      const s = stateRef.current;
+      const aliveNpcs = s.npcs.filter(n => n.alive);
+      if (aliveNpcs.length === 0) return;
+
+      const avgSv = aliveNpcs.reduce((acc, n) => acc + n.stats.supervivencia, 0) / aliveNpcs.length;
+      const avgSoc = aliveNpcs.reduce((acc, n) => acc + n.stats.socializacion, 0) / aliveNpcs.length;
+      const avgProp = aliveNpcs.reduce((acc, n) => acc + (n.stats.proposito || 0), 0) / aliveNpcs.length;
+      const inv = clanInventoryTotal(s.npcs);
+      
+      const sumX = aliveNpcs.reduce((acc, n) => acc + n.position.x, 0);
+      const sumY = aliveNpcs.reduce((acc, n) => acc + n.position.y, 0);
+
+      const newEntry: DivineLogEntry = {
+        tick: s.tick,
+        avgSv,
+        avgSoc,
+        avgProp,
+        wood: inv.wood,
+        stone: inv.stone,
+        food: inv.berry + inv.fish + inv.game,
+        pos: { x: Math.round(sumX / aliveNpcs.length), y: Math.round(sumY / aliveNpcs.length) },
+        status: avgSv > 80 ? 'optimal' : avgSv > 40 ? 'warning' : 'critical'
+      };
+
+      setDivineLogs(prev => [...prev.slice(-9), newEntry]);
+    }, 5000);
+    return () => clearInterval(monitorId);
+  }, [draftDone, paused]);
+  const spawnCenter = useMemo(() => {
+    const anchor = state.npcs.find((n) => n.alive);
+    return anchor ? anchor.position : { x: 0, y: 0 };
+  }, [state.npcs]);
 
   const day = useMemo(
     () => Math.floor(state.tick / TICKS_PER_DAY) + 1,
@@ -390,6 +453,9 @@ export function GameShell({ seed }: GameShellProps) {
         paused={paused}
         onTogglePause={() => setPaused((p) => !p)}
         onOpenWhisper={() => setSelectorOpen(true)}
+        godType={state.godType}
+        unlockedKinds={state.unlockedItemKinds.filter(k => !dismissedEurekas.has(k))}
+        onDismissEureka={handleDismissEureka}
       />
       <ChronicleFeed
         activeMessage={state.village.activeMessage}
@@ -418,6 +484,11 @@ export function GameShell({ seed }: GameShellProps) {
           onGrantMiracle={onGrantMiracle}
         />
       )}
+      <DivineLogPanel 
+        entries={divineLogs} 
+        isOpen={isLogOpen} 
+        onClose={() => setIsLogOpen(false)} 
+      />
       <DebugOverlay state={state} />
     </main>
   );

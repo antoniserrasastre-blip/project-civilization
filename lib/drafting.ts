@@ -286,7 +286,7 @@ export function finalizeBlockA(
       casta: CASTA.ELEGIDO,
       linaje: LINAJE.TRAMUNTANA,
       archetype: arch,
-      stats: { supervivencia: 85 + (jitter.value % 5), socializacion: 70 },
+      stats: { supervivencia: 85 + (jitter.value % 5), socializacion: 70, proposito: 100 },
       skills,
       position: { x: 0, y: 0 }, // Sprint 2.3+ colocará al spawn del clan.
       visionRadius: 6,
@@ -488,7 +488,7 @@ export function finalizeBlockB(
         casta: CASTA.CIUDADANO,
         linaje: c.linaje,
         archetype: null,
-        stats: c.stats,
+        stats: { ...c.stats, proposito: 100 },
         skills: c.skills,
         position: { x: 0, y: 0 }, // Colocado al spawn del clan en Sprint 2.5+.
         visionRadius: 6,

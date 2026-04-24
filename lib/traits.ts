@@ -9,6 +9,7 @@
  */
 
 import type { NPC } from './npcs';
+import { updateNpcStats } from './npcs';
 
 export const TRAIT_BUDGET = 15;
 
@@ -190,12 +191,13 @@ export function applyTraits(npc: NPC, traitIds: TraitId[]): NPC {
     if (m.healing !== undefined) healing += m.healing;
   }
 
+  const updated = updateNpcStats(npc, {
+    supervivencia: sv,
+    socializacion: so,
+  });
+
   return {
-    ...npc,
-    stats: {
-      supervivencia: Math.max(0, Math.min(100, sv)),
-      socializacion: Math.max(0, Math.min(100, so)),
-    },
+    ...updated,
     skills: {
       hunting: Math.max(0, hunting),
       gathering: Math.max(0, gathering),

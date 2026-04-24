@@ -32,6 +32,11 @@ import type { CraftableId } from '@/lib/crafting';
 import type { NPCInventory } from '@/lib/npcs';
 import { useGratitudeFloaters } from '@/hooks/use-gratitude-floaters';
 import { SYNERGY_CATALOG, type ActiveSynergy } from '@/lib/synergies';
+import { DivineHeader } from '../ui/DivineHeader';
+import { ResourceMonitor, type ResourceData } from '../ui/ResourceMonitor';
+import { EurekaToast, type EurekaEvent } from '../ui/EurekaToast';
+import { RESOURCE_LABEL } from '@/lib/world-state';
+import { GRATITUDE_CEILING } from '@/lib/gratitude';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
   none: 'sin desbloquear',
@@ -100,6 +105,10 @@ export interface HUDProps {
   paused: boolean;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
+  godType?: string;
+  currentWind?: string;
+  unlockedKinds?: string[];
+  onDismissEureka?: (id: string) => void;
 }
 
 function pct(progress: number): number {
@@ -179,17 +188,50 @@ export function HUD({
   monumentProgress,
   village,
   buildStatus,
-  communalInventory,
-  activeSynergies,
+  communalInventory = { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+  activeSynergies = [],
   paused,
   onTogglePause,
   onOpenWhisper,
+  godType = 'stone',
+  currentWind = 'Tramuntana',
+  unlockedKinds = [],
+  onDismissEureka = () => {},
 }: HUDProps) {
-  const showProgress =
-    monumentPhase === 'building' || monumentPhase === 'built';
-  // Hook siempre llamado — Rules of Hooks. Si no hay `village`,
-  // pasamos uno sintético estable (gratitud idéntica entre renders
-  // → no dispara floaters).
+  // Mapear inventario para el monitor
+  const resources: ResourceData[] = Object.entries(communalInventory)
+    .filter(([_, amount]) => amount > 0)
+    .map(([id, amount]) => ({
+      id,
+      name: RESOURCE_LABEL[id as any] || id,
+      amount,
+      // Los archivos se llaman berry.svg, wood.svg, etc.
+      icon: `/resources/${id}.svg`,
+      trend: 'stable',
+    }));
+
+  // Mapear notificaciones de Eureka
+  const eurekaEvents: EurekaEvent[] = unlockedKinds.map((kind) => {
+    // Fallback de iconos: si no hay tech_X, usamos skill_X o similar
+    const iconMap: Record<string, string> = {
+      navigation: '/ui/tech_navigation.svg',
+      pottery: '/ui/tech_pottery.svg',
+      agriculture: '/ui/tech_agriculture.svg',
+      weaving: '/ui/tech_weaving.svg',
+      masonry: '/ui/tech_masonry.svg',
+      hand_axe: '/ui/skill_craft.svg',
+      spear: '/ui/skill_hunt.svg',
+    };
+    return {
+      id: kind,
+      title: '¡Descubrimiento!',
+      description: `Tu clan ha comprendido el secreto de: ${kind}`,
+      icon: iconMap[kind] || '/ui/bubble_work.svg',
+    };
+  });
+
+  const showProgress = monumentPhase === 'building' || monumentPhase === 'built';
+
   const floaters = useGratitudeFloaters(
     village ??
       ({
@@ -208,262 +250,79 @@ export function HUD({
   );
   const lastFloater = floaters[floaters.length - 1];
   const pulsing = lastFloater !== undefined;
+
   return (
-    <div
-      data-testid="hud"
-      style={{
-        position: 'fixed',
-        top: 12,
-        left: 12,
-        background: 'rgba(0,0,0,0.65)',
-        color: '#f5f5dc',
-        padding: '10px 14px',
-        borderRadius: 8,
-        fontSize: '0.9rem',
-        lineHeight: 1.5,
-        zIndex: 10,
-        minWidth: 220,
-        fontFamily: 'var(--font-sans, system-ui)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-        }}
-      >
-        <div data-testid="hud-day">
-          <strong>Día</strong> {day}
+    <div className="pointer-events-none fixed inset-0 z-50 flex flex-col justify-between p-4 font-monospace uppercase tracking-wider">
+      {/* Superior: Identidad y Recursos */}
+      <div className="flex w-full items-start justify-between">
+        <div className="pointer-events-auto">
+          <DivineHeader
+            godType={godType as any}
+            faith={faith}
+            maxFaith={FAITH_CAP}
+            gratitude={gratitude}
+            maxGratitude={GRATITUDE_CEILING}
+            currentWind={currentWind}
+          />
         </div>
-        <button
-          type="button"
-          data-testid="pause-toggle"
-          onClick={onTogglePause}
-          title={paused ? 'Reanudar (Espacio)' : 'Pausar (Espacio)'}
-          style={{
-            background: paused ? '#2a2a1c' : '#1e1e1e',
-            color: '#f5f5dc',
-            border: `1px solid ${paused ? '#6b5a1f' : '#333'}`,
-            borderRadius: 6,
-            padding: '2px 8px',
-            fontSize: '0.78rem',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-          }}
-        >
-          {paused ? '▶ Reanudar' : '⏸ Pausar'}
-        </button>
-      </div>
-      <div data-testid="hud-faith">
-        <strong>Fe</strong> {Math.floor(faith)} / {FAITH_CAP}
-        <FaithBar faith={faith} />
-      </div>
-      <div
-        data-testid="hud-gratitude"
-        style={{
-          position: 'relative',
-          transition: 'color 400ms ease-out',
-          color: pulsing ? floaterColor(lastFloater.delta) : '#f5f5dc',
-        }}
-      >
-        <strong>Gratitud</strong> {Math.floor(gratitude)}
-        {floaters.map((f) => (
-          <span
-            key={f.id}
-            data-testid="gratitude-floater"
-            aria-hidden="true"
-            style={{
-              position: 'absolute',
-              left: '100%',
-              marginLeft: 8,
-              top: 0,
-              color: floaterColor(f.delta),
-              fontWeight: 700,
-              pointerEvents: 'none',
-              animation: 'gratitude-floater-rise 1200ms ease-out forwards',
-            }}
-          >
-            {f.delta > 0 ? `+${f.delta}` : `${f.delta}`}
-          </span>
-        ))}
-      </div>
-      <div data-testid="hud-alive">
-        <strong>Hijos vivos</strong> {aliveCount}/{totalCount}
-      </div>
-      <div data-testid="hud-active-whisper">
-        <strong>Susurro</strong>{' '}
-        {activeMessage === null ? 'silencio (gracia)' : WHISPER_ES[activeMessage]}
-      </div>
-      <div data-testid="hud-monument">
-        <strong>Monumento</strong> {PHASE_ES[monumentPhase]}
-        {showProgress && ` (${pct(monumentProgress)}%)`}
-      </div>
-      {communalInventory && (
-        <div
-          data-testid="hud-inventory"
-          style={{
-            marginTop: 6,
-            paddingTop: 6,
-            borderTop: '1px solid rgba(245,245,220,0.18)',
-            fontSize: '0.78rem',
-            lineHeight: 1.35,
-          }}
-        >
-          <strong style={{ fontSize: '0.82rem' }}>Inventario comunal</strong>
-          <div
-            style={{
-              marginTop: 4,
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: 4,
-              opacity: 0.92,
-            }}
-          >
-            {([
-              ['wood',     'madera'],
-              ['stone',    'piedra'],
-              ['berry',    'bayas'],
-              ['game',     'caza'],
-              ['fish',     'pescado'],
-              ['obsidian', 'obsidiana'],
-              ['shell',    'concha'],
-            ] as const).map(([key, label]) => (
-              <span
-                key={key}
-                data-testid={`hud-inventory-${key}`}
-                title={label}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1,
-                  fontSize: '0.76rem',
-                }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/resources/${key}.svg`}
-                  alt={label}
-                  style={{
-                    width: 20,
-                    height: 20,
-                    imageRendering: 'pixelated',
-                    opacity: communalInventory[key] === 0 ? 0.3 : 1,
-                  }}
-                />
-                <strong style={{ fontSize: '0.78rem' }}>
-                  {communalInventory[key]}
-                </strong>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-      {buildStatus && (
-        <div
-          data-testid="hud-build"
-          style={{
-            marginTop: 6,
-            paddingTop: 6,
-            borderTop: '1px solid rgba(245,245,220,0.18)',
-          }}
-        >
-          <strong>Construcción</strong>{' '}
-          {buildStatus.active
-            ? CRAFTABLE_ES[buildStatus.active.kind]
-            : buildStatus.next
-              ? CRAFTABLE_ES[buildStatus.next]
-              : 'completa'}
-          {buildStatus.active ? (
-            <div
-              data-testid="hud-build-progress"
-              style={{ fontSize: '0.76rem', opacity: 0.78 }}
-            >
-              Obra:{' '}
-              {Math.round(
-                (buildStatus.active.progress / buildStatus.active.required) *
-                  100,
-              )}
-              %
+
+        <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <ResourceMonitor resources={resources} />
+          {showProgress && monumentProgress < 100 && (
+            <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200">
+              Obra del Monumento: {Math.round((monumentProgress / 480) * 100)}%
             </div>
-          ) : (
-            buildStatus.next &&
-            (buildStatus.ready ? (
-              <span style={{ color: '#a7f3d0' }}> lista</span>
-            ) : (
-              <div
-                data-testid="hud-build-missing"
-                style={{ fontSize: '0.76rem', opacity: 0.78 }}
-              >
-                Falta:{' '}
-                {Object.entries(buildStatus.missing)
-                  .filter(([, amount]) => amount > 0)
-                  .map(
-                    ([key, amount]) =>
-                      `${INVENTORY_ES[key as keyof typeof INVENTORY_ES]} ${amount}`,
-                  )
-                  .join(', ')}
-              </div>
-            ))
           )}
         </div>
-      )}
-      {activeSynergies && activeSynergies.length > 0 && (
-        <div
-          data-testid="hud-synergies"
-          style={{
-            marginTop: 6,
-            paddingTop: 6,
-            borderTop: '1px solid rgba(245,245,220,0.18)',
-          }}
-        >
-          <strong style={{ fontSize: '0.8rem', opacity: 0.85 }}>Sinergies actives</strong>
-          {activeSynergies.map((s) => {
-            const def = SYNERGY_CATALOG[s.id];
-            return (
-              <div
-                key={s.id}
-                data-testid={`synergy-${s.id}`}
-                style={{
-                  fontSize: '0.76rem',
-                  marginTop: 3,
-                  color: '#a7f3d0',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span>⚡ {def.name}</span>
-                <span style={{ opacity: 0.7 }}>{s.npcIds.length} NPCs</span>
+      </div>
+
+      {/* Lateral: Eurekas */}
+      <div className="pointer-events-auto absolute right-4 top-40">
+        <EurekaToast events={eurekaEvents} onDismiss={onDismissEureka} />
+      </div>
+
+      {/* Inferior: Control y Sinergias */}
+      <div className="flex w-full items-end justify-between">
+        <div className="pointer-events-auto flex flex-col gap-4">
+          {/* Sinergies Actives */}
+          {activeSynergies.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-cyan-400 opacity-70">Sinergies actives</span>
+              <div className="flex gap-2">
+                {activeSynergies.map((s) => (
+                  <div key={s.id} className="pixel-box bg-cyan-900/40 px-2 py-1 text-[10px] text-cyan-300">
+                    ⚡ {SYNERGY_CATALOG[s.id].name}
+                  </div>
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onOpenWhisper}
+              className="pixel-box bg-stone-800 px-4 py-2 text-sm text-amber-200 transition-colors hover:bg-stone-700"
+            >
+              {activeMessage ? `Susurro: ${WHISPER_ES[activeMessage]}` : 'Hablar al clan'}
+            </button>
+            <button
+              onClick={onTogglePause}
+              className="pixel-box bg-stone-800 px-4 py-2 text-sm text-stone-300 transition-colors hover:bg-stone-700"
+            >
+              {paused ? '▶ Continuar' : '⏸ Pausar'}
+            </button>
+          </div>
         </div>
-      )}
-      <button
-        type="button"
-        data-testid="whisper-open"
-        onClick={onOpenWhisper}
-        style={{
-          marginTop: 8,
-          width: '100%',
-          background: '#2a2a1c',
-          color: '#f5f5dc',
-          border: '1px solid #6b5a1f',
-          borderRadius: 6,
-          padding: '6px 10px',
-          fontSize: '0.85rem',
-          cursor: 'pointer',
-        }}
-      >
-        Hablar al clan
-      </button>
-      <style>{`
-        @keyframes gratitude-floater-rise {
-          0% { opacity: 0; transform: translateY(0); }
-          15% { opacity: 1; }
-          100% { opacity: 0; transform: translateY(-22px); }
+
+        <div className="text-right text-[10px] text-stone-500">
+          Día {day} · Hijos vivos: {aliveCount}/{totalCount}
+        </div>
+      </div>
+      
+      <style jsx global>{`
+        .pixel-box {
+          border: 2px solid #2f2f2f;
+          box-shadow: 2px 2px 0px #000;
         }
       `}</style>
     </div>

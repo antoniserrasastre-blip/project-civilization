@@ -123,20 +123,26 @@ describe('Recovery on-the-spot', () => {
     expect(game.stats.supervivencia).toBe(58);
   });
 
-  it('agua SÍ cura on-tile; decay=2 y waterRecover=2 se cancelan → sv=100', () => {
-    // El agua es la única recovery pasiva. Con sv=100: decay -2 + water +2 = 0.
+  it('agua SÍ cura on-tile, pero solo hasta el umbral hungry (40)', () => {
+    // Si sv=39: cura +2 (decay se omite) = 41. Si sv=40: no cura, decay -2 = 38.
     const world = mkWorld();
     world.resources.push({
       id: RESOURCE.WATER, x: 5, y: 5,
       quantity: 999, initialQuantity: 999, regime: 'continuous', depletedAtTick: null,
     });
-    const npc = makeTestNPC({
-      id: 'n',
+    const npc39 = makeTestNPC({
+      id: 'n1',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 100, socializacion: 60 },
+      stats: { supervivencia: 39, socializacion: 60, proposito: 100 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    expect(after.stats.supervivencia).toBe(100); // -2 decay + 2 water = 0
+    const npc40 = makeTestNPC({
+      id: 'n2',
+      position: { x: 5, y: 5 },
+      stats: { supervivencia: 40, socializacion: 60, proposito: 100 },
+    });
+    const [after39, after40] = tickNeeds([npc39, npc40], { world, npcs: [npc39, npc40] });
+    expect(after39.stats.supervivencia).toBe(41); // 39 + 2
+    expect(after40.stats.supervivencia).toBe(38); // 40 - 2
   });
 });
 

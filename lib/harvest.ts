@@ -10,6 +10,7 @@
  */
 
 import type { NPC, NPCInventory } from './npcs';
+import { updateNpcStats } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
@@ -84,6 +85,7 @@ export function tickHarvests(
   const npcs = npcsIn.map((n) => ({
     ...n,
     inventory: { ...n.inventory },
+    stats: { ...n.stats },
   }));
   const resources = resourcesIn.map((r) => ({ ...r }));
   const reserves = reservesIn ? [...reservesIn] : null;
@@ -110,6 +112,12 @@ export function tickHarvests(
       // Transferir 1 unidad.
       npc.inventory[key] += 1;
       r.quantity -= 1;
+      const updated = updateNpcStats(npc, {
+        proposito: (npc.stats.proposito || 100) - 2,
+      });
+      // Volcar stats actualizados al objeto mutable npc de la iteración
+      npc.stats = updated.stats;
+
       if (r.quantity === 0 && r.regime === 'regenerable') {
         r.depletedAtTick = currentTick;
       } else if (r.quantity === 0 && r.regime === 'depletable') {

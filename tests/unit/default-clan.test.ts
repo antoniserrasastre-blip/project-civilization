@@ -10,6 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import { makeDefaultClan } from '@/lib/default-clan';
 import { CASTA, SEX } from '@/lib/npcs';
+import { initialGameState } from '@/lib/game-state';
+import { TILE } from '@/lib/world-state';
 
 describe('makeDefaultClan', () => {
   it('produce 14 NPCs (4 Elegidos + 10 Ciudadanos)', () => {
@@ -75,23 +77,22 @@ describe('makeDefaultClan', () => {
   });
 
   it('todas las posiciones caen sobre tierra (no agua) — Sprint #5', async () => {
-    const { TILE } = await import('@/lib/world-state');
-    const fixture = (await import('@/lib/fixtures/world-map.v1.json')).default as unknown as {
-      tiles: number[];
-      width: number;
-    };
-    const clan = makeDefaultClan(42);
-    for (const n of clan) {
-      const t = fixture.tiles[n.position.y * fixture.width + n.position.x];
+    const seed = 42;
+    const state = initialGameState(seed, makeDefaultClan(seed));
+    for (const n of state.npcs) {
+      const t = state.world.tiles[n.position.y * state.world.width + n.position.x];
       expect(t).not.toBe(TILE.WATER);
+      expect(t).not.toBe(TILE.SHALLOW_WATER);
     }
   });
 
   it('seeds distintos producen clanes en posiciones distintas (Sprint #5)', () => {
-    const a = makeDefaultClan(1);
-    const b = makeDefaultClan(2);
+    const s1 = initialGameState(1, makeDefaultClan(1));
+    const s2 = initialGameState(2, makeDefaultClan(2));
     // Al menos un NPC cambia de posición entre seeds, porque el
     // picker de isla ahora depende del seed.
+    const a = s1.npcs;
+    const b = s2.npcs;
     const anyDiff = a.some((n, i) =>
       n.position.x !== b[i].position.x || n.position.y !== b[i].position.y,
     );

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Bloque de piedra tallada -->
+  <rect x="6" y="18" width="20" height="10" fill="#8b8b8b"/>
+  <rect x="6" y="18" width="20" height="2" fill="#ffffff"/>
+  <rect x="6" y="26" width="20" height="2" fill="#555555"/>
+  <rect x="10" y="22" width="2" height="2" fill="#555555" opacity="0.5"/>
+  <rect x="20" y="22" width="2" height="2" fill="#555555" opacity="0.5"/>
+  
+  <!-- Mazo -->
+  <rect x="12" y="4" width="8" height="6" fill="#a0522d"/>
+  <rect x="14" y="10" width="4" height="8" fill="#5d2906"/>
+  
+  <!-- Chispas/Efecto de impacto (Cian) -->
+  <rect x="10" y="16" width="2" height="2" fill="#00f2ff"/>
+  <rect x="20" y="16" width="2" height="2" fill="#00f2ff"/>
+  <rect x="15" y="14" width="2" height="2" fill="#ffffff"/>
+</svg>

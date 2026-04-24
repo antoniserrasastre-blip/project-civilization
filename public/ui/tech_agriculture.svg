@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Tierra arada -->
+  <rect x="4" y="22" width="24" height="6" fill="#5d2906"/>
+  <rect x="4" y="22" width="24" height="2" fill="#a0522d"/>
+  <rect x="8" y="24" width="2" height="2" fill="#5d2906"/>
+  <rect x="16" y="24" width="2" height="2" fill="#5d2906"/>
+  <rect x="24" y="24" width="2" height="2" fill="#5d2906"/>
+  
+  <!-- Brote -->
+  <rect x="15" y="14" width="2" height="8" fill="#228b22"/>
+  <rect x="13" y="12" width="2" height="2" fill="#32cd32"/>
+  <rect x="17" y="12" width="2" height="2" fill="#32cd32"/>
+  <rect x="11" y="10" width="2" height="2" fill="#32cd32"/>
+  <rect x="19" y="10" width="2" height="2" fill="#32cd32"/>
+  
+  <!-- Resplandor de vida -->
+  <rect x="15" y="8" width="2" height="2" fill="#00f2ff" opacity="0.4"/>
+</svg>
