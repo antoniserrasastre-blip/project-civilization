@@ -90,6 +90,8 @@ export function initialGameState(
     ...rawWorld,
     influence: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
     reserves,
+    traffic: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
+    density: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
   };
 
   let nextNpcs = [...npcs];

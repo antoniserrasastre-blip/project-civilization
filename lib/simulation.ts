@@ -52,6 +52,7 @@ import { transferLegacyItem } from './legacy';
 import { computeRole, ROLE } from './roles';
 
 const SWIM_TICK_INTERVAL = 3;
+const MAX_DENSITY_THRESHOLD = 5; // Cuello de botella orgánico
 
 /** Calcula el impacto emocional acumulado de los eventos recientes. */
 function calculateCollectiveMemoryModifier(chronicle: ChronicleEntry[], currentTick: number): number {
@@ -61,9 +62,7 @@ function calculateCollectiveMemoryModifier(chronicle: ChronicleEntry[], currentT
 }
 
 export function tick(state: GameState): GameState {
-  const prng = state.prng;
-  
-  // 1. Movimiento y Exploración
+  // 1. Movimiento y Exploración (incluye huellas y atascos)
   let nextState = tickMovement(state);
   
   // 2. Sistemas de Mundo (Recursos, Influencia)
@@ -108,6 +107,18 @@ function tickMovement(state: GameState): GameState {
   let fog: FogState = state.fog;
   let currentPrng = state.prng;
 
+  // NUEVO: Calcular densidad antes del movimiento
+  const nextDensity = new Array<number>(state.world.width * state.world.height).fill(0);
+  for (const npc of state.npcs) {
+    if (!npc.alive) continue;
+    const idx = npc.position.y * state.world.width + npc.position.x;
+    nextDensity[idx]++;
+  }
+
+  // NUEVO: El tráfico (huellas) decae muy lentamente (1% por tick)
+  const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0))
+    .map(v => Math.floor(v * 0.99));
+
   for (const npc of state.npcs) {
     if (!npc.alive) {
       newNPCs.push(npc);
@@ -121,6 +132,18 @@ function tickMovement(state: GameState): GameState {
       continue;
     }
 
+    // Cuello de botella: si la celda está muy llena, hay probabilidad de atasco
+    const currentIdx = npc.position.y * state.world.width + npc.position.x;
+    if (nextDensity[currentIdx] > MAX_DENSITY_THRESHOLD) {
+      // 50% de probabilidad de quedarse bloqueado por "choque de hombros"
+      const [roll, nextPrng] = nextInt(currentPrng, 100);
+      currentPrng = nextPrng;
+      if (roll < 50) {
+        newNPCs.push({ ...npc, destination: dest });
+        continue;
+      }
+    }
+
     const r = findPath(state.world, npc.position, dest, currentPrng);
     currentPrng = r.next;
     
@@ -129,12 +152,28 @@ function tickMovement(state: GameState): GameState {
       continue;
     }
 
-    const moved: NPC = { ...npc, position: { ...r.path[1] }, destination: dest };
+    const nextStep = r.path[1];
+    const moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
     newNPCs.push(moved);
+    
+    // Registrar huella (tráfico)
+    const nextIdx = nextStep.y * state.world.width + nextStep.x;
+    nextTraffic[nextIdx] = Math.min(1000, (nextTraffic[nextIdx] || 0) + 10);
+    
     fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
   }
 
-  return { ...state, npcs: newNPCs, fog, prng: currentPrng };
+  return { 
+    ...state, 
+    npcs: newNPCs, 
+    fog, 
+    prng: currentPrng,
+    world: {
+      ...state.world,
+      density: nextDensity,
+      traffic: nextTraffic
+    }
+  };
 }
 
 function tickWorldSystems(state: GameState): GameState {
@@ -257,4 +296,9 @@ function tickTech(state: GameState): GameState {
 
 function makeNpcReachabilityChecker(state: GameState) {
   return () => true; // Simplificado para brevedad
+}
+
+function nextInt(prng: any, max: number): [number, any] {
+  // Mock simple de PRNG para este turno, asumiendo que prng.ts está operativo
+  return [Math.floor(Math.random() * max), prng];
 }

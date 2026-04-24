@@ -106,11 +106,12 @@ export interface WorldMap {
    *  Opcional en el shape porque el fixture estático no lo incluye
    *  (siempre arranca en ceros; `initialGameState` lo inicializa). */
   influence?: number[];
-  /** Capacidad de cosecha restante por tile — Sprint 12. Arranca como
-   *  suma de `initialQuantity` de los ResourceSpawn en cada tile.
-   *  Disminuye con cada harvest y no se regenera (depleción acumulativa).
-   *  `initialGameState` lo inicializa; no vive en el fixture. */
-  reserves?: number[];
+  /** Heatmap de pisadas — Fase 3.0. Array plano row-major de enteros.
+   *  Representa el desgaste del suelo. Afecta al coste de pathfinding. */
+  traffic?: number[];
+  /** Contador de entidades por celda este tick — Fase 1.0. 
+   *  Celdas con >5 causan penalización de velocidad (atasco). */
+  density?: number[];
 }
 
 /** Devuelve un mundo vacío (toda agua, sin recursos) para tests de
