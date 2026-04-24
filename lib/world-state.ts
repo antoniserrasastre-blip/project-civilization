@@ -109,9 +109,12 @@ export interface WorldMap {
   /** Heatmap de pisadas — Fase 3.0. Array plano row-major de enteros.
    *  Representa el desgaste del suelo. Afecta al coste de pathfinding. */
   traffic?: number[];
-  /** Contador de entidades por celda este tick — Fase 1.0. 
-   *  Celdas con >5 causan penalización de velocidad (atasco). */
-  density?: number[];
+  /** Tags de terreno — Fase 2.0. Mapea coordenadas "x,y" a una lista de tags
+   *  (ej: "maldita", "fértil", "trágica"). Afecta el comportamiento de la IA. */
+  terrainTags?: Record<string, string[]>;
+  /** Inercia cultural — Fase 2.0. Registra cuántos ticks se ha realizado
+   *  una tarea de forma predominante. */
+  traditions?: Record<string, number>;
 }
 
 /** Devuelve un mundo vacío (toda agua, sin recursos) para tests de

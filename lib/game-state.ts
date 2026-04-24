@@ -91,7 +91,8 @@ export function initialGameState(
     influence: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
     reserves,
     traffic: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
-    density: new Array<number>(rawWorld.width * rawWorld.height).fill(0),
+    terrainTags: {},
+    traditions: {},
   };
 
   let nextNpcs = [...npcs];
