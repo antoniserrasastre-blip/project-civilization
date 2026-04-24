@@ -12,14 +12,24 @@ interface NpcMarkerProps {
 }
 
 /**
- * Renderiza un NPC en el mapa con su herramienta equipada superpuesta.
+ * Renderiza un NPC con efectos visuales dinámicos basados en el rango de su artefacto.
  */
 export const NpcMarker: React.FC<NpcMarkerProps> = ({ npc, item, selected, onClick }) => {
   const baseSprite = useUnitSprites(npc.casta.toLowerCase());
   const itemSprite = useResourceSprites(item?.kind || '');
 
   const opacity = npc.alive ? 1 : 0.4;
-  const filter = selected ? 'drop-shadow(0 0 4px white) brightness(1.2)' : 'none';
+  
+  // EFECTOS VISUALES POR RANGO (DF STYLE)
+  let glow = 'none';
+  if (item) {
+    if (item.rank === 'fine') glow = 'drop-shadow(0 0 2px white)';
+    if (item.rank === 'masterwork') glow = 'drop-shadow(0 0 4px gold) brightness(1.1)';
+    if (item.rank === 'artifact') glow = 'drop-shadow(0 0 6px #00ffff) drop-shadow(0 0 2px white) brightness(1.2)';
+  }
+
+  const selectionFilter = selected ? 'drop-shadow(0 0 6px white) scale(1.1)' : 'none';
+  const combinedFilter = `${glow} ${selectionFilter}`.trim();
 
   return (
     <div
@@ -31,10 +41,11 @@ export const NpcMarker: React.FC<NpcMarkerProps> = ({ npc, item, selected, onCli
         width: '32px',
         height: '32px',
         cursor: 'pointer',
-        transition: 'all 0.2s ease',
+        transition: 'transform 0.2s ease, filter 0.3s ease',
         zIndex: selected ? 10 : 2,
         opacity,
-        filter,
+        filter: combinedFilter,
+        transform: selected ? 'scale(1.1)' : 'scale(1)',
       }}
       data-testid={`npc-marker-${npc.id}`}
     >
@@ -61,19 +72,18 @@ export const NpcMarker: React.FC<NpcMarkerProps> = ({ npc, item, selected, onCli
         />
       )}
 
-      {/* CAPA 3: INDICADOR DE SELECCIÓN */}
-      {selected && (
+      {/* CAPA 3: INDICADOR DE ARTEFACTO (Punto de estatus) */}
+      {item && item.rank !== 'common' && (
         <div
           style={{
             position: 'absolute',
-            top: '-8px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '8px',
-            height: '8px',
-            backgroundColor: 'white',
+            top: '-2px',
+            right: '-2px',
+            width: '6px',
+            height: '6px',
+            backgroundColor: item.rank === 'artifact' ? '#00ffff' : 'gold',
             borderRadius: '50%',
-            boxShadow: '0 0 4px rgba(0,0,0,0.5)',
+            boxShadow: '0 0 2px black',
           }}
         />
       )}
