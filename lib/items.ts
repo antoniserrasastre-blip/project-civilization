@@ -23,6 +23,7 @@ export interface EquippableItem {
   material: ItemMaterial;
   name: string;        
   ownerNpcId: string | null;
+  makerId: string | null;
   durability: number;
   maxDurability: number;
   createdAtTick: number;
@@ -30,6 +31,7 @@ export interface EquippableItem {
   level: number;
   rank: ItemRank;
   trait?: 'lightweight' | 'serrated' | 'blessed' | 'sturdy';
+  deeds: string[];
   history: ItemHistoryEntry[]; 
 }
 
@@ -80,10 +82,12 @@ export function createItem(kind: ItemKind, material: ItemMaterial, owner: NPC | 
     id, kind, material,
     name: ITEM_DEFS[kind].label,
     ownerNpcId: owner?.id || null,
+    makerId: owner?.id || null,
     durability: 100 * mStats.durMult,
     maxDurability: 100 * mStats.durMult,
     createdAtTick: tick,
     xp: 0, level: 1, rank: 'common',
+    deeds: [],
     history: [{ tick, event: `Forjado en ${material}${owner ? ` por ${owner.name}` : ''}` }],
   };
 }
@@ -104,12 +108,23 @@ export function evolveItem(item: EquippableItem, npc: NPC, tick: number): Equipp
       next.name = generateEpicName(item.kind, item.material, npc.name);
       next.trait = 'serrated';
       next.history.push({ tick, event: `Convertido en Obra Maestra: ${next.name}` });
+      next.deeds.push(`Se convirtió en la leyenda "${next.name}"`);
     } else if (next.level === 20) {
       next.rank = 'artifact';
       next.history.push({ tick, event: `Ascendido a Artefacto Legendario` });
+      next.deeds.push(`Ascendió al plano de los Artefactos Eternos`);
     }
   }
   return next;
+}
+
+/** Registra una hazaña específica en el historial y lista de logros del objeto. */
+export function recordItemDeed(item: EquippableItem, deed: string, tick: number): EquippableItem {
+  return {
+    ...item,
+    deeds: [...item.deeds, deed],
+    history: [...item.history, { tick, event: `HAZAÑA: ${deed}` }]
+  };
 }
 
 export function canEquipItem(npc: NPC, item: EquippableItem): boolean {

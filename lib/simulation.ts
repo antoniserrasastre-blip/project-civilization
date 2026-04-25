@@ -2,18 +2,19 @@
  * Simulación — tick puro del mundo primigenia.
  */
 
-import { decideDestination, tickNeeds, NEED_THRESHOLDS } from './needs';
+import { decideDestination, tickNeeds, NEED_THRESHOLDS, carriedFood } from './needs';
 import { findBuildSite, cohesionMultiplier } from './village-siting';
 import { findPath } from './pathfinding';
 import type { GameState, ChronicleEntry } from './game-state';
 import { CHRONICLE_MAX } from './game-state';
 import type { NPC } from './npcs';
-import { CASTA, updateNpcStats } from './npcs';
+import { CASTA, updateNpcStats, VOCATION } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
 import { computeActiveSynergies, applySynergyModifiers } from './synergies';
-import { markDiscovered } from './fog';
+import { markDiscovered, decodeFogBitmap } from './fog';
+import { tickAnimals } from './animals';
 import type { FogState } from './fog';
 import { evaluateNight, isNightCheckTick } from './nights';
 import { isDawn } from './messages';
@@ -44,9 +45,13 @@ import { tickReproduction } from './reproduction';
 import { applyEsclavoDrain, elegidoFaithBonusPerTick } from './casta-effects';
 import { narrate } from './chronicle';
 import type { EquippableItem } from './items';
+import { recordItemDeed, ITEM_KIND, itemForNpc } from './items';
 import { transferLegacyItem } from './legacy';
 import { computeRole } from './roles';
 import { nextInt } from './prng';
+import { craftItem, canCraftItem, ITEM_RECIPES } from './item-crafting';
+import { tickClimate } from './climate';
+import { recordLegend } from './legends';
 
 const SWIM_TICK_INTERVAL = 3;
 const MAX_DENSITY_THRESHOLD = 5; 
@@ -55,8 +60,10 @@ const STRUCTURE_LIFESPAN = 10 * TICKS_PER_DAY;
 
 const BUILD_PRIORITY: CraftableId[] = [
   CRAFTABLE.FOGATA_PERMANENTE,
-  CRAFTABLE.REFUGIO,
+  CRAFTABLE.STOCKPILE_WOOD,
+  CRAFTABLE.STOCKPILE_STONE,
   CRAFTABLE.DESPENSA,
+  CRAFTABLE.REFUGIO,
 ];
 
 export function nextBuildPriority(state: GameState): CraftableId | undefined {
@@ -106,8 +113,24 @@ export function makeNpcReachabilityChecker(state: GameState): (from: { x: number
 }
 
 export function tick(state: GameState): GameState {
-  let nextState = tickMovement(state);
+  let nextState = state;
+
+  // Actualización diaria del clima (al inicio del día)
+  if (state.tick % TICKS_PER_DAY === 0) {
+    const { state: nextClimate, next: nextPrng } = tickClimate(state.climate, state.prng);
+    nextState = { ...state, climate: nextClimate, prng: nextPrng };
+  }
+
+  // ACUMULACIÓN DE FE: El clan genera fe según sus seguidores vivos
+  const aliveCount = nextState.npcs.filter(n => n.alive).length;
+  nextState = {
+    ...nextState,
+    village: applyFaithDelta(nextState.village, faithPerTick(aliveCount))
+  };
+
+  nextState = tickMovement(nextState);
   nextState = tickWorldSystems(nextState);
+  nextState = tickAnimals(nextState);
   nextState = tickClanSystems(nextState);
   nextState = tickDevelopment(nextState);
   nextState = tickCultureAndSocial(nextState, state);
@@ -123,6 +146,9 @@ function tickMovement(state: GameState): GameState {
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
   const groupsByDest = new Map<string, NPC[]>();
   
+  // Optimizamos: decodificar una sola vez por tick
+  const fogBuffer = decodeFogBitmap(state.fog.bitmap);
+
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
     const ctx = {
@@ -131,7 +157,10 @@ function tickMovement(state: GameState): GameState {
       isReachable: makeNpcReachabilityChecker(state), items: state.items ?? [],
       faith: state.village.faith, gratitude: state.village.gratitude,
       synergies: computeActiveSynergies(state.npcs), buildSitePosition: state.buildProject?.position,
-      nextBuildPriority: buildPrio, prng: currentPrng
+      nextBuildPriority: buildPrio, prng: currentPrng,
+      fog: state.fog,
+      fogBuffer,
+      climate: state.climate
     };
     const decision = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
     (npc as any)._nextDest = decision.position;
@@ -234,31 +263,85 @@ function tickInfrastructureDecay(state: GameState): { structures: Structure[], c
 }
 
 function tickClanSystems(state: GameState): GameState {
-  const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items);
+  const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items, state.climate);
   const logistics = tickLogistics(harvested.npcs, state.structures);
   const traditions = { ...(state.world.traditions || {}) };
   for (const npc of state.npcs) { if (npc.alive) { const role = computeRole(npc, null); traditions[role] = (traditions[role] || 0) + 1; } }
 
   const { structures: decayedStructures, chronicle: nextChronicle } = tickInfrastructureDecay({ ...state, structures: logistics.structures });
   const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
+  
+  // Decodificamos el buffer aquí también para que esté disponible en tickNeeds
+  const fogBuffer = decodeFogBitmap(state.fog.bitmap);
+  
   const npcsWithNeeds = tickNeeds(logistics.npcs, { 
     world: state.world, npcs: logistics.npcs,
     faith: state.village.faith, gratitude: state.village.gratitude,
-    moodModifier, prng: state.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: []
+    moodModifier, prng: state.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: [],
+    fog: state.fog, fogBuffer,
+    climate: state.climate
   });
+
+  // REGISTRO DE HAZAÑAS DE SUPERVIVENCIA (Legado)
+  let nextItems = [...harvested.items];
+  for (const npc of npcsWithNeeds) {
+    if (npc.alive && npc.stats.miedo > 90 && npc.equippedItemId) {
+      const itemIdx = nextItems.findIndex(i => i.id === npc.equippedItemId);
+      if (itemIdx !== -1 && !nextItems[itemIdx].deeds.includes('Sobrevivió a los terrores de la oscuridad')) {
+        nextItems[itemIdx] = recordItemDeed(nextItems[itemIdx], 'Sobrevivió a los terrores de la oscuridad', state.tick);
+      }
+    }
+  }
 
   return {
     ...state, npcs: npcsWithNeeds, structures: decayedStructures, chronicle: nextChronicle,
+    items: nextItems,
     world: { ...state.world, resources: harvested.resources, reserves: harvested.reserves, traditions }
   };
 }
 
 function tickDevelopment(state: GameState): GameState {
-  return tryAutoBuild(state);
+  let nextState = tryAutoBuild(state);
+  nextState = tryAutoCraftItems(nextState);
+  return nextState;
+}
+
+/** Los Sabios/Artesanos fabrican herramientas para los desarmados. */
+function tryAutoCraftItems(state: GameState): GameState {
+  const unarmedNpc = state.npcs.find(n => n.alive && !n.equippedItemId);
+  if (!unarmedNpc) return state;
+
+  const crafter = state.npcs.find(n => n.alive && n.vocation === VOCATION.SABIO && n.stats.supervivencia > 50);
+  if (!crafter) return state;
+
+  // Intentar fabricar la herramienta más útil según la vocación del desarmado
+  let kindToCraft = ITEM_KIND.HAND_AXE;
+  if (unarmedNpc.vocation === VOCATION.GUERRERO) kindToCraft = ITEM_KIND.SPEAR;
+  if (unarmedNpc.vocation === VOCATION.SIMPLEZAS) kindToCraft = ITEM_KIND.BASKET;
+
+  if (canCraftItem(kindToCraft, state.npcs, state.structures)) {
+    const { item, npcs, structures } = craftItem(kindToCraft, state.npcs, state.tick, crafter, state.structures);
+    
+    // Asignar inmediatamente al necesitado
+    const nextNpcs = npcs.map(n => n.id === unarmedNpc.id ? { ...n, equippedItemId: item.id } : n);
+    
+    return {
+      ...state,
+      npcs: nextNpcs,
+      structures,
+      items: [...state.items, item],
+      chronicle: addChronicleEntry(state.chronicle, { 
+        text: `${crafter.name} ha forjado una nueva ${kindToCraft} para ${unarmedNpc.name}.`,
+        type: 'system', impact: 5, duration: TICKS_PER_DAY 
+      }, state.tick)
+    };
+  }
+
+  return state;
 }
 
 function tickCultureAndSocial(state: GameState, prevState: GameState): GameState {
-  let { npcs, items, chronicle, village, prng, world } = state;
+  let { npcs, items, chronicle, village, prng, world, legends } = state;
   const nextTags = { ...(world.terrainTags || {}) };
   for (const prev of prevState.npcs) {
     if (!prev.alive) continue;
@@ -276,15 +359,73 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
           items = result.items; npcs = result.npcs;
         }
       }
+
+      // LEYENDA: Muerte de un miembro
+      const ent = { id: cur.id, name: cur.name, type: 'npc' as const, description: 'Miembro del clan' };
+      const legendResult = recordLegend(legends, [ent], 'partió hacia el descanso eterno', state.tick, prng);
+      legends = legendResult.state;
+      prng = legendResult.next;
     }
   }
+
+  // TRADICIÓN ORAL (NOCHE)
+  const isNight = (state.tick % TICKS_PER_DAY) > (TICKS_PER_DAY / 2);
+  const fire = firstStructureOfKind(state.structures, CRAFTABLE.FOGATA_PERMANENTE);
+  if (isNight && fire) {
+    let listenersCount = 0;
+    npcs = npcs.map(n => {
+      if (!n.alive) return n;
+      const dist = Math.abs(n.position.x - fire.position.x) + Math.abs(n.position.y - fire.position.y);
+      if (dist <= 2 && n.stats.miedo < NEED_THRESHOLDS.miedoHigh) {
+        listenersCount++;
+        return {
+          ...n,
+          stats: {
+            ...n.stats,
+            proposito: Math.min(100, (n.stats.proposito || 100) + 0.1)
+          }
+        };
+      }
+      return n;
+    });
+    
+    if (listenersCount > 0) {
+      // Uso de applyGratitudeFromEvent para respetar caps y alineación de fe
+      village = applyGratitudeFromEvent(village, { type: 'storytelling' }, village.activeMessage);
+    }
+  }
+
+  // LEYENDA: Nuevas herramientas maestras
+  for (const item of items) {
+    const prevItem = prevState.items.find(i => i.id === item.id);
+    if (item.rank === 'masterwork' && (!prevItem || prevItem.rank !== 'masterwork')) {
+      const maker = npcs.find(n => n.id === item.makerId);
+      const entities = [
+        { id: maker?.id || 'unknown', name: maker?.name || 'Un artesano', type: 'npc' as const, description: 'Maestro' },
+        { id: item.id, name: item.name, type: 'item' as const, description: 'Herramienta legendaria' }
+      ];
+      const legendResult = recordLegend(legends, entities, 'forjó con maestría', state.tick, prng);
+      legends = legendResult.state;
+      prng = legendResult.next;
+    }
+  }
+
   const repro = tickReproduction(npcs, state.tick, prng, new Set(npcs.map(n => n.name)), world.traditions);
   npcs = repro.npcs; prng = repro.prng;
   for (const born of repro.newBorns) {
     const entry = narrate({ type: 'birth', childName: born.name, parents: born.parents as [string, string], tick: state.tick });
     chronicle = addChronicleEntry(chronicle, entry, state.tick);
+
+    // LEYENDA: Nacimiento
+    const entities = [
+      { id: born.id, name: born.name, type: 'npc' as const, description: 'Recién nacido' },
+      { id: 'clan', name: 'el Clan', type: 'npc' as const, description: 'Nuestra estirpe' }
+    ];
+    const legendResult = recordLegend(legends, entities, 'trajo nueva esperanza al', state.tick, prng);
+    legends = legendResult.state;
+    prng = legendResult.next;
   }
-  return { ...state, npcs, items, chronicle, village, prng, world: { ...world, terrainTags: nextTags } };
+  return { ...state, npcs, items, chronicle, village, prng, legends, world: { ...world, terrainTags: nextTags } };
 }
 
 function addChronicleEntry(chronicle: ChronicleEntry[], result: any, tick: number): ChronicleEntry[] {
@@ -307,6 +448,8 @@ function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs
     const s = outStructures.find((s) => s.position.x === n.position.x && s.position.y === n.position.y);
     if (!s) continue;
     const specialty = STORAGE_SPECIALTY[s.kind] ?? [];
+    
+    // FASE DE DEPÓSITO: El NPC deja lo que ha recolectado
     for (const key of specialty) {
       const amount = n.inventory[key]; if (amount <= 0) continue;
       const current = s.inventory![key] || 0;
@@ -314,7 +457,42 @@ function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs
       const transfer = Math.min(amount, space);
       if (transfer > 0) { n.inventory[key] -= transfer; s.inventory![key] = current + transfer; }
     }
+
+    // FASE DE SUMINISTRO (Logística Inversa): Si es una Despensa y el NPC no tiene comida
+    if (s.kind === CRAFTABLE.DESPENSA) {
+      const foods: Array<keyof NPCInventory> = ['berry', 'game', 'fish'];
+      for (const food of foods) {
+        if (n.inventory[food] === 0 && (s.inventory[food] || 0) > 0) {
+          const take = Math.min(s.inventory[food]!, 5); // Coge una ración de 5
+          n.inventory[food] += take;
+          s.inventory[food]! -= take;
+          break; // Con una ración basta
+        }
+      }
+    }
   }
+
+  // FASE DE REPARTO NPC-A-NPC: Porteadores entregando a especialistas hambrientos
+  for (const donor of outNpcs) {
+    if (!donor.alive || carriedFood(donor) === 0) continue;
+    
+    for (const receiver of outNpcs) {
+      if (!receiver.alive || donor.id === receiver.id || receiver.stats.supervivencia > 70) continue;
+      
+      // Si están en la misma posición, transferencia inmediata
+      if (donor.position.x === receiver.position.x && donor.position.y === receiver.position.y) {
+        const foods: Array<keyof NPCInventory> = ['berry', 'game', 'fish'];
+        for (const food of foods) {
+          if (donor.inventory[food] > 0) {
+            donor.inventory[food]--;
+            receiver.inventory[food]++;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   return { npcs: outNpcs, structures: outStructures };
 }
 
@@ -322,9 +500,29 @@ function tryAutoBuild(state: GameState): GameState {
   if (state.buildProject) {
     const activeBuilders = selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady);
     const mult = cohesionMultiplier(state.buildProject.position, state.structures);
-    const progress = state.buildProject.progress + Math.round(activeBuilders.length * mult);
+    
+    // El progreso ahora depende también de la maestría en crafting de los constructores
+    const totalCraftingSkill = activeBuilders.reduce((sum, b) => sum + (b.skills.crafting / 50), 0);
+    const progress = state.buildProject.progress + Math.round((activeBuilders.length + totalCraftingSkill) * mult);
+    
     const builderIds = new Set(activeBuilders.map((b) => b.id));
-    const nextNpcs = state.npcs.map((n) => builderIds.has(n.id) ? updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 }) : n);
+    const nextNpcs = state.npcs.map((n) => {
+      if (builderIds.has(n.id)) {
+        // Ganancia de experiencia en crafting (ADN: Fuerza + Sabiduría)
+        let learningMult = 1 + ((n.attributes.strength + n.attributes.wisdom) / 200) * 0.5;
+        
+        // Bonus por Vocación: El Sabio (ingenio) y el Simplezas (práctica) aprenden más rápido
+        if (n.vocation === 'sabio' || n.vocation === 'simplezas') learningMult += 0.3;
+
+        const xpGain = 0.05 * learningMult;
+        const updated = updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 });
+        return {
+          ...updated,
+          skills: { ...updated.skills, crafting: Math.min(100, updated.skills.crafting + xpGain) }
+        };
+      }
+      return n;
+    });
 
     if (progress < state.buildProject.required) return { ...state, npcs: nextNpcs, buildProject: { ...state.buildProject, progress } };
 

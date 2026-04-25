@@ -80,17 +80,24 @@ export function canCraftItem(
 /**
  * Craftea una herramienta: consume recursos del clan y devuelve el
  * nuevo item + NPCs actualizados. Determinista: id del item = tipo + tick.
- * `ownerNpcId` es el NPC al que se asignará (null = sin asignar aún).
+ * `maker` es el NPC que forja el objeto (influirá en la calidad).
  */
 export function craftItem(
   kind: ItemKind,
   npcs: readonly NPC[],
   tick: number,
-  ownerNpcId: string | null,
+  maker: NPC | null,
   structures: readonly Structure[] = [],
-  suffix = 0,
 ): { item: EquippableItem; npcs: NPC[]; structures: Structure[] } {
   const recipe = ITEM_RECIPES[kind];
+  
+  // Determinar material principal basado en los inputs
+  let material: any = 'stone';
+  if (recipe.inputs.obsidian) material = 'obsidian';
+  else if (recipe.inputs.shell) material = 'wood'; // Concha se asocia a madera/cesta
+  else if (kind === ITEM_KIND.BONE_NEEDLE) material = 'bone';
+  else if (recipe.inputs.wood && !recipe.inputs.stone) material = 'wood';
+
   // Reutilizamos consumeForRecipe de crafting pero con la firma
   // adaptada para ItemRecipe.
   const buildRecipeLike = {
@@ -104,6 +111,7 @@ export function craftItem(
     buildRecipeLike as Parameters<typeof consumeForBuildRecipe>[1],
     structures,
   );
-  const item = createItem(kind, ownerNpcId, tick, suffix);
+  
+  const item = createItem(kind, material, maker, tick);
   return { item, npcs: updatedNpcs, structures: updatedStructures };
 }

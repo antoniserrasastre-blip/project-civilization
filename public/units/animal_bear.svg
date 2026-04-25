@@ -1,0 +1,20 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Body (Bulkier) -->
+  <rect x="6" y="10" width="20" height="14" fill="#3d2a13" />
+  <!-- Underbelly -->
+  <rect x="8" y="22" width="16" height="2" fill="#2a1b13" />
+  <!-- Legs (Stronger) -->
+  <rect x="8" y="24" width="4" height="6" fill="#1a120b" />
+  <rect x="20" y="24" width="4" height="6" fill="#1a120b" />
+  <!-- Head -->
+  <rect x="24" y="12" width="6" height="8" fill="#3d2a13" />
+  <!-- Snout -->
+  <rect x="28" y="16" width="3" height="4" fill="#2a1b13" />
+  <!-- Ears -->
+  <rect x="25" y="10" width="2" height="2" fill="#3d2a13" />
+  <rect x="28" y="10" width="2" height="2" fill="#3d2a13" />
+  <!-- Eye -->
+  <rect x="27" y="14" width="1" height="1" fill="#000000" />
+  <!-- Tail (Small) -->
+  <rect x="4" y="14" width="2" height="3" fill="#3d2a13" />
+</svg>

@@ -18,10 +18,14 @@ import {
   CASTA,
   LINAJE,
   SEX,
+  VOCATION,
+  makePurifiedGenes,
   type Archetype,
   type Linaje,
   type NPC,
+  type NPCAttributes,
   type Sex,
+  type Vocation,
 } from './npcs';
 import {
   TRAIT_BUDGET,
@@ -160,6 +164,40 @@ function archetypeBaseSkills(arch: Archetype): {
   }
 }
 
+/** Mapea el Arquetipo de Elegido a su Vocación de Alma. */
+function archetypeToVocation(arch: Archetype): Vocation {
+  switch (arch) {
+    case ARCHETYPE.CURANDERO:  
+    case ARCHETYPE.ARTESANO:   return VOCATION.SABIO;     // Curar y Crear requiere saber
+    
+    case ARCHETYPE.CAZADOR:   
+    case ARCHETYPE.SCOUT:      return VOCATION.GUERRERO;  // La sangre y el riesgo
+    
+    case ARCHETYPE.RECOLECTOR: 
+    case ARCHETYPE.PESCADOR:
+    case ARCHETYPE.TEJEDOR:    return VOCATION.SIMPLEZAS; // La vida tranquila del trabajo
+    
+    case ARCHETYPE.LIDER:      return VOCATION.AMBICIOSO; // El peso de la corona
+    
+    default:                   return VOCATION.SIMPLEZAS;
+  }
+}
+
+/** Define los Atributos ADN (Constitución) iniciales según el Arquetipo. */
+function archetypeBaseAttributes(arch: Archetype): NPCAttributes {
+  switch (arch) {
+    case ARCHETYPE.CAZADOR:   return { strength: 60, dexterity: 70, wisdom: 40 };
+    case ARCHETYPE.RECOLECTOR: return { strength: 40, dexterity: 65, wisdom: 55 };
+    case ARCHETYPE.CURANDERO:  return { strength: 30, dexterity: 40, wisdom: 85 };
+    case ARCHETYPE.ARTESANO:   return { strength: 75, dexterity: 50, wisdom: 60 };
+    case ARCHETYPE.LIDER:      return { strength: 60, dexterity: 60, wisdom: 70 };
+    case ARCHETYPE.SCOUT:      return { strength: 45, dexterity: 80, wisdom: 55 };
+    case ARCHETYPE.TEJEDOR:    return { strength: 50, dexterity: 75, wisdom: 60 };
+    case ARCHETYPE.PESCADOR:   return { strength: 55, dexterity: 70, wisdom: 45 };
+    default:                   return { strength: 50, dexterity: 50, wisdom: 50 };
+  }
+}
+
 /** Coste neto de todos los rasgos seleccionados en el draft. */
 export function traitsBudgetUsed(draft: DraftState): number {
   const all = draft.traitSelections.flat() as TraitId[];
@@ -262,6 +300,8 @@ export function finalizeBlockA(
     const arch = slot.archetype as Archetype;
     const sex = slot.sex as Sex;
     const skills = archetypeBaseSkills(arch);
+    const attributes = archetypeBaseAttributes(arch);
+    const vocation = archetypeToVocation(arch);
     // Id determinista por posición; usa seed como sufijo para
     // distinguir entre partidas distintas.
     const id = `e${i}-${draft.seed}`;
@@ -285,8 +325,11 @@ export function finalizeBlockA(
       sex,
       casta: CASTA.ELEGIDO,
       linaje: LINAJE.TRAMUNTANA,
+      vocation,
+      attributes,
+      genes: makePurifiedGenes(attributes, LINAJE.TRAMUNTANA),
       archetype: arch,
-      stats: { supervivencia: 85 + (jitter.value % 5), socializacion: 70, proposito: 100 },
+      stats: { supervivencia: 85 + (jitter.value % 5), socializacion: 70, proposito: 100, miedo: 0 },
       skills,
       position: { x: 0, y: 0 }, // Sprint 2.3+ colocará al spawn del clan.
       visionRadius: 6,
@@ -294,7 +337,7 @@ export function finalizeBlockA(
       traits: [],
       birthTick: 0,
       alive: true,
-      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
       equippedItemId: null,
       lastReproducedTick: null,
     };
@@ -347,6 +390,7 @@ export interface FollowerCandidate {
   sex: Sex;
   linaje: Linaje;
   stats: { supervivencia: number; socializacion: number };
+  attributes: NPCAttributes;
   skills: {
     hunting: number;
     gathering: number;
@@ -417,11 +461,23 @@ export function generateCandidates(
     prng = sk4.next;
     const sk5 = nextInt(prng, klo, khi + 1);
     prng = sk5.next;
+
+    // Atributos ADN: influenciados por el tier (statRange define la calidad general)
+    const [alo, ahi] = tierDef.statRange;
+    const a1 = nextInt(prng, alo - 10, ahi + 1); prng = a1.next;
+    const a2 = nextInt(prng, alo - 10, ahi + 1); prng = a2.next;
+    const a3 = nextInt(prng, alo - 10, ahi + 1); prng = a3.next;
+
     out.push({
       id: `c-${tier}-${pantalla}-${i}-${baseSeed}`,
       sex,
       linaje: ljR.value,
       stats: { supervivencia: sv.value, socializacion: so.value },
+      attributes: {
+        strength: Math.max(10, Math.min(100, a1.value)),
+        dexterity: Math.max(10, Math.min(100, a2.value)),
+        wisdom: Math.max(10, Math.min(100, a3.value)),
+      },
       skills: {
         hunting: sk1.value,
         gathering: sk2.value,
@@ -452,6 +508,21 @@ export function pickFollower(
     throw new Error('ya seleccionados 10 Ciudadanos');
   }
   return { ...state, picks: [...state.picks, candidate] };
+}
+
+/** Asigna una Vocación inicial a un Ciudadano basada en su Maestría más alta. */
+function bestSkillToVocation(skills: NPC['skills']): Vocation {
+  const entries = Object.entries(skills) as Array<[keyof NPC['skills'], number]>;
+  const best = entries.reduce((prev, curr) => curr[1] > prev[1] ? curr : prev);
+  
+  switch (best[0]) {
+    case 'healing':   return VOCATION.SABIO;
+    case 'hunting':   return VOCATION.GUERRERO;
+    case 'gathering': 
+    case 'fishing':
+    case 'crafting':  return VOCATION.SIMPLEZAS;
+    default:          return VOCATION.SIMPLEZAS;
+  }
 }
 
 export function finalizeBlockB(
@@ -487,8 +558,11 @@ export function finalizeBlockB(
         sex: c.sex,
         casta: CASTA.CIUDADANO,
         linaje: c.linaje,
+        vocation: bestSkillToVocation(c.skills),
+        attributes: c.attributes,
+        genes: makePurifiedGenes(c.attributes, c.linaje),
         archetype: null,
-        stats: { ...c.stats, proposito: 100 },
+        stats: { ...c.stats, proposito: 100, miedo: 0 },
         skills: c.skills,
         position: { x: 0, y: 0 }, // Colocado al spawn del clan en Sprint 2.5+.
         visionRadius: 6,
@@ -496,7 +570,7 @@ export function finalizeBlockB(
         traits: [],
         birthTick: 0,
         alive: true,
-        inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+        inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
         equippedItemId: null,
         lastReproducedTick: null,
       };

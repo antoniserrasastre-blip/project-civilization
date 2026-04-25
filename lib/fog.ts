@@ -49,9 +49,13 @@ function bitIndex(width: number, x: number, y: number): number {
   return y * width + x;
 }
 
-export function isDiscovered(fog: FogState, x: number, y: number): boolean {
+export function decodeFogBitmap(bitmap: string): Uint8Array {
+  return decodeBase64(bitmap);
+}
+
+export function isDiscovered(fog: FogState, x: number, y: number, decodedBuffer?: Uint8Array): boolean {
   if (x < 0 || y < 0 || x >= fog.width || y >= fog.height) return false;
-  const bytes = decodeBase64(fog.bitmap);
+  const bytes = decodedBuffer ?? decodeBase64(fog.bitmap);
   const idx = bitIndex(fog.width, x, y);
   return (bytes[idx >> 3] & (1 << (idx & 7))) !== 0;
 }

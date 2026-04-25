@@ -100,12 +100,16 @@ function markCoastline(tiles: TileId[], width: number, height: number): void {
     for (let x = 0; x < width; x++) {
       const idx = y * width + x;
       const t = tiles[idx];
-      if (t !== TILE.GRASS && t !== TILE.SAND && t !== TILE.SAND_TROPICAL && t !== TILE.GRASS_SABANA) continue;
+      // Shore puede aparecer en arena y hierba (toda la costa), 
+      // pero NUNCA en bosques o montañas (para preservar recursos).
+      if (t !== TILE.SAND && t !== TILE.SAND_TROPICAL && t !== TILE.GRASS && t !== TILE.GRASS_SABANA) continue;
+      
       let isOnCoast = false;
       for (const n of neighbors) {
         const nx = x + n.dx; const ny = y + n.dy;
         if (nx < 0 || nx >= width || ny < 0 || ny >= height) continue;
         const nt = tiles[ny * width + nx];
+        // En este caso, permitimos que cualquier tipo de agua cree una orilla visual.
         if (nt === TILE.WATER || nt === TILE.SHALLOW_WATER) { isOnCoast = true; break; }
       }
       if (isOnCoast) toShore.push(idx);

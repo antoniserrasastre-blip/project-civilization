@@ -79,7 +79,8 @@ export type GratitudeEventType =
   | 'first_craft'
   | 'day_without_deaths'
   | 'day_saciated'
-  | 'day_social';
+  | 'day_social'
+  | 'storytelling';
 
 export interface GratitudeEvent {
   type: GratitudeEventType;
@@ -112,6 +113,7 @@ export const GRATITUDE_EVENT_VALUES: Record<
   day_without_deaths: { base: 5, domain: 'resiliencia' },
   day_saciated: { base: 5, domain: 'supervivencia' },
   day_social: { base: 2, domain: 'social_linaje' },
+  storytelling: { base: 2, domain: 'resiliencia' },
 };
 
 /** Dominios afines a cada susurro. ESPERANZA se trata aparte

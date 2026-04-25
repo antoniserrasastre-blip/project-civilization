@@ -21,8 +21,11 @@ import {
   type ResourceSpawn,
   type WorldMap,
   type TileId,
+  type Animal,
+  type ClimateState,
 } from '@/lib/world-state';
 import type { NPC } from '@/lib/npcs';
+import { SEASON } from '@/lib/climate';
 import type { BuildProject, Structure } from '@/lib/structures';
 import type { FogState } from '@/lib/fog';
 import type { Edge } from '@/lib/relations';
@@ -307,6 +310,51 @@ function drawItemOverlay(
   if (itemImg && itemImg.complete) {
     // La herramienta se posiciona sutilmente a un lado (mano)
     ctx.drawImage(itemImg, cx + size * 0.15, cy + size * 0.05, size * 0.7, size * 0.7);
+  }
+}
+
+function renderAnimals(
+  ctx: CanvasRenderingContext2D,
+  animals: readonly Animal[],
+  dims: ViewportDims,
+  state: ViewportState,
+  fog: FogState | undefined,
+  fogBuffer: Uint8Array | null,
+  sprites?: SpriteMap,
+) {
+  const tilePx = dims.tileSize * state.zoom;
+  
+  const kindToSprite: Record<string, string> = { 
+    boar: 'ANIMAL_BOAR', 
+    wolf: 'ANIMAL_WOLF', 
+    bear: 'ANIMAL_BEAR' 
+  };
+
+  for (const a of animals) {
+    if (!a.alive) continue;
+    
+    if (fog && fogBuffer && !fogDiscovered(fogBuffer, fog.width, a.x, a.y)) continue;
+
+    const cx = a.x * tilePx + state.offsetX + tilePx / 2;
+    const cy = a.y * tilePx + state.offsetY + tilePx / 2;
+    const size = tilePx * (a.kind === 'bear' ? 0.8 : 0.6);
+
+    const spriteKey = kindToSprite[a.kind];
+    const img = sprites?.get(spriteKey);
+
+    if (img && img.complete && img.naturalWidth > 0) {
+      ctx.save();
+      ctx.translate(cx, cy);
+      // Animación simple de respiración/balanceo
+      const pulse = 1 + 0.05 * Math.sin(performance.now() / 300 + a.x);
+      ctx.scale(pulse, pulse);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    } else {
+      // Fallback si el sprite no ha cargado
+      const colors: Record<string, string> = { boar: '#8a5a2b', wolf: '#71797E', bear: '#2a1b13' };
+      drawCircle(ctx, cx, cy, size / 2, colors[a.kind], '#000', 1);
+    }
   }
 }
 
@@ -927,12 +975,18 @@ function renderResources(
   state: ViewportState,
   world: WorldMap,
   resourceSprites: ResourceSpriteMap = new Map(),
+  fog?: FogState,
+  fogBuffer?: Uint8Array | null,
 ) {
   const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
   const size = Math.max(7, Math.min(20, tilePx * 1.05));
   for (const resource of resources) {
     if (resource.quantity <= 0) continue;
     if (resource.x < firstX || resource.x >= lastX || resource.y < firstY || resource.y >= lastY) continue;
+
+    // CULLING DE NIEBLA: No dibujar recursos ocultos
+    if (fog && fogBuffer && !fogDiscovered(fogBuffer, fog.width, resource.x, resource.y)) continue;
+
     const cx = resource.x * tilePx + state.offsetX + tilePx / 2;
     const cy = resource.y * tilePx + state.offsetY + tilePx / 2;
     const img = resourceSprites.get(resource.id);
@@ -950,13 +1004,19 @@ function renderResources(
 const _tileBitmapCache = new Map<string, HTMLCanvasElement>();
 
 function getTileBitmap(tile: TileId | string, tileW: number, sprite: HTMLImageElement): HTMLCanvasElement {
-  const key = `${tile}@${tileW}`;
+  // Estabilizamos el tamaño para no saturar la RAM con miles de versiones del mismo tile
+  const stableW = tileW > 32 ? Math.round(tileW / 8) * 8 : Math.max(1, Math.round(tileW / 2) * 2);
+  const key = `${tile}@${stableW}`;
   let bmp = _tileBitmapCache.get(key);
   if (!bmp) {
     bmp = document.createElement('canvas');
-    bmp.width = tileW;
-    bmp.height = tileW;
-    bmp.getContext('2d')?.drawImage(sprite, 0, 0, tileW, tileW);
+    bmp.width = stableW;
+    bmp.height = stableW;
+    const bctx = bmp.getContext('2d');
+    if (bctx) {
+      bctx.imageSmoothingEnabled = false;
+      bctx.drawImage(sprite, 0, 0, stableW, stableW);
+    }
     _tileBitmapCache.set(key, bmp);
   }
   return bmp;
@@ -964,18 +1024,19 @@ function getTileBitmap(tile: TileId | string, tileW: number, sprite: HTMLImageEl
 
 function getShoreRotation(x: number, y: number, world: WorldMap): number {
   const neighbors = [
-    { dx: 0, dy: -1, angle: 0 },         // N
-    { dx: 1, dy: 0, angle: Math.PI / 2 }, // E
-    { dx: 0, dy: 1, angle: Math.PI },     // S
-    { dx: -1, dy: 0, angle: -Math.PI / 2 }, // W
+    { dx: 0, dy: 1, angle: 0 },          // Agua al SUR (base del asset)
+    { dx: -1, dy: 0, angle: Math.PI / 2 }, // Agua al OESTE
+    { dx: 0, dy: -1, angle: Math.PI },     // Agua al NORTE
+    { dx: 1, dy: 0, angle: -Math.PI / 2 }, // Agua al ESTE
   ];
 
   for (const n of neighbors) {
     const nx = x + n.dx;
     const ny = y + n.dy;
-    if (nx < 0 || nx >= world.width || ny < 0 || ny >= world.height) continue;
-    const t = world.tiles[ny * world.width + nx];
-    if (t === TILE.WATER || t === TILE.SHALLOW_WATER) return n.angle;
+    const isWater = nx < 0 || nx >= world.width || ny < 0 || ny >= world.height || 
+                    world.tiles[ny * world.width + nx] === TILE.WATER || 
+                    world.tiles[ny * world.width + nx] === TILE.SHALLOW_WATER;
+    if (isWater) return n.angle;
   }
   return 0;
 }
@@ -986,6 +1047,8 @@ function renderTiles(
   dims: ViewportDims,
   state: ViewportState,
   tileSprites?: TileSpriteMap,
+  fog?: FogState,
+  fogBuffer?: Uint8Array | null,
 ) {
   const { screenWidth, screenHeight } = dims;
   ctx.clearRect(0, 0, screenWidth, screenHeight);
@@ -995,19 +1058,21 @@ function renderTiles(
 
   for (let y = firstY; y < lastY; y++) {
     for (let x = firstX; x < lastX; x++) {
+      // CULLING DE NIEBLA: Si el tile está oculto, saltamos el renderizado pesado
+      if (fog && fogBuffer && !fogDiscovered(fogBuffer, fog.width, x, y)) continue;
+
       const tile = world.tiles[y * world.width + x] as TileId;
       const variant = getTileVariant(tile, x, y, world.seed, world);
       const sx = x * tilePx + state.offsetX;
       const sy = y * tilePx + state.offsetY;
 
-      // Render de sombras para objetos altos (Sprint 14.5)
+      // Render de sombras ...
       const isMountain = tile === TILE.MOUNTAIN || tile === TILE.MOUNTAIN_SNOW || tile === TILE.MOUNTAIN_VOLCANO;
       const isTree = tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL;
       
       if ((isMountain || isTree) && tileSprites?.has('shadow')) {
         const shadowSprite = tileSprites.get('shadow')!;
         if (shadowSprite.complete && shadowSprite.naturalWidth > 0) {
-          // Desplazamiento sutil según el zoom (tilePx)
           const offset = tilePx * 0.12; 
           ctx.globalAlpha = 0.35;
           ctx.drawImage(getTileBitmap('shadow', tileW, shadowSprite), sx + offset, sy + offset);
@@ -1055,6 +1120,56 @@ function fogDiscovered(
   return (bytes[idx >> 3] & (1 << (idx & 7))) !== 0;
 }
 
+// Caché persistente para la textura de la niebla
+const _fogTextureCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
+
+function updateFogTexture(fog: FogState, bytes: Uint8Array) {
+  if (!_fogTextureCanvas) return;
+  const { width: W, height: H } = fog;
+  if (_fogTextureCanvas.width !== W || _fogTextureCanvas.height !== H) {
+    _fogTextureCanvas.width = W;
+    _fogTextureCanvas.height = H;
+  }
+  const fctx = _fogTextureCanvas.getContext('2d');
+  if (!fctx) return;
+
+  const imgData = fctx.createImageData(W, H);
+  const data = imgData.data;
+  for (let i = 0; i < W * H; i++) {
+    const isVis = (bytes[i >> 3] & (1 << (i & 7))) !== 0;
+    const idx = i * 4;
+    // Color de la niebla (#16110c)
+    data[idx] = 22; data[idx + 1] = 17; data[idx + 2] = 12;
+    data[idx + 3] = isVis ? 0 : 220; // 0.86 opacity
+  }
+  fctx.putImageData(imgData, 0, 0);
+}
+
+function renderFogOverlayWithBuffer(
+  ctx: CanvasRenderingContext2D,
+  fog: FogState | undefined,
+  bytes: Uint8Array | null,
+  dims: ViewportDims,
+  state: ViewportState,
+  world: WorldMap,
+) {
+  if (!fog || !bytes || !_fogTextureCanvas) return;
+
+  const oldSmoothing = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false; // Look pixelado para la niebla
+  
+  const tilePx = dims.tileSize * state.zoom;
+  ctx.drawImage(
+    _fogTextureCanvas,
+    state.offsetX,
+    state.offsetY,
+    fog.width * tilePx,
+    fog.height * tilePx
+  );
+  
+  ctx.imageSmoothingEnabled = oldSmoothing;
+}
+
 function renderFogOverlay(
   ctx: CanvasRenderingContext2D,
   fog: FogState | undefined,
@@ -1064,27 +1179,7 @@ function renderFogOverlay(
 ) {
   if (!fog) return;
   const bytes = decodeFogBitmap(fog.bitmap);
-  if (!bytes) return;
-  const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(
-    dims,
-    state,
-    world,
-  );
-
-  ctx.fillStyle = MAP_STYLE.fog.hidden;
-  for (let y = firstY; y < lastY; y++) {
-    for (let x = firstX; x < lastX; x++) {
-      if (fogDiscovered(bytes, fog.width, x, y)) continue;
-      const sx = x * tilePx + state.offsetX;
-      const sy = y * tilePx + state.offsetY;
-      ctx.fillRect(sx, sy, Math.ceil(tilePx), Math.ceil(tilePx));
-      if ((x + y) % 7 === 0 && tilePx >= 6) {
-        ctx.fillStyle = MAP_STYLE.fog.seam;
-        ctx.fillRect(sx, sy, Math.ceil(tilePx), 1);
-        ctx.fillStyle = MAP_STYLE.fog.hidden;
-      }
-    }
-  }
+  renderFogOverlayWithBuffer(ctx, fog, bytes, dims, state, world);
 }
 
 function relationColor(type: Edge['type']): string {
@@ -1320,6 +1415,8 @@ export interface MapViewProps {
    *  tablero. Elegidos como diamante amarillo; Ciudadanos como
    *  círculo blanco. */
   npcs?: readonly NPC[];
+  /** Fauna hostil y pacífica del mundo salvaje. */
+  animals?: readonly Animal[];
   /** Crafteables materializados en el mundo: fogata, refugio,
    *  despensa, etc. Se pintan bajo los NPCs. */
   structures?: readonly Structure[];
@@ -1337,6 +1434,8 @@ export interface MapViewProps {
    *  oficio refleje el rol activo (Sprint 10) en vez del arquetipo
    *  fijo del drafting. Con array vacío, el color deriva de skills. */
   items?: readonly EquippableItem[];
+  /** Sistema de clima para overlays visuales. */
+  climate?: ClimateState;
   /** Callback al clickear un NPC. Sprint FICHA-AVENTURERO lo
    *  conectará a la card; de momento sirve para que `app/page.tsx`
    *  pueda loggear o ignorar. */
@@ -1363,12 +1462,14 @@ export function MapView({
   world = WORLD,
   fog,
   npcs = [],
+  animals = [],
   structures = [],
   buildProject = null,
   intentTrails = [],
   npcStatuses = [],
   relations = [],
   items = [],
+  climate,
   onNpcClick,
   initialCenter,
   tickIntervalMs = 250,
@@ -1384,6 +1485,20 @@ export function MapView({
   // Se regenera cuando el viewport cambia; se blit-ea cada frame.
   const tileLayerRef = useRef<HTMLCanvasElement | null>(null);
   const tileLayerDirtyRef = useRef(true);
+  
+  // OPTIMIZACIÓN: Buffer de niebla cacheado para evitar decodeBase64 en cada frame
+  const fogBufferRef = useRef<Uint8Array | null>(null);
+  const lastFogBitmapRef = useRef<string | null>(null);
+  const isVisibleRef = useRef(true);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === 'visible';
+      if (isVisibleRef.current) tileLayerDirtyRef.current = true;
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, []);
   // Interpolación de movimiento: guardamos posiciones anteriores de los
   // NPCs y el timestamp del último tick para calcular el factor de lerp.
   const prevNpcPosRef = useRef<Map<string, { x: number; y: number }>>(
@@ -1396,7 +1511,7 @@ export function MapView({
   // Refs de render state para el loop RAF (evita closures stale).
   const renderPropsRef = useRef({
     world, fog, structures, buildProject, intentTrails,
-    npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
+    npcStatuses, relations, relationsLayerOn, items, npcs, animals, sprites, resourceSprites, tileSprites, climate,
   });
   const [dims, setDims] = useState<ViewportDims>({
     worldWidth: world.width,
@@ -1483,7 +1598,7 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs, sprites, resourceSprites, tileSprites,
+      npcStatuses, relations, relationsLayerOn, items, npcs, animals, sprites, resourceSprites, tileSprites,
     };
   });
 
@@ -1499,9 +1614,25 @@ export function MapView({
     tileLayerDirtyRef.current = true;
     let rafId: number;
     const loop = () => {
+      // OPTIMIZACIÓN: Si la pestaña no es visible, no renderizamos nada
+      if (!isVisibleRef.current) {
+        rafId = requestAnimationFrame(loop);
+        return;
+      }
+
       const canvas = canvasRef.current;
       if (!canvas) { rafId = requestAnimationFrame(loop); return; }
       const rp = renderPropsRef.current;
+
+      // OPTIMIZACIÓN: Actualizar buffer de niebla y textura solo si cambia el bitmap
+      if (rp.fog && rp.fog.bitmap !== lastFogBitmapRef.current) {
+        const bytes = decodeFogBitmap(rp.fog.bitmap);
+        fogBufferRef.current = bytes;
+        lastFogBitmapRef.current = rp.fog.bitmap;
+        updateFogTexture(rp.fog, bytes); // Actualizar textura estática
+        tileLayerDirtyRef.current = true; // Invalidar el layer estático
+      }
+
       const ctx = canvas.getContext('2d');
       if (!ctx) { rafId = requestAnimationFrame(loop); return; }
 
@@ -1552,25 +1683,42 @@ export function MapView({
         }
         const tlCtx = tileLayer.getContext('2d');
         if (tlCtx) {
-          renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites);
-          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites);
-          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, sprites); // Usar 'sprites' del hook
-          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
-          renderFogOverlay(tlCtx, rp.fog, currentDims, currentViewport, rp.world);
+          renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites, rp.fog, fogBufferRef.current);
+          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites, rp.fog, fogBufferRef.current);          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, sprites); // Usar 'sprites' del hook          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
+          // OPTIMIZACIÓN: Usamos el buffer cacheado
+          renderFogOverlayWithBuffer(tlCtx, rp.fog, fogBufferRef.current, currentDims, currentViewport, rp.world);
           if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);
-        }
-        tileLayerDirtyRef.current = false;
+          }        tileLayerDirtyRef.current = false;
       }
 
       // Blit del layer estático (una sola operación GPU por frame).
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(tileLayer, 0, 0);
 
+      // ── Overlay de Estaciones (Sprint Clima) ──
+      if (rp.climate) {
+        let overlayColor = '';
+        switch (rp.climate.season) {
+          case SEASON.SPRING: overlayColor = 'rgba(100, 255, 120, 0.05)'; break;
+          case SEASON.SUMMER: overlayColor = 'rgba(255, 220, 100, 0.07)'; break;
+          case SEASON.AUTUMN: overlayColor = 'rgba(180, 100, 40, 0.10)'; break;
+          case SEASON.WINTER: overlayColor = 'rgba(200, 230, 255, 0.12)'; break;
+        }
+        if (overlayColor) {
+          ctx.fillStyle = overlayColor;
+          ctx.fillRect(0, 0, W, H);
+        }
+      }
+
       // ── Layer dinámico (relaciones, trails, NPCs) — siempre fresco ──
       if (rp.relationsLayerOn) {
         renderRelationsLayer(ctx, rp.relations, lerpedPlacements, currentDims);
       }
       renderIntentTrails(ctx, rp.intentTrails, currentDims, currentViewport);
+
+      // Render de la fauna
+      renderAnimals(ctx, rp.animals, currentDims, currentViewport, rp.fog, fogBufferRef.current, rp.sprites);
+
       // Set de tiles con recursos activos para detectar cosecha
       const resourceTileSet = new Set(
         rp.world.resources.filter((r) => r.quantity > 0).map((r) => r.y * rp.world.width + r.x),

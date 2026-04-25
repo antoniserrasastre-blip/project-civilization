@@ -86,8 +86,13 @@ export interface BuildHudStatus {
   };
 }
 
+import { TimeOrbit } from './TimeOrbit';
+import type { ClimateState } from '@/lib/world-state';
+
 export interface HUDProps {
   day: number;
+  tick: number;
+  climate: ClimateState;
   gratitude: number;
   faith: number;
   activeMessage: MessageChoice | null;
@@ -107,6 +112,7 @@ export interface HUDProps {
   paused: boolean;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
+  onOpenCodex: () => void;
   godType?: string;
   currentWind?: string;
   unlockedKinds?: string[];
@@ -181,6 +187,8 @@ function FaithBar({ faith }: { faith: number }) {
 
 export function HUD({
   day,
+  tick,
+  climate,
   gratitude,
   faith,
   activeMessage,
@@ -190,11 +198,12 @@ export function HUD({
   monumentProgress,
   village,
   buildStatus,
-  communalInventory = { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+  communalInventory = { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
   activeSynergies = [],
   paused,
   onTogglePause,
   onOpenWhisper,
+  onOpenCodex,
   godType = 'stone',
   currentWind = 'Tramuntana',
   unlockedKinds = [],
@@ -255,9 +264,9 @@ export function HUD({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex flex-col justify-between p-4 font-monospace uppercase tracking-wider">
-      {/* Superior: Identidad y Recursos */}
+      {/* SUPERIOR: Info Divina y Tiempo */}
       <div className="flex w-full items-start justify-between">
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex gap-4 items-start">
           <DivineHeader
             godType={godType as any}
             faith={faith}
@@ -266,58 +275,64 @@ export function HUD({
             maxGratitude={GRATITUDE_CEILING}
             currentWind={currentWind}
           />
+          <button 
+            onClick={onOpenCodex}
+            className="pixel-box bg-stone-900/90 p-3 text-wb-gold hover:bg-stone-800 transition-colors pointer-events-auto flex flex-col items-center gap-1 border-wb-gold/30"
+          >
+            <span className="text-[10px] font-black italic">Códice</span>
+            <span className="text-[8px] opacity-60 font-bold">Tribu</span>
+          </button>
         </div>
 
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <ResourceMonitor resources={resources} />
+        <div className="flex flex-col items-end gap-3">
+          <TimeOrbit tick={tick} climate={climate} />
           {showProgress && monumentProgress < 100 && (
-            <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200">
-              Obra del Monumento: {Math.round((monumentProgress / 480) * 100)}%
+            <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 pointer-events-auto border-amber-500/20">
+              Obra Monumental: {Math.round((monumentProgress / 480) * 100)}%
             </div>
           )}
         </div>
       </div>
 
-      {/* Lateral: Eurekas */}
-      <div className="pointer-events-auto absolute right-4 top-40">
+      {/* LATERAL: Eurekas */}
+      <div className="pointer-events-auto absolute right-4 top-48">
         <EurekaToast events={eurekaEvents} onDismiss={onDismissEureka} />
       </div>
 
-      {/* Inferior: Control y Sinergias */}
+      {/* INFERIOR: Recursos y Controles */}
       <div className="flex w-full items-end justify-between">
-        <div className="pointer-events-auto flex flex-col gap-4">
-          {/* Sinergies Actives */}
+        <div className="pointer-events-auto flex flex-col gap-3">
+           <ResourceMonitor resources={resources} />
+           
+           <div className="flex gap-2">
+             <button
+                onClick={onOpenWhisper}
+                className="pixel-box bg-stone-800/90 px-4 py-2 text-sm text-amber-200 transition-colors hover:bg-stone-700"
+              >
+                {activeMessage ? `Susurro: ${WHISPER_ES[activeMessage]}` : 'Hablar al clan'}
+              </button>
+              <button
+                onClick={onTogglePause}
+                className="pixel-box bg-stone-800/90 px-4 py-2 text-sm text-stone-300 transition-colors hover:bg-stone-700"
+              >
+                {paused ? '▶' : '⏸'}
+              </button>
+           </div>
+        </div>
+
+        <div className="text-right pointer-events-auto flex flex-col items-end gap-1">
           {activeSynergies.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-cyan-400 opacity-70">Sinergies actives</span>
-              <div className="flex gap-2">
-                {activeSynergies.map((s) => (
-                  <div key={s.id} className="pixel-box bg-cyan-900/40 px-2 py-1 text-[10px] text-cyan-300">
+            <div className="flex gap-1 mb-2">
+               {activeSynergies.map((s) => (
+                  <div key={s.id} className="pixel-box bg-cyan-900/40 px-2 py-1 text-[8px] text-cyan-300 border-cyan-500/30">
                     ⚡ {SYNERGY_CATALOG[s.id].name}
                   </div>
                 ))}
-              </div>
             </div>
           )}
-
-          <div className="flex gap-3">
-            <button
-              onClick={onOpenWhisper}
-              className="pixel-box bg-stone-800 px-4 py-2 text-sm text-amber-200 transition-colors hover:bg-stone-700"
-            >
-              {activeMessage ? `Susurro: ${WHISPER_ES[activeMessage]}` : 'Hablar al clan'}
-            </button>
-            <button
-              onClick={onTogglePause}
-              className="pixel-box bg-stone-800 px-4 py-2 text-sm text-stone-300 transition-colors hover:bg-stone-700"
-            >
-              {paused ? '▶ Continuar' : '⏸ Pausar'}
-            </button>
+          <div className="bg-black/40 px-2 py-1 rounded text-[10px] text-stone-300 backdrop-blur-sm border border-white/5 lowercase">
+             Tribu Viva: <span className="font-bold text-white uppercase">{aliveCount}</span> / {totalCount}
           </div>
-        </div>
-
-        <div className="text-right text-[10px] text-stone-500">
-          Día {day} · Hijos vivos: {aliveCount}/{totalCount}
         </div>
       </div>
       

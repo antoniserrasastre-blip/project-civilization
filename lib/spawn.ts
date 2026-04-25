@@ -96,8 +96,23 @@ export function pickClanSpawn(
     const { value: vIdx } = nextInt(prng0, 0, viableIslands.length);
     selectedIdx = viableIslands[vIdx].idx;
   } else {
-    // Si no hay viables, la más grande por seguridad
-    selectedIdx = islands.reduce((prev, current, idx) => islands[prev].tiles.length > current.tiles.length ? prev : idx, 0);
+    // FALLBACK ROBUSTO: Elegir la isla que tenga MÁS BOSQUES, 
+    // sin importar su tamaño total, para garantizar madera inicial.
+    let bestIdx = 0;
+    let maxForests = -1;
+    for (let i = 0; i < islands.length; i++) {
+      const fCount = islands[i].tiles.filter(t => world.tiles[t.y * world.width + t.x] === TILE.FOREST).length;
+      if (fCount > maxForests) {
+        maxForests = fCount;
+        bestIdx = i;
+      } else if (fCount === maxForests) {
+        // Empate en bosques: la más grande
+        if (islands[i].tiles.length > islands[bestIdx].tiles.length) {
+          bestIdx = i;
+        }
+      }
+    }
+    selectedIdx = bestIdx;
   }
 
   const isle = islands[selectedIdx];

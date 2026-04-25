@@ -6,7 +6,8 @@
  * §A4: puro, determinista, retorna objeto JSON-roundtrippable.
  */
 
-import type { NPC } from './npcs';
+import type { NPC, Linaje } from './npcs';
+import { LINAJE } from './npcs';
 import { TICKS_PER_DAY } from './resources';
 
 export interface NpcBiography {
@@ -19,6 +20,38 @@ export interface NpcBiography {
   parentNames: [string, string] | null;
   /** Nº de NPCs cuyo campo `parents` incluye al NPC referido. */
   childrenCount: number;
+  /** Descripción de la herencia genética. */
+  geneticTrait: string;
+}
+
+const LINAJE_DESCRIPTORS: Record<Linaje, string> = {
+  [LINAJE.TRAMUNTANA]: 'la montaña',
+  [LINAJE.LLEVANT]: 'el mar',
+  [LINAJE.MIGJORN]: 'el sol',
+  [LINAJE.PONENT]: 'el poniente',
+  [LINAJE.XALOC]: 'el fuego',
+  [LINAJE.MESTRAL]: 'el bosque',
+  [LINAJE.GREGAL]: 'la tormenta',
+  [LINAJE.GARBI]: 'los valles',
+};
+
+function describeGenetics(npc: NPC): string {
+  const { a, b } = npc.genes.linaje;
+  const descA = LINAJE_DESCRIPTORS[a.value];
+  const descB = LINAJE_DESCRIPTORS[b.value];
+
+  if (a.value === b.value) {
+    return `Sangre pura de ${descA}`;
+  }
+
+  if (a.dominant && !b.dominant) {
+    return `Linaje dominante de ${descA} con trazas de ${descB}`;
+  }
+  if (!a.dominant && b.dominant) {
+    return `Linaje dominante de ${descB} con trazas de ${descA}`;
+  }
+
+  return `Híbrido de ${descA} y ${descB}`;
 }
 
 export function buildNpcBiography(
@@ -43,5 +76,7 @@ export function buildNpcBiography(
     if (other.parents && other.parents.includes(npc.id)) childrenCount++;
   }
 
-  return { bornDay, ageDays, parentNames, childrenCount };
+  const geneticTrait = describeGenetics(npc);
+
+  return { bornDay, ageDays, parentNames, childrenCount, geneticTrait };
 }

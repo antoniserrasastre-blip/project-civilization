@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Agua (Esquina inferior derecha / SE) -->
+  <rect width="32" height="32" fill="#00bfff"/>
+  <!-- Arena (Triángulo superior izquierdo / NW) -->
+  <path d="M0 0 L32 0 L0 32 Z" fill="#f4a460"/>
+  <!-- Espuma en la diagonal (Línea de costa) -->
+  <path d="M32 0 L0 32" stroke="#00f2ff" stroke-width="2" opacity="0.8"/>
+  <rect x="14" y="14" width="4" height="4" fill="#fff" opacity="0.4"/>
+</svg>

@@ -34,6 +34,7 @@ export const SPRITE_KEY = {
   ANIMAL_PANTHER: 'ANIMAL_PANTHER',
   ANIMAL_TURTLE:  'ANIMAL_TURTLE',
   ANIMAL_WOLF:    'ANIMAL_WOLF',
+  ANIMAL_BEAR:    'ANIMAL_BEAR',
   // Dioses (Sprint 14.5)
   GOD_SEA:   'GOD_SEA',
   GOD_STONE: 'GOD_STONE',
@@ -79,6 +80,7 @@ export const SPRITE_URLS: Record<string, string> = {
   ANIMAL_PANTHER: '/units/animal_panther.svg',
   ANIMAL_TURTLE:  '/units/animal_turtle.svg',
   ANIMAL_WOLF:    '/units/animal_wolf.svg',
+  ANIMAL_BEAR:    '/units/animal_bear.svg',
   // Dioses
   GOD_SEA:   '/ui/god_portrait_sea.svg',
   GOD_STONE: '/ui/god_portrait_stone.svg',

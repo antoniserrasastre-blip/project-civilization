@@ -126,9 +126,9 @@ describe('birthNPC', () => {
     expect(npc.birthTick).toBe(250);
   });
 
-  it('hereda el linaje del padre', () => {
+  it('hereda el linaje de uno de los padres', () => {
     const { npc } = birthNPC(father, mother, 100, prng0, new Set());
-    expect(npc.linaje).toBe(LINAJE.TRAMUNTANA);
+    expect([LINAJE.TRAMUNTANA, LINAJE.LLEVANT]).toContain(npc.linaje);
   });
 
   it('hereda la casta de los padres (misma casta)', () => {
@@ -136,11 +136,11 @@ describe('birthNPC', () => {
     expect(npc.casta).toBe(CASTA.CIUDADANO);
   });
 
-  it('hijo de Elegido × Ciudadano nace como Ciudadano', () => {
+  it('hijo de Elegido × Ciudadano nace como Elegido', () => {
     const elegido = makeM('e1', { casta: CASTA.ELEGIDO });
     const ciudadana = makeF('c1', { casta: CASTA.CIUDADANO });
     const { npc } = birthNPC(elegido, ciudadana, 100, prng0, new Set());
-    expect(npc.casta).toBe(CASTA.CIUDADANO);
+    expect(npc.casta).toBe(CASTA.ELEGIDO);
   });
 
   it('skills del hijo están entre [padre - 5, padre + 5] (heurística herencia)', () => {

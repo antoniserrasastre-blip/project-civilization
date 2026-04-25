@@ -29,15 +29,18 @@ import {
   startFollowerDraft,
 } from './drafting';
 
-/** picks canónicos de Bloque A — budget 10 exacto. */
+/** picks canónicos de Bloque A — budget 10 exacto. 
+ *  Mapeo de almas: Líder (Ambicioso), Cazador (Guerrero), 
+ *  Artesano (Sabio), Recolector (Simplezas). 
+ */
 const BLOCK_A_PICKS: Array<{
   archetype: (typeof ARCHETYPE)[keyof typeof ARCHETYPE];
   sex: (typeof SEX)[keyof typeof SEX];
 }> = [
-  { archetype: ARCHETYPE.CAZADOR, sex: SEX.M },
-  { archetype: ARCHETYPE.CAZADOR, sex: SEX.F },
-  { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M },
-  { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.F },
+  { archetype: ARCHETYPE.ARTESANO,  sex: SEX.M }, // SABIO (Coste 3)
+  { archetype: ARCHETYPE.CAZADOR,   sex: SEX.F }, // GUERRERO (Coste 3)
+  { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M }, // SIMPLEZAS (Coste 2)
+  { archetype: ARCHETYPE.PESCADOR,   sex: SEX.F }, // SIMPLEZAS (Coste 2)
 ];
 
 /** Orden canónico de picks por tier (decisión #3: 3+3+2+2). */

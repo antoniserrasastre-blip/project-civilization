@@ -65,6 +65,8 @@ export interface NPCStats {
   /** Tercera pulsión: ganas de trabajar / ambición.
    *  Baja al trabajar, sube al descansar o por milagros. */
   proposito: number;
+  /** Cuarta pulsión: sensación de peligro. Aumenta en la oscuridad o lejos del fuego. */
+  miedo: number;
 }
 
 /** Skills individuales (decisión #11: herencia 50%). */
@@ -95,7 +97,49 @@ export interface NPCInventory {
   fish: number;
   obsidian: number;
   shell: number;
+  // Sprint 14.5 + Nomadismo
+  clay: number;
+  coconut: number;
+  flint: number;
+  mushroom: number;
 }
+
+/** Atributos ADN — Constitución física y mental básica (0-100). 
+ *  Representan el potencial genético y afectan al aprendizaje de Maestrías. */
+export interface NPCAttributes {
+  strength: number;    // Afecta a Crafting y Hunting
+  dexterity: number;   // Afecta a Gathering y Fishing
+  wisdom: number;      // Afecta a Healing y Eurekas
+}
+
+/** Sistema de Genes Mendelianos — §3.9 herencia real. */
+export interface Allele<T> {
+  value: T;
+  dominant: boolean;
+}
+
+export interface GenePair<T> {
+  a: Allele<T>;
+  b: Allele<T>;
+}
+
+export interface NPCGenes {
+  strength: GenePair<number>;
+  dexterity: GenePair<number>;
+  wisdom: GenePair<number>;
+  linaje: GenePair<Linaje>;
+}
+
+/** Vocaciones de Alma — Identidad profunda que define prioridades y pasiones. */
+export const VOCATION = {
+  SABIO: 'sabio',         // El Camino del Conocimiento
+  GUERRERO: 'guerrero',   // El Camino de la Sangre
+  SIMPLEZAS: 'simplezas', // El Camino de la Tierra (Productor)
+  AMBICIOSO: 'ambicioso', // El Camino del Poder (Líder)
+  CIUDADANO: 'ciudadano', // Vocación por defecto para no-elegidos
+} as const;
+
+export type Vocation = (typeof VOCATION)[keyof typeof VOCATION];
 
 /** NPC = entero individual del clan. Incluye Elegidos, Ciudadanos y
  *  Esclavos (si los hubiera — en drafting inicial no aparecen). */
@@ -107,11 +151,18 @@ export interface NPC {
   sex: Sex;
   casta: Casta;
   linaje: Linaje;
+  /** Identidad fija y prioridad de IA. */
+  vocation: Vocation;
+  /** ADN: Constitución física y mental heredable. */
+  attributes: NPCAttributes;
+  /** Genes Mendelianos. */
+  genes: NPCGenes;
   /** Arquetipo solo para Elegidos drafteados. Ciudadanos / Esclavos
    *  heredan stats del drafting sin arquetipo nominal. */
   archetype: Archetype | null;
   /** Estado actual. Se actualiza tick a tick. */
   stats: NPCStats;
+  /** Maestrías: habilidades que suben con la práctica (0-100). */
   skills: NPCSkills;
   position: Position;
   visionRadius: number;
@@ -150,20 +201,33 @@ export function updateNpcStats(npc: NPC, updates: Partial<NPCStats>): NPC {
       supervivencia: Math.max(0, Math.min(100, nextStats.supervivencia)),
       socializacion: Math.max(0, Math.min(100, nextStats.socializacion)),
       proposito:     Math.max(0, Math.min(100, nextStats.proposito ?? 100)),
+      miedo:         Math.max(0, Math.min(100, nextStats.miedo ?? 0)),
     },
+  };
+}
+
+/** Helper para generar genes purificados (homocigotos dominantes) para fundadores. */
+export function makePurifiedGenes(attributes: NPCAttributes, linaje: Linaje): NPCGenes {
+  return {
+    strength: { a: { value: attributes.strength, dominant: true }, b: { value: attributes.strength, dominant: true } },
+    dexterity: { a: { value: attributes.dexterity, dominant: true }, b: { value: attributes.dexterity, dominant: true } },
+    wisdom: { a: { value: attributes.wisdom, dominant: true }, b: { value: attributes.wisdom, dominant: true } },
+    linaje: { a: { value: linaje, dominant: true }, b: { value: linaje, dominant: true } },
   };
 }
 
 /** Helper para tests — construye un NPC con defaults razonables y
  *  overrides por nombre. No se usa en producción. */
 export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
+  const attributes = overrides.attributes ?? { strength: 50, dexterity: 50, wisdom: 50 };
+  const linaje = overrides.linaje ?? LINAJE.TRAMUNTANA;
   return {
     name: overrides.id,
     sex: SEX.M,
     casta: CASTA.CIUDADANO,
-    linaje: LINAJE.TRAMUNTANA,
+    linaje,
     archetype: null,
-    stats: { supervivencia: 80, socializacion: 60, proposito: 100 },
+    stats: { supervivencia: 80, socializacion: 60, proposito: 100, miedo: 0 },
     skills: {
       hunting: 20,
       gathering: 20,
@@ -177,9 +241,12 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     traits: [],
     birthTick: 0,
     alive: true,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
     equippedItemId: null,
     lastReproducedTick: null,
+    vocation: overrides.vocation ?? VOCATION.SIMPLEZAS,
+    attributes,
+    genes: overrides.genes ?? makePurifiedGenes(attributes, linaje),
     ...overrides,
   };
 }

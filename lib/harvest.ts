@@ -7,10 +7,12 @@ import {
   RESOURCE,
   type ResourceId,
   type ResourceSpawn,
+  type ClimateState,
 } from './world-state';
 import type { Structure } from './structures';
 import type { EquippableItem } from './items';
-import { ITEM_DEFS, calculateItemEfficiency } from './items';
+import { ITEM_DEFS, calculateItemEfficiency, evolveItem, recordItemDeed } from './items';
+import { SEASON } from './climate';
 
 export const INVENTORY_CAP_PER_TYPE = 20;
 const DESPENSA_BONUS_RADIUS = 3;
@@ -55,6 +57,7 @@ export function tickHarvests(
   worldWidth: number,
   structures: readonly Structure[] = [],
   itemsIn: readonly EquippableItem[] = [],
+  climate?: ClimateState,
 ): HarvestTickResult {
   const npcs = npcsIn.map(n => ({ ...n, inventory: { ...n.inventory } }));
   const resources = resourcesIn.map(r => ({ ...r }));
@@ -75,35 +78,50 @@ export function tickHarvests(
 
       // RECOLECCIÓN
       const idx = r.y * worldWidth + r.x;
-      const amount = Math.min(r.quantity, 2, reserves[idx]);
+      let harvestBase = 2;
+      
+      // Impacto de las Estaciones en las Bayas
+      if (r.id === RESOURCE.BERRY && climate) {
+        if (climate.season === SEASON.SUMMER) harvestBase = 4;
+        else if (climate.season === SEASON.WINTER) harvestBase = 0;
+      }
+
+      const amount = Math.min(r.quantity, harvestBase, reserves[idx]);
       if (amount <= 0) continue;
 
       npc.inventory[key] += amount;
       r.quantity -= amount;
       reserves[idx] -= amount;
 
+      // APRENDIZAJE DEL NPC (MAESTRÍA)
+      const skillToGain = r.id === RESOURCE.GAME ? 'hunting' : 
+                         r.id === RESOURCE.FISH ? 'fishing' : 'gathering';
+      
+      // La Destreza (ADN) potencia el aprendizaje
+      let learningMult = 1 + (npc.attributes.dexterity / 100) * 0.5;
+      
+      // Bonus por Vocación de Alma
+      if (npc.vocation === 'guerrero' && skillToGain === 'hunting') learningMult += 0.5;
+      if (npc.vocation === 'simplezas' && (skillToGain === 'gathering' || skillToGain === 'fishing')) learningMult += 0.5;
+      
+      const xpGain = 0.05 * learningMult;
+      npc.skills[skillToGain] = Math.min(100, npc.skills[skillToGain] + xpGain);
+
       // EVOLUCIÓN DE ARTEFACTO (XP por uso)
       if (npc.equippedItemId) {
-        const item = items.find(i => i.id === npc.equippedItemId);
-        if (item) {
+        const itemIdx = items.findIndex(i => i.id === npc.equippedItemId);
+        if (itemIdx !== -1) {
+          let item = items[itemIdx];
           const def = ITEM_DEFS[item.kind];
-          if (def.skillAffinity) { // Si la herramienta sirve para la tarea
-            item.xp += 1;
-            if (item.xp >= 10) { // LEVEL UP!
-              item.level++;
-              item.xp = 0;
-              item.durability = item.maxDurability; // Se auto-repara al subir nivel
-              
-              // ASCENSIÓN DE RANGO
-              if (item.level === 5) {
-                item.rank = 'proven';
-                item.name = `Legendaria ${def.label} de ${npc.name}`;
-              } else if (item.level === 10) {
-                item.rank = 'heroic';
-              } else if (item.level === 20) {
-                item.rank = 'legendary';
-              }
+          // Solo evoluciona si la herramienta es afín a la tarea
+          if (def.skillAffinity === skillToGain) {
+            item = evolveItem(item, npc, currentTick);
+            
+            // REGISTRO DE HAZAÑAS: Probabilidad de evento épico al cazar
+            if (skillToGain === 'hunting' && Math.random() < 0.05) {
+              item = recordItemDeed(item, `Abatió a una gran presa en solitario`, currentTick);
             }
+            items[itemIdx] = item;
           }
         }
       }

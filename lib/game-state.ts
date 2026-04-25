@@ -6,14 +6,16 @@ import type { BuildProject, Structure } from './structures';
 import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
 import { generateWorld } from './world-gen';
-import type { WorldMap } from './world-state';
+import type { WorldMap, Animal, ClimateState } from './world-state';
 import type { EquippableItem } from './items';
+import { initialClimateState } from './climate';
 import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
 
 import type { MonumentState } from './monument';
 import { initialMonumentState } from './monument';
 import type { TechId } from './technologies';
 import { initialTechState } from './technologies';
+import { initialLegendState, type LegendState } from './legends';
 
 export interface TechState {
   /** Puntos de Sabiduría acumulados. */
@@ -47,6 +49,7 @@ export const CHRONICLE_MAX = 300;
 export interface GameState {
   world: WorldMap;
   npcs: NPC[];
+  animals: Animal[];
   godType: 'sea' | 'stone' | 'wind';
   fog: FogState;
   structures: Structure[];
@@ -60,10 +63,12 @@ export interface GameState {
   village: VillageState;
   monument: MonumentState;
   chronicle: ChronicleEntry[];
+  legends: LegendState; // Sistema de Leyendas y Tradición Oral
   era: Era;
   tick: number;
   prng: PRNGState;
   tech: TechState; // Nuevo estado para tecnologías
+  climate: ClimateState; // Sistema de Clima y Estaciones
 }
 
 /** Construye una partida nueva. Los NPCs llegan drafteados (Sprint
@@ -105,7 +110,7 @@ export function initialGameState(
     // Posicionamiento dinámico del clan — Sprint 14.5
     // Encuentra la isla y el spawn costero sobre el mapa GENERADO (no el fixture).
     const islands = findIslands(world);
-    const spawn = pickClanSpawn(seed, islands);
+    const spawn = pickClanSpawn(seed, islands, world);
     const cells = pickLandCells(world, spawn.center, npcs.length);
     nextNpcs = npcs.map((n, i) => ({
       ...n,
@@ -117,9 +122,16 @@ export function initialGameState(
     world,
     npcs: nextNpcs.map((n) => ({
       ...n,
-      stats: { ...n.stats, proposito: n.stats.proposito ?? 100 },
+      stats: { 
+        ...n.stats, 
+        proposito: n.stats.proposito ?? 100,
+        miedo: n.stats.miedo ?? 0 
+      },
+      vocation: n.vocation ?? 'ciudadano',
+      attributes: n.attributes ?? { strength: 50, dexterity: 50, wisdom: 50 },
     })),
     godType,
+    animals: [],
     fog: createFog(world.width, world.height),
     structures: [],
     buildProject: null,
@@ -129,10 +141,12 @@ export function initialGameState(
     village: initialVillageState(),
     monument: initialMonumentState(),
     chronicle: [],
+    legends: initialLegendState(),
     era: 'primigenia',
     tick: 0,
     prng: seedState(seed),
     tech: initialTechState(), // Inicializar el estado de tecnología
+    climate: initialClimateState(),
   };
 }
 

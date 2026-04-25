@@ -31,7 +31,7 @@ import { roleLabel } from '@/lib/roles';
 import { spriteUrlFor, shouldShowCrown } from '@/lib/npc-sprite';
 import { LINAJE_COLORS } from '@/lib/npc-marker';
 import type { EquippableItem } from '@/lib/items';
-import { itemForNpc, ITEM_KIND } from '@/lib/items';
+import { itemForNpc, ITEM_KIND, itemLabel } from '@/lib/items';
 
 const TRAIT_LABEL: Record<string, string> = {
   hambre_sagrada: 'Hambre sagrada',
@@ -178,62 +178,131 @@ export function NpcSheet({
           <div className="text-[10px] font-bold uppercase text-wb-stone/60 mt-1">
             {npc.casta} · {npc.linaje}
           </div>
+          <div className="text-[10px] text-wb-gold font-bold mt-1">
+            Vocación: <span className="uppercase">{npc.vocation}</span>
+          </div>
           {role && (
             <div className="text-xs text-wb-blood font-bold mt-2">
-              {roleLabel(role)}
+              Rol Activo: {roleLabel(role)}
             </div>
           )}
         </div>
       </div>
 
+      {/* ADN Section (Constitución) */}
+      <section className="bg-black/10 p-2 border border-wb-gold/20 rounded-md">
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-gold/60 mb-2 italic">ADN (Constitución)</h3>
+        <div className="grid grid-cols-3 gap-2">
+           <div className="flex flex-col items-center">
+             <span className="text-[8px] opacity-60 uppercase font-bold">Fuerza</span>
+             <span className="text-xs font-mono">{Math.round(npc.attributes.strength)}</span>
+             <div className="w-full h-1 bg-black/40 mt-1">
+               <div className="h-full bg-red-500/60" style={{ width: `${npc.attributes.strength}%` }} />
+             </div>
+           </div>
+           <div className="flex flex-col items-center">
+             <span className="text-[8px] opacity-60 uppercase font-bold">Destreza</span>
+             <span className="text-xs font-mono">{Math.round(npc.attributes.dexterity)}</span>
+             <div className="w-full h-1 bg-black/40 mt-1">
+               <div className="h-full bg-green-500/60" style={{ width: `${npc.attributes.dexterity}%` }} />
+             </div>
+           </div>
+           <div className="flex flex-col items-center">
+             <span className="text-[8px] opacity-60 uppercase font-bold">Sabiduría</span>
+             <span className="text-xs font-mono">{Math.round(npc.attributes.wisdom)}</span>
+             <div className="w-full h-1 bg-black/40 mt-1">
+               <div className="h-full bg-blue-500/60" style={{ width: `${npc.attributes.wisdom}%` }} />
+             </div>
+           </div>
+        </div>
+      </section>
+
       {/* Stats Section */}
       <section className="bg-black/5 p-2 border-b border-wb-stone/10">
         <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-2">Esencia Vital</h3>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
            <div className="flex flex-col">
-             <span className="text-[9px] opacity-60">Supervivencia</span>
-             <span className="text-sm font-bold">{Math.round(npc.stats.supervivencia)}</span>
+             <div className="flex justify-between items-center mb-1">
+               <span className="text-[9px] opacity-60">Supervivencia</span>
+               <span className="text-[10px] font-bold">{Math.round(npc.stats.supervivencia)}</span>
+             </div>
+             <div className="pixel-bar-bg h-1.5">
+               <div className="pixel-bar-fill bg-wb-blood" style={{ width: `${npc.stats.supervivencia}%` }} />
+             </div>
            </div>
            <div className="flex flex-col">
-             <span className="text-[9px] opacity-60">Socialización</span>
-             <span className="text-sm font-bold">{Math.round(npc.stats.socializacion)}</span>
+             <div className="flex justify-between items-center mb-1">
+               <span className="text-[9px] opacity-60">Socialización</span>
+               <span className="text-[10px] font-bold">{Math.round(npc.stats.socializacion)}</span>
+             </div>
+             <div className="pixel-bar-bg h-1.5">
+               <div className="pixel-bar-fill bg-blue-400" style={{ width: `${npc.stats.socializacion}%` }} />
+             </div>
+           </div>
+           <div className="flex flex-col">
+             <div className="flex justify-between items-center mb-1">
+               <span className="text-[9px] opacity-60">Propósito</span>
+               <span className="text-[10px] font-bold">{Math.round(npc.stats.proposito)}</span>
+             </div>
+             <div className="pixel-bar-bg h-1.5">
+               <div className="pixel-bar-fill bg-wb-gold" style={{ width: `${npc.stats.proposito}%` }} />
+             </div>
+           </div>
+           <div className="flex flex-col">
+             <div className="flex justify-between items-center mb-1">
+               <span className="text-[9px] opacity-60">Miedo</span>
+               <span className="text-[10px] font-bold">{Math.round(npc.stats.miedo)}</span>
+             </div>
+             <div className="pixel-bar-bg h-1.5 bg-purple-900/30">
+               <div className="pixel-bar-fill bg-purple-500" style={{ width: `${npc.stats.miedo}%` }} />
+             </div>
            </div>
         </div>
       </section>
 
       {/* Skills Section */}
-      <section>
-        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-stone/40 mb-3">Maestrías</h3>
-        <div className="flex flex-col gap-3">
-          {(Object.keys(SKILL_INFO) as Array<keyof typeof SKILL_INFO>).map((key) => {
-            const skill = SKILL_INFO[key];
-            const value = Math.round(npc.skills[key]);
-            const pct = Math.max(0, Math.min(100, value));
-            
-            return (
-              <div key={key} className="flex flex-col gap-1">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 relative">
-                      <Image 
-                        src={`/ui/skill_${skill.icon}.svg`} 
-                        alt="" 
-                        width={20} 
-                        height={20} 
-                        className="image-pixelated"
-                      />
-                    </div>
-                    <span className="text-xs font-bold">{skill.label}</span>
-                  </div>
-                  <span className="text-xs font-mono">{value}</span>
+...
+      {/* Cultura Material (Herramientas y Reliquias) */}
+      <section className="bg-wb-blood/5 p-2 border border-wb-blood/20 rounded-md">
+        <h3 className="text-[10px] font-black uppercase tracking-tighter text-wb-blood/60 mb-2 italic">Cultura Material</h3>
+        {npc.equippedItemId ? (() => {
+          const item = items.find(i => i.id === npc.equippedItemId);
+          if (!item) return <div className="text-[10px] opacity-40 italic">Herramienta perdida...</div>;
+          const rankColors = { common: 'text-wb-stone', fine: 'text-blue-400', masterwork: 'text-purple-400', artifact: 'text-orange-500' };
+          
+          return (
+            <div className="flex flex-col gap-2">
+              <div className="flex justify-between items-start">
+                <div className="flex flex-col">
+                  <span className={`text-xs font-bold ${rankColors[item.rank]}`}>{itemLabel(item)}</span>
+                  <span className="text-[9px] opacity-60 uppercase">{item.material} · Nivel {item.level}</span>
                 </div>
-                <div className="pixel-bar-bg h-2">
-                  <div className="pixel-bar-fill bg-wb-slate" style={{ width: `${pct}%` }} />
+                <div className="text-right">
+                  <div className="text-[8px] opacity-50 uppercase">XP</div>
+                  <div className="w-12 h-1 bg-black/40">
+                    <div className="h-full bg-blue-500" style={{ width: `${(item.xp / 20) * 100}%` }} />
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
+
+              {item.deeds.length > 0 && (
+                <div className="mt-1 pt-1 border-t border-wb-blood/10">
+                  <div className="text-[8px] font-black uppercase text-wb-blood/40 mb-1">Hazañas Registradas</div>
+                  <div className="flex flex-col gap-1">
+                    {item.deeds.map((deed, idx) => (
+                      <div key={idx} className="text-[10px] leading-tight flex gap-1 italic">
+                        <span className="text-wb-gold">✦</span>
+                        <span>{deed}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })() : (
+          <div className="text-[10px] opacity-40 italic">Sin herramienta equipada</div>
+        )}
       </section>
 
       {/* Biography & Family */}

@@ -43,15 +43,15 @@ export interface Recipe {
 export const RECIPES: Record<CraftableId, Recipe> = {
   [CRAFTABLE.REFUGIO]: {
     id: CRAFTABLE.REFUGIO,
-    inputs: { wood: 15, stone: 8, game: 3 },
+    inputs: { wood: 10, stone: 5, game: 1 },
     daysWork: 5,
     minSkill: 10,
   },
   [CRAFTABLE.FOGATA_PERMANENTE]: {
     id: CRAFTABLE.FOGATA_PERMANENTE,
-    inputs: { wood: 4 },
-    daysWork: 2,
-    minSkill: 5,
+    inputs: { wood: 2 },
+    daysWork: 1,
+    minSkill: 0, // Cualquiera puede hacer fuego
   },
   [CRAFTABLE.PIEL_ROPA]: {
     id: CRAFTABLE.PIEL_ROPA,
@@ -61,19 +61,19 @@ export const RECIPES: Record<CraftableId, Recipe> = {
   },
   [CRAFTABLE.DESPENSA]: {
     id: CRAFTABLE.DESPENSA,
-    inputs: { wood: 10, stone: 6 },
+    inputs: { wood: 6, stone: 4 },
     daysWork: 4,
-    minSkill: 10,
+    minSkill: 5,
   },
   [CRAFTABLE.STOCKPILE_WOOD]: {
     id: CRAFTABLE.STOCKPILE_WOOD,
-    inputs: { stone: 4 },
+    inputs: { wood: 4 }, // Antes pedía piedra, bloqueo!
     daysWork: 2,
     minSkill: 5,
   },
   [CRAFTABLE.STOCKPILE_STONE]: {
     id: CRAFTABLE.STOCKPILE_STONE,
-    inputs: { wood: 4 },
+    inputs: { stone: 4 }, // Antes pedía madera, bloqueo!
     daysWork: 2,
     minSkill: 5,
   },

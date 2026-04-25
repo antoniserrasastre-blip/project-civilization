@@ -48,6 +48,27 @@ export const RESOURCE = {
 
 export type ResourceId = (typeof RESOURCE)[keyof typeof RESOURCE];
 
+export type AnimalKind = 'boar' | 'wolf' | 'bear';
+
+export interface Animal {
+  id: string;
+  kind: AnimalKind;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  hunger: number;
+  packId: string | null;
+  alive: boolean;
+  birthTick: number;
+}
+
+export const ANIMAL_STATS: Record<AnimalKind, { hp: number, attack: number, speed: number, fearRadius: number }> = {
+  boar: { hp: 40, attack: 10, speed: 1.2, fearRadius: 3 },
+  wolf: { hp: 60, attack: 15, speed: 1.5, fearRadius: 5 },
+  bear: { hp: 150, attack: 35, speed: 0.8, fearRadius: 8 },
+};
+
 export const RESOURCE_LABEL: Record<ResourceId, string> = {
   [RESOURCE.WOOD]:     'Madera',
   [RESOURCE.STONE]:    'Piedra',
@@ -115,6 +136,9 @@ export interface WorldMap {
   /** Inercia cultural — Fase 2.0. Registra cuántos ticks se ha realizado
    *  una tarea de forma predominante. */
   traditions?: Record<string, number>;
+  /** Reservas naturales — Fase 2.1 (Genética). Array plano row-major
+   *  de flotantes que indica la densidad de biomasa por tile. */
+  reserves?: number[];
 }
 
 /** Devuelve un mundo vacío (toda agua, sin recursos) para tests de
@@ -137,4 +161,14 @@ export function emptyWorldMap(
       islandCount: 0,
     },
   };
+}
+
+/** Sprint Clima - Estaciones y Meteorología */
+export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
+
+export interface ClimateState {
+  dayOfYear: number;
+  season: Season;
+  temperature: number; // 0-100 (0 muy frío, 100 muy caluroso)
+  humidity: number;    // 0-100
 }
