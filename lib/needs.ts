@@ -120,7 +120,8 @@ const VOCATION_RESOURCES: Record<string, ResourceId[]> = {
   [VOCATION.SABIO]:      [RESOURCE.OBSIDIAN, RESOURCE.FLINT, RESOURCE.MUSHROOM, RESOURCE.WATER],
   [VOCATION.GUERRERO]:   [RESOURCE.GAME, RESOURCE.WOOD],
   [VOCATION.SIMPLEZAS]:  [RESOURCE.BERRY, RESOURCE.WOOD, RESOURCE.STONE, RESOURCE.CLAY, RESOURCE.FISH, RESOURCE.COCONUT, RESOURCE.SHELL],
-  [VOCATION.AMBICIOSO]:  [RESOURCE.GOLD ?? RESOURCE.STONE, RESOURCE.OBSIDIAN], // Prioriza lo valioso o duro
+  [VOCATION.AMBICIOSO]:  [RESOURCE.GOLD ?? RESOURCE.STONE, RESOURCE.OBSIDIAN],
+  [VOCATION.CIUDADANO]:  [RESOURCE.BERRY, RESOURCE.FISH, RESOURCE.GAME, RESOURCE.WOOD],
 };
 
 export interface DestinationContext {
@@ -146,7 +147,7 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
   const currentRole = computeRole(npc, null);
   const topTradition = Object.entries(traditions).sort((a,b) => b[1] - a[1])[0]?.[0];
   const traditionFriction = (topTradition && currentRole !== topTradition) ? 10 : 0;
-  const bystanderChance = Math.min(60, (aliveCount * 0.5) + traditionFriction);
+  const bystanderChance = Math.min(15, (aliveCount * 0.1) + traditionFriction);
   const { value: roll, next: nextP } = nextInt(currentPrng, 0, 100);
   currentPrng = nextP;
   if (roll < bystanderChance) return { position: npc.position, next: currentPrng };
@@ -288,9 +289,8 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
     }
 
     // EXPLORACIÓN NATURAL: Si no tenemos nada urgente que hacer, exploramos el mundo
-    // Aumentamos el umbral para que no se queden quietos cuando todo está al 100%
-    const isSatisfied = socializacion > 80 && supervivencia > 80;
-    const explorationChance = npc.vocation === VOCATION.GUERRERO ? 100 : (isSatisfied ? 25 : 10);
+    const isSatisfied = socializacion > 50 && supervivencia > 70;
+    const explorationChance = npc.vocation === VOCATION.GUERRERO ? 100 : (isSatisfied ? 60 : 25);
 
     if (roll < explorationChance) {
       const angle = ((roll * 7) % 100 / 100) * Math.PI * 2;
