@@ -24,7 +24,7 @@ export const SPRITE_KEY = {
   CAZADOR:    'CAZADOR',
   RECOLECTOR: 'RECOLECTOR',
   ARTESANO:   'ARTESANO',
-  // Animales (Sprint 14.5)
+  // Animales
   ANIMAL_BOAR:    'ANIMAL_BOAR',
   ANIMAL_CRAB:    'ANIMAL_CRAB',
   ANIMAL_DEER:    'ANIMAL_DEER',
@@ -35,11 +35,15 @@ export const SPRITE_KEY = {
   ANIMAL_TURTLE:  'ANIMAL_TURTLE',
   ANIMAL_WOLF:    'ANIMAL_WOLF',
   ANIMAL_BEAR:    'ANIMAL_BEAR',
-  // Dioses (Sprint 14.5)
+  ANIMAL_SHEEP:   'ANIMAL_SHEEP',
+  ANIMAL_HORSE:   'ANIMAL_HORSE',
+  ANIMAL_CHICKEN: 'ANIMAL_CHICKEN',
+  ANIMAL_COW:     'ANIMAL_COW',
+  // Dioses
   GOD_SEA:   'GOD_SEA',
   GOD_STONE: 'GOD_STONE',
   GOD_WIND:  'GOD_WIND',
-  // UI y Feedback (Sprint 14.8)
+  // UI y Feedback
   CROWN_LEADER:   'crown_leader',
   BUBBLE_HUNGER:  'bubble_hunger',
   BUBBLE_SOCIAL:  'bubble_social',
@@ -51,15 +55,24 @@ export const SPRITE_KEY = {
   ITEM_HAND_AXE:  'hand_axe',
   ITEM_BONE_NEEDLE: 'bone_needle',
   ITEM_RELIC:     'relic_charm',
-  ITEM_CLUB:      'weapon_club',
+  ITEM_CLUB:      'club',
   ITEM_SHIELD:    'weapon_shield',
-  ITEM_SLING:     'weapon_sling',
-  // Estructuras (Sprint 15)
+  ITEM_SLING:     'sling',
+  ITEM_BOW:       'bow',
+  // Estructuras
   STRUCT_FIRE_PIT:       'struct_fire_pit',
   STRUCT_SHELTER:        'struct_shelter_wood',
   STRUCT_PANTRY:         'struct_shaman_hut_2',
   STRUCT_STOCKPILE_WOOD: 'struct_stockpile_wood',
   STRUCT_STOCKPILE_STONE: 'struct_stockpile_stone',
+  STRUCT_MUELLE:         'struct_dock_primitive',
+  STRUCT_MUELLE_FOUND:   'struct_dock_foundation',
+  STRUCT_MUELLE_CONST:   'struct_dock_construction',
+  STRUCT_HUERTO_MATURE:  'struct_huerto_mature',
+  STRUCT_HUERTO_SPROUT:  'struct_huerto_sprout',
+  STRUCT_HUERTO_GROWING: 'struct_huerto_growing',
+  // Unidades especiales
+  ITEM_CANOE:            'unit_canoe',
 } as const;
 
 export type SpriteKey = (typeof SPRITE_KEY)[keyof typeof SPRITE_KEY] | string;
@@ -81,6 +94,10 @@ export const SPRITE_URLS: Record<string, string> = {
   ANIMAL_TURTLE:  '/units/animal_turtle.svg',
   ANIMAL_WOLF:    '/units/animal_wolf.svg',
   ANIMAL_BEAR:    '/units/animal_bear.svg',
+  ANIMAL_SHEEP:   '/units/animal_sheep.svg',
+  ANIMAL_HORSE:   '/units/animal_horse.svg',
+  ANIMAL_CHICKEN: '/units/animal_chicken.svg',
+  ANIMAL_COW:     '/units/animal_cow.svg',
   // Dioses
   GOD_SEA:   '/ui/god_portrait_sea.svg',
   GOD_STONE: '/ui/god_portrait_stone.svg',
@@ -88,24 +105,33 @@ export const SPRITE_URLS: Record<string, string> = {
   // UI y Feedback
   crown_leader:   '/ui/crown_leader.svg',
   bubble_hunger:  '/ui/bubble_hunger.svg',
-  bubble_social:  '/ui/bubble_sleep.svg', // usando sleep como proxy de social por ahora
+  bubble_social:  '/ui/bubble_sleep.svg',
   bubble_fear:    '/ui/bubble_fear.svg',
   bubble_work:    '/ui/bubble_work.svg',
   // Herramientas y Armas
-  basket:         '/resources/berry.svg',       // Proxy: berry (recolector)
-  spear:          '/resources/weapon_club.svg', // Proxy: club (caza)
-  hand_axe:       '/resources/weapon_club.svg', // Proxy: club (artesanía)
-  bone_needle:    '/resources/resource_flint.svg', // Proxy: flint (costura)
-  relic_charm:    '/resources/resource_obsidian.svg', // Proxy: obsidian (fe)
-  weapon_club:    '/resources/weapon_club.svg',
+  basket:         '/resources/resource_mushroom.svg',
+  spear:          '/resources/weapon_spear.svg',
+  hand_axe:       '/resources/weapon_club.svg',
+  bone_needle:    '/resources/resource_flint.svg', 
+  relic_charm:    '/resources/resource_obsidian.svg', 
+  club:           '/resources/weapon_club.svg',
   weapon_shield:  '/resources/weapon_shield.svg',
-  weapon_sling:   '/resources/weapon_sling.svg',
+  sling:          '/resources/weapon_sling.svg',
+  bow:            '/resources/weapon_bow.svg',
   // Estructuras
   struct_fire_pit:       '/structures/struct_fire_pit.svg',
   struct_shelter_wood:   '/structures/struct_shelter_wood.svg',
   struct_shaman_hut_2:   '/structures/struct_shaman_hut_2.svg',
   struct_stockpile_wood:  '/structures/struct_stockpile_wood.svg',
   struct_stockpile_stone: '/structures/struct_stockpile_stone.svg',
+  struct_dock_primitive:    '/structures/struct_dock_primitive.svg',
+  struct_dock_foundation:   '/structures/struct_dock_foundation.svg',
+  struct_dock_construction: '/structures/struct_dock_construction.svg',
+  struct_huerto_mature:     '/structures/struct_huerto_mature.svg',
+  struct_huerto_sprout:     '/structures/struct_huerto_sprout.svg',
+  struct_huerto_growing:    '/structures/struct_huerto_growing.svg',
+  // Unidades especiales
+  unit_canoe:               '/units/unit_canoe.svg',
 };
 
 function archetypeToKey(archetype: string | null): SpriteKey {

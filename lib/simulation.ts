@@ -22,7 +22,6 @@ import { applyFaithDelta, faithPerTick } from './faith';
 import {
   applyGratitudeDelta,
   applyGratitudeFromEvent,
-  computeGratitudeTickDelta,
   computeSilenceDrainPerDay,
   evaluateDawnGratitude,
   penalizeElegidoDeath,
@@ -152,26 +151,24 @@ export function tick(state: GameState): GameState {
     village: applyFaithDelta(nextState.village, faithPerTick(aliveCount))
   };
 
-  nextState = tickMovement(nextState);
+  const fogBuffer = decodeFogBitmap(state.fog.bitmap);
+  nextState = tickMovement(nextState, fogBuffer);
   nextState = tickWorldSystems(nextState);
   nextState = tickAnimals(nextState);
-  nextState = tickClanSystems(nextState);
+  nextState = tickClanSystems(nextState, fogBuffer);
   nextState = tickDevelopment(nextState);
   nextState = tickCultureAndSocial(nextState, state);
   return { ...nextState, tick: state.tick + 1 };
 }
 
-function tickMovement(state: GameState): GameState {
+function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
   const fire = firstStructureOfKind(state.structures, CRAFTABLE.FOGATA_PERMANENTE);
   const buildPrio = nextBuildPriority(state);
   const activeBuilderIds = new Set(selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady).map(n => n.id));
-  
+
   let currentPrng = state.prng;
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
   const groupsByDest = new Map<string, NPC[]>();
-  
-  // Optimizamos: decodificar una sola vez por tick
-  const fogBuffer = decodeFogBitmap(state.fog.bitmap);
   const claimedTiles = new Set<string>();
 
   for (const npc of state.npcs) {
@@ -293,7 +290,7 @@ function tickInfrastructureDecay(state: GameState): { structures: Structure[], c
   return { structures: nextStructures, chronicle };
 }
 
-function tickClanSystems(state: GameState): GameState {
+function tickClanSystems(state: GameState, fogBuffer: Uint8Array): GameState {
   // Calcular bonuses de rasgos culturales activos (§A4: se computan del estado, no mutados)
   const techBonuses = aggregateBonuses(state.tech.activeTraits ?? []);
 
@@ -304,9 +301,6 @@ function tickClanSystems(state: GameState): GameState {
 
   const { structures: decayedStructures, chronicle: nextChronicle } = tickInfrastructureDecay({ ...state, structures: logistics.structures });
   const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
-
-  // Decodificamos el buffer aquí también para que esté disponible en tickNeeds
-  const fogBuffer = decodeFogBitmap(state.fog.bitmap);
 
   const npcsBeforeNeeds = logistics.npcs;
   const npcsWithNeeds = tickNeeds(npcsBeforeNeeds, {

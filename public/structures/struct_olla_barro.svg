@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Fuego debajo -->
+  <circle cx="16" cy="28" r="4" fill="#ff4500" opacity="0.8"/>
+  <!-- Olla de barro -->
+  <path d="M10 14C10 14 8 26 16 26C24 26 22 14 22 14H10Z" fill="#a0522d" stroke="#5d2906" stroke-width="1"/>
+  <rect x="10" y="12" width="12" height="3" rx="1" fill="#a0522d"/>
+  <!-- Asas -->
+  <circle cx="9" cy="16" r="2" fill="none" stroke="#5d2906" stroke-width="1.5"/>
+  <circle cx="23" cy="16" r="2" fill="none" stroke="#5d2906" stroke-width="1.5"/>
+</svg>

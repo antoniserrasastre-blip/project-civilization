@@ -263,7 +263,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       has(ctx.builtStructures, 'fogata_permanente') &&
       traditionsMin(ctx.traditions, 'cazador', 20),
-    effects: { bonus: { food_nutrition: 0.1 } },
+    effects: { unlocks: ['ahumadero'], bonus: { food_nutrition: 0.1 } },
   },
   [TECH_ID.ESTOFADO]: {
     id: TECH_ID.ESTOFADO, pole: 'cuerpo', cultureWeight: 40, tier: 2,
@@ -273,7 +273,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       has(ctx.unlockedTechs, TECH_ID.AHUMAR) &&
       ctx.resourcesPresent.includes('clay'),
-    effects: { bonus: { food_nutrition: 0.15 } },
+    effects: { unlocks: ['olla_barro'], bonus: { food_nutrition: 0.15 } },
   },
   [TECH_ID.SALAR]: {
     id: TECH_ID.SALAR, pole: 'cuerpo', cultureWeight: 40, tier: 2,
@@ -284,7 +284,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
       has(ctx.unlockedTechs, TECH_ID.AHUMAR) &&
       traditionsMin(ctx.traditions, 'recolector', 40) &&
       ctx.resourcesPresent.includes('shell'),
-    effects: { bonus: { decay_reduction: 0.2 } },
+    effects: { unlocks: ['mesa_salazon'], bonus: { decay_reduction: 0.2 } },
   },
   [TECH_ID.REFUGIO_ROBUSTO]: {
     id: TECH_ID.REFUGIO_ROBUSTO, pole: 'cuerpo', cultureWeight: 35, tier: 2,
@@ -314,7 +314,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockHint: 'El tallador trabaja la piedra con regularidad.',
     description: 'Una honda simple lanza proyectiles con precisión letal a distancia.',
     unlockCondition: ctx => traditionsMin(ctx.traditions, 'tallador', 30),
-    effects: { bonus: { hunt_yield: 0.15 } },
+    effects: { unlocks: ['sling'], bonus: { hunt_yield: 0.15 } },
   },
   [TECH_ID.ARCO]: {
     id: TECH_ID.ARCO, pole: 'fuerza', cultureWeight: 50, tier: 3,
@@ -324,7 +324,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       has(ctx.unlockedTechs, TECH_ID.CAZA_MAYOR) &&
       has(ctx.unlockedTechs, TECH_ID.CARPENTRY),
-    effects: { bonus: { hunt_yield: 0.35 } },
+    effects: { unlocks: ['bow'], bonus: { hunt_yield: 0.35 } },
   },
   [TECH_ID.GARROTE]: {
     id: TECH_ID.GARROTE, pole: 'fuerza', cultureWeight: 25, tier: 2,
@@ -334,7 +334,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       daysAlive(ctx.tick, ctx.ticksPerDay) >= 5 &&
       traditionsMin(ctx.traditions, 'cazador', 25),
-    effects: { bonus: { hunt_yield: 0.1 } },
+    effects: { unlocks: ['club'], bonus: { hunt_yield: 0.1 } },
   },
 
   // ── TIERRA ────────────────────────────────────────────────────────────────
@@ -346,7 +346,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       traditionsMin(ctx.traditions, 'recolector', 80) &&
       has(ctx.unlockedTechs, TECH_ID.BASIC_AGRICULTURE),
-    effects: { bonus: { gathering_speed: 0.15 } },
+    effects: { unlocks: ['huerto'], bonus: { gathering_speed: 0.15 } },
   },
   [TECH_ID.ROTACION]: {
     id: TECH_ID.ROTACION, pole: 'tierra', cultureWeight: 45, tier: 2,
@@ -387,7 +387,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
       has(ctx.unlockedTechs, TECH_ID.PESCA_PROFUNDA) &&
       has(ctx.unlockedTechs, TECH_ID.CARPENTRY) &&
       traditionsMin(ctx.traditions, 'pescador', 60),
-    effects: { bonus: { fish_yield: 0.4 } },
+    effects: { unlocks: ['muelle', 'canoe'], bonus: { fish_yield: 0.4 } },
   },
   [TECH_ID.REDES]: {
     id: TECH_ID.REDES, pole: 'mar', cultureWeight: 45, tier: 3,

@@ -14,6 +14,7 @@
 
 import type { NPC, NPCInventory } from './npcs';
 import type { Structure } from './structures';
+import type { ItemKind } from './items';
 
 export const CRAFTABLE = {
   REFUGIO: 'refugio',
@@ -22,7 +23,9 @@ export const CRAFTABLE = {
   DESPENSA: 'despensa',
   STOCKPILE_WOOD: 'stockpile_wood',
   STOCKPILE_STONE: 'stockpile_stone',
-  SHAMAN_HUT: 'shaman_hut', // Nuevo crafteable para el rol de Chamán/Sabiduría
+  SHAMAN_HUT: 'shaman_hut',
+  MUELLE: 'muelle',
+  HUERTO: 'huerto',
 } as const;
 
 export type CraftableId = (typeof CRAFTABLE)[keyof typeof CRAFTABLE];
@@ -67,13 +70,13 @@ export const RECIPES: Record<CraftableId, Recipe> = {
   },
   [CRAFTABLE.STOCKPILE_WOOD]: {
     id: CRAFTABLE.STOCKPILE_WOOD,
-    inputs: { wood: 4 }, // Antes pedía piedra, bloqueo!
+    inputs: { wood: 4 },
     daysWork: 2,
     minSkill: 5,
   },
   [CRAFTABLE.STOCKPILE_STONE]: {
     id: CRAFTABLE.STOCKPILE_STONE,
-    inputs: { stone: 4 }, // Antes pedía madera, bloqueo!
+    inputs: { stone: 4 },
     daysWork: 2,
     minSkill: 5,
   },
@@ -81,6 +84,18 @@ export const RECIPES: Record<CraftableId, Recipe> = {
     id: CRAFTABLE.SHAMAN_HUT,
     inputs: { wood: 20, stone: 10, obsidian: 5 },
     daysWork: 8,
+    minSkill: 20,
+  },
+  [CRAFTABLE.MUELLE]: {
+    id: CRAFTABLE.MUELLE,
+    inputs: { wood: 15, stone: 5 },
+    daysWork: 6,
+    minSkill: 15,
+  },
+  [CRAFTABLE.HUERTO]: {
+    id: CRAFTABLE.HUERTO,
+    inputs: { berry: 20, stone: 10 },
+    daysWork: 10,
     minSkill: 20,
   },
 };
@@ -121,6 +136,9 @@ export const STORAGE_SPECIALTY: Record<CraftableId, Array<keyof NPCInventory>> =
   [CRAFTABLE.REFUGIO]: [],
   [CRAFTABLE.FOGATA_PERMANENTE]: [],
   [CRAFTABLE.PIEL_ROPA]: [],
+  [CRAFTABLE.MUELLE]: [],
+  [CRAFTABLE.HUERTO]: [],
+  [CRAFTABLE.SHAMAN_HUT]: [],
 };
 
 export function canBuild(recipe: Recipe, clanInv: NPCInventory): boolean {

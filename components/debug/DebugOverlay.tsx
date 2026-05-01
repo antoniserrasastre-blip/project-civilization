@@ -103,14 +103,24 @@ export function DebugOverlay({ state }: Props) {
         const role = computeRole(npc, state.items?.find((i) => i.id === npc.equippedItemId) ?? null);
         const inv = npc.inventory;
         const invStr = Object.entries(inv).filter(([, v]) => v > 0).map(([k, v]) => `${k[0]}:${v}`).join(' ');
+        const sv   = Math.round(npc.stats.supervivencia);
+        const soc  = Math.round(npc.stats.socializacion);
+        const prop = Math.round(npc.stats.proposito ?? 0);
+        const fear = Math.round(npc.stats.miedo ?? 0);
+        const svColor = sv < 25 ? '#ff6666' : sv < 45 ? '#ffaa44' : '#a8d8a8';
+        const fearColor = fear > 65 ? '#ff6666' : '#ccc';
         return (
           <div key={npc.id} style={{ marginBottom: 5, padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
             <div style={{ color: npc.alive ? '#a8d8a8' : '#888' }}>
-              <b>{npc.name}</b> [{role}] pos({npc.position.x},{npc.position.y})
+              <b>{npc.name}</b> [{role}] <span style={{ opacity: 0.6 }}>{npc.vocation}</span> ({npc.position.x},{npc.position.y})
             </div>
-            <div style={{ color: '#ccc' }}>
-              sv:{npc.stats.supervivencia} soc:{npc.stats.socializacion} | dest:{npcDestLabel(npc)}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <span style={{ color: svColor }}>sv:{sv}</span>
+              <span style={{ color: '#88d8ff' }}>soc:{soc}</span>
+              <span style={{ color: '#d4a8ff' }}>prop:{prop}</span>
+              <span style={{ color: fearColor }}>miedo:{fear}</span>
             </div>
+            <div style={{ color: '#aaa', fontSize: 10 }}>dest:{npcDestLabel(npc)}</div>
             <div style={{ color: '#ffd080' }}>{npcReason(npc, state)}</div>
             {invStr && <div style={{ color: '#88bbff' }}>inv: {invStr}</div>}
           </div>

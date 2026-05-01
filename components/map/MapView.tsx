@@ -306,10 +306,11 @@ function drawItemOverlay(
   kind: string,
   sprites: SpriteMap,
 ) {
+  // El key en sprites debe coincidir con el ItemKind (bow, sling, spear, etc)
   const itemImg = sprites.get(kind);
   if (itemImg && itemImg.complete) {
     // La herramienta se posiciona sutilmente a un lado (mano)
-    ctx.drawImage(itemImg, cx + size * 0.15, cy + size * 0.05, size * 0.7, size * 0.7);
+    ctx.drawImage(itemImg, cx + size * 0.1, cy - size * 0.1, size * 0.75, size * 0.75);
   }
 }
 
@@ -324,12 +325,16 @@ function renderAnimals(
 ) {
   const tilePx = dims.tileSize * state.zoom;
   
-  const kindToSprite: Record<string, string> = { 
-    boar: 'ANIMAL_BOAR', 
-    wolf: 'ANIMAL_WOLF', 
-    bear: 'ANIMAL_BEAR' 
+  const kindToSprite: Record<string, string> = {
+    boar: 'ANIMAL_BOAR',
+    wolf: 'ANIMAL_WOLF',
+    bear: 'ANIMAL_BEAR',
+    sheep: 'ANIMAL_SHEEP',
+    horse: 'ANIMAL_HORSE',
+    chicken: 'ANIMAL_CHICKEN',
+    goat: 'ANIMAL_GOAT',
+    cow: 'ANIMAL_COW',
   };
-
   for (const a of animals) {
     if (!a.alive) continue;
     

@@ -48,7 +48,7 @@ export const RESOURCE = {
 
 export type ResourceId = (typeof RESOURCE)[keyof typeof RESOURCE];
 
-export type AnimalKind = 'boar' | 'wolf' | 'bear';
+export type AnimalKind = 'boar' | 'wolf' | 'bear' | 'horse' | 'sheep' | 'chicken' | 'goat' | 'cow';
 
 export interface Animal {
   id: string;
@@ -64,9 +64,14 @@ export interface Animal {
 }
 
 export const ANIMAL_STATS: Record<AnimalKind, { hp: number, attack: number, speed: number, fearRadius: number }> = {
-  boar: { hp: 40, attack: 10, speed: 1.2, fearRadius: 3 },
-  wolf: { hp: 60, attack: 15, speed: 1.5, fearRadius: 5 },
-  bear: { hp: 150, attack: 35, speed: 0.8, fearRadius: 8 },
+  boar:    { hp: 40, attack: 10, speed: 1.2, fearRadius: 3 },
+  wolf:    { hp: 60, attack: 15, speed: 1.5, fearRadius: 5 },
+  bear:    { hp: 150, attack: 35, speed: 0.8, fearRadius: 8 },
+  horse:   { hp: 80, attack: 5,  speed: 2.2, fearRadius: 10 },
+  sheep:   { hp: 30, attack: 0,  speed: 0.8, fearRadius: 6 },
+  chicken: { hp: 10, attack: 0,  speed: 1.0, fearRadius: 4 },
+  goat:    { hp: 35, attack: 2,  speed: 1.3, fearRadius: 7 },
+  cow:     { hp: 120, attack: 8,  speed: 0.6, fearRadius: 5 },
 };
 
 export const RESOURCE_LABEL: Record<ResourceId, string> = {

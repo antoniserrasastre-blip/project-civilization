@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Cimientos: Solo los pilares hundidos -->
+  <rect x="8" y="22" width="4" height="6" fill="#4d1a00" />
+  <rect x="20" y="22" width="4" height="6" fill="#4d1a00" />
+  <rect x="14" y="24" width="4" height="4" fill="#4d1a00" opacity="0.6" />
+</svg>

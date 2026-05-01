@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect x="4" y="8" width="24" height="20" fill="#4b3621" rx="1"/>
+  <!-- Tallos creciendo -->
+  <path d="M8 14L8 10M16 14L16 8M24 14L24 10" stroke="#228b22" stroke-width="2" stroke-linecap="round"/>
+  <path d="M12 22L12 16M20 22L20 16" stroke="#228b22" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Pilares -->
+  <rect x="8" y="20" width="4" height="8" fill="#5d2906"/>
+  <rect x="20" y="20" width="4" height="8" fill="#5d2906"/>
+  
+  <!-- Estructura media (maderos sueltos) -->
+  <rect x="6" y="14" width="12" height="4" fill="#a0522d" transform="rotate(-5 12 16)"/>
+  <rect x="16" y="10" width="10" height="3" fill="#8b4513" transform="rotate(10 21 11)"/>
+  
+  <!-- Andamios/Cuerdas -->
+  <line x1="10" y1="20" x2="22" y2="20" stroke="#d2b48c" stroke-width="1" />
+</svg>

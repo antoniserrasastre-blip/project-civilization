@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Cuerpo de la piragua (tronco tallado) -->
+  <path d="M4 16C4 16 6 22 16 22C26 22 28 16 28 16L26 14C26 14 24 18 16 18C8 18 6 14 6 14L4 16Z" fill="#5d2906" stroke="#3d1900" stroke-width="1"/>
+  
+  <!-- NPC Remando (Silueta simple) -->
+  <circle cx="16" cy="12" r="3" fill="#d2b48c" />
+  <rect x="14" y="15" width="4" height="4" fill="#d2b48c" />
+  
+  <!-- Remo -->
+  <line x1="12" y1="14" x2="8" y2="24" stroke="#8b4513" stroke-width="1.5" />
+  <rect x="6" y="22" width="4" height="4" rx="1" fill="#8b4513" transform="rotate(-20 8 24)"/>
+</svg>

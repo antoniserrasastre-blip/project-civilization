@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Madera curvada -->
+  <path d="M10 4C18 4 22 10 22 16C22 22 18 28 10 28" fill="none" stroke="#8b4513" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Cuerda tensa -->
+  <line x1="10" y1="4" x2="10" y2="28" stroke="#f5deb3" stroke-width="1" />
+  <!-- Empuñadura de cuero -->
+  <rect x="18" y="14" width="3" height="4" fill="#5d2906" rx="1"/>
+</svg>

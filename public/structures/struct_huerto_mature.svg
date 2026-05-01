@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect x="4" y="8" width="24" height="20" fill="#4b3621" rx="1"/>
+  <!-- Plantas maduras con frutos (bayas amarillas/maíz) -->
+  <path d="M8 14L8 6M16 14L16 4M24 14L24 6" stroke="#228b22" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="8" cy="6" r="2" fill="#ffd700"/>
+  <circle cx="16" cy="4" r="2" fill="#ffd700"/>
+  <circle cx="24" cy="6" r="2" fill="#ffd700"/>
+  <!-- Vallado simple de madera -->
+  <rect x="4" y="26" width="24" height="2" fill="#8b4513"/>
+</svg>
