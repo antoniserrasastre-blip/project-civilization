@@ -13,20 +13,10 @@ import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
 
 import type { MonumentState } from './monument';
 import { initialMonumentState } from './monument';
-import type { TechId } from './technologies';
-import { initialTechState } from './technologies';
+import { initialTechState, type TechState } from './technologies';
 import { initialLegendState, type LegendState } from './legends';
 
-export interface TechState {
-  /** Puntos de Sabiduría acumulados. */
-  wisdom: number;
-  /** IDs de las tecnologías ya investigadas. */
-  unlocked: TechId[];
-  /** Tecnología actualmente en investigación (o null). */
-  researching: TechId | null;
-  /** Progreso de la investigación actual. */
-  researchProgress: number;
-}
+export type { TechState };
 
 export type Era = 'primigenia' | 'tribal';
 

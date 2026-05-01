@@ -50,7 +50,12 @@ import { transferLegacyItem } from './legacy';
 import { computeRole } from './roles';
 import { nextInt } from './prng';
 import { craftItem, canCraftItem, ITEM_RECIPES } from './item-crafting';
-import { TECH_DEFS, type Technology } from './technologies';
+import {
+  TECH_DEFS,
+  type TechUnlockCtx,
+  computeCultureAxis,
+  computeActiveTraits,
+} from './technologies';
 import { tickClimate } from './climate';
 import { recordLegend } from './legends';
 
@@ -315,75 +320,71 @@ function tickDevelopment(state: GameState): GameState {
   return nextState;
 }
 
-/** Sistema de Sabiduría y Árbol Tecnológico. */
+/** Sistema de Emergencia Tecnológica (§3.10).
+ *  Las tecnologías no se investigan: emergen cuando el comportamiento
+ *  del clan cumple las condiciones de desbloqueo. Solo se evalúa cada
+ *  TECH_CHECK_INTERVAL ticks para no saturar el tick. */
+const TECH_CHECK_INTERVAL = 20;
+
 function tickTech(state: GameState): GameState {
   let { tech, npcs, chronicle, tick } = state;
-  let nextWisdom = tech.wisdom;
   let nextUnlocked = [...tech.unlocked];
-  let nextResearching = tech.researching;
-  let nextProgress = tech.researchProgress;
 
-  // 1. GENERACIÓN DE SABIDURÍA: Los Sabios e investigadores aportan puntos
-  const sages = npcs.filter(n => n.alive && (n.vocation === VOCATION.SABIO || n.vocation === VOCATION.AMBICIOSO));
-  for (const s of sages) {
-    const power = (s.attributes.wisdom / 100) * 0.15;
-    nextWisdom += power;
+  // Solo evaluar condiciones en intervalos
+  if (tick % TECH_CHECK_INTERVAL !== 0) {
+    return state;
   }
 
-  // 2. DISPARADORES DE EUREKAS (Aprendizaje por acción / azar)
-  if (tick % 50 === 0) {
-    for (const n of npcs) {
-      if (!n.alive) continue;
-      // Eureka: Armas de Caza
-      if (n.vocation === VOCATION.GUERRERO && n.attributes.dexterity > 60 && !nextUnlocked.includes('hunting_weapons')) {
-        if (Math.random() < 0.01) { 
-           nextUnlocked.push('hunting_weapons');
-           chronicle = addChronicleEntry(chronicle, { text: `¡Eureka! ${n.name} ha inventado una forma de afilar lanzas.`, type: 'wisdom', impact: 10, duration: TICKS_PER_DAY }, tick);
-        }
-      }
-      // Eureka: Carpintería (si está en el bosque)
-      const tileIdx = n.position.y * state.world.width + n.position.x;
-      if (state.world.tiles[tileIdx] === TILE.FOREST && !nextUnlocked.includes('carpentry')) {
-        if (Math.random() < 0.005) {
-          nextUnlocked.push('carpentry');
-          chronicle = addChronicleEntry(chronicle, { text: `¡Inspiración! ${n.name} ha descubierto cómo encajar maderas.`, type: 'wisdom', impact: 10, duration: TICKS_PER_DAY }, tick);
-        }
-      }
-    }
+  // Construir snapshot mínimo para las condiciones de desbloqueo
+  const ctx: TechUnlockCtx = {
+    tick,
+    ticksPerDay: TICKS_PER_DAY,
+    builtStructures: state.structures.map(s => s.kind),
+    existingItems: [...new Set(state.items.map(i => i.kind))],
+    traditions: state.world.traditions ?? {},
+    unlockedTechs: nextUnlocked,
+    resourcesPresent: [...new Set(state.world.resources.filter(r => r.quantity > 0).map(r => r.id))],
+    aliveCount: npcs.filter(n => n.alive).length,
+  };
+
+  // Evaluar cada tech no desbloqueada
+  const candidates = Object.values(TECH_DEFS).filter(
+    t => !nextUnlocked.includes(t.id) && t.unlockCondition(ctx),
+  );
+
+  for (const tech of candidates) {
+    nextUnlocked.push(tech.id);
+    chronicle = addChronicleEntry(chronicle, {
+      text: `¡DESCUBRIMIENTO! El clan domina: ${tech.name}.`,
+      type: 'wisdom',
+      impact: 15,
+      duration: TICKS_PER_DAY * 2,
+    }, tick);
   }
 
-  // 3. SELECCIÓN DE INVESTIGACIÓN: Si no hay nada, elegir la más barata
-  if (!nextResearching) {
-    const available = (Object.values(TECH_DEFS) as Technology[])
-      .filter(t => !nextUnlocked.includes(t.id))
-      .filter(t => t.requires.every(req => nextUnlocked.includes(req)))
-      .sort((a, b) => a.cost - b.cost);
-    
-    if (available.length > 0) {
-      nextResearching = available[0].id;
-      nextProgress = 0;
-    }
-  }
+  // Sincronizar cultura y rasgos
+  const nextCulture = computeCultureAxis(nextUnlocked);
+  const nextTraits   = computeActiveTraits(nextUnlocked);
 
-  // 4. PROGRESO
-  if (nextResearching) {
-    const currentTech = TECH_DEFS[nextResearching];
-    const pointsToInvest = Math.min(nextWisdom, 0.4);
-    nextWisdom -= pointsToInvest;
-    nextProgress += pointsToInvest;
-
-    if (nextProgress >= currentTech.cost) {
-      nextUnlocked.push(nextResearching);
+  // Verificar nuevos rasgos culturales y anunciarlos
+  const prevTraits = tech.activeTraits;
+  for (const traitId of nextTraits) {
+    if (!prevTraits.includes(traitId)) {
+      const TRAIT_NAMES: Record<string, string> = {
+        resiliente: 'Pueblo Resiliente', guerrero: 'Pueblo Guerrero',
+        granjero: 'Pueblo Granjero', marinero: 'Pueblo Marinero',
+        artesano: 'Pueblo Artesano', comerciante: 'Pueblo Comerciante',
+      };
       chronicle = addChronicleEntry(chronicle, {
-        text: `¡CONOCIMIENTO! El clan domina ${currentTech.name}.`,
-        type: 'wisdom', impact: 15, duration: TICKS_PER_DAY * 2
+        text: `¡IDENTIDAD! El clan ha forjado su carácter: ${TRAIT_NAMES[traitId] ?? traitId}.`,
+        type: 'wisdom',
+        impact: 20,
+        duration: TICKS_PER_DAY * 5,
       }, tick);
-      nextResearching = null;
-      nextProgress = 0;
     }
   }
 
-  // 5. SINCRONIZAR RECETAS DESBLOQUEADAS
+  // Sincronizar items y recetas desbloqueadas por techs
   const nextUnlockedItems = [...state.unlockedItemKinds];
   for (const tid of nextUnlocked) {
     const tdef = TECH_DEFS[tid as TechId];
@@ -398,7 +399,14 @@ function tickTech(state: GameState): GameState {
     ...state,
     unlockedItemKinds: nextUnlockedItems,
     chronicle,
-    tech: { ...tech, wisdom: nextWisdom, unlocked: nextUnlocked, researching: nextResearching, researchProgress: nextProgress }
+    tech: {
+      ...tech,
+      unlocked: nextUnlocked,
+      culture: nextCulture,
+      activeTraits: nextTraits,
+      researching: null,
+      researchProgress: 0,
+    },
   };
 }
 
