@@ -990,25 +990,25 @@ function renderResources(
   resourceSprites: ResourceSpriteMap = new Map(),
   fog?: FogState,
   fogBuffer?: Uint8Array | null,
+  excludeTiles?: Set<number>,
 ) {
   const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
 
-  // LOD: No renderizar recursos individuales a zoom muy bajo
   if (tilePx < 8) return;
 
   const size = Math.max(7, Math.min(20, tilePx * 1.05));
   for (const resource of resources) {
     if (resource.quantity <= 0) continue;
+    const idx = resource.y * world.width + resource.x;
+    if (excludeTiles?.has(idx)) continue;
     if (resource.x < firstX || resource.x >= lastX || resource.y < firstY || resource.y >= lastY) continue;
 
-    // CULLING DE NIEBLA: No dibujar recursos ocultos
     if (fog && fogBuffer && !fogDiscovered(fogBuffer, fog.width, resource.x, resource.y)) continue;
 
     const cx = resource.x * tilePx + state.offsetX + tilePx / 2;
     const cy = resource.y * tilePx + state.offsetY + tilePx / 2;
     const img = resourceSprites.get(resource.id);
-    
-    // VISUAL DE VITALIDAD: Los nodos casi agotados se ven más tenues
+
     const isExhausted = resource.quantity < resource.initialQuantity * 0.15;
     const oldAlpha = ctx.globalAlpha;
     if (isExhausted) ctx.globalAlpha = 0.35;
@@ -1019,11 +1019,56 @@ function renderResources(
     } else {
       renderResourceGlyph(ctx, resource, cx, cy, size);
     }
-    
+
     if (isExhausted) ctx.globalAlpha = oldAlpha;
   }
 }
 
+/** 
+ * Renderiza efectos visuales dinámicos (Shake, Floating Icons).
+ * Se ejecuta en cada frame del RAF loop.
+ */
+function renderVFXLayer(
+  ctx: CanvasRenderingContext2D,
+  now: number,
+  harvestingTiles: Set<number>,
+  world: WorldMap,
+  dims: ViewportDims,
+  viewport: ViewportState,
+  resourceSprites: ResourceSpriteMap,
+  sprites: SpriteMap,
+) {
+  const tilePx = dims.tileSize * viewport.zoom;
+  if (tilePx < 8) return;
+  const size = Math.max(7, Math.min(20, tilePx * 1.05));
+
+  // 1. Recursos con Shake
+  for (const idx of harvestingTiles) {
+    const tx = idx % world.width;
+    const ty = Math.floor(idx / world.width);
+    const resource = world.resources.find(r => r.x === tx && r.y === ty);
+    if (!resource || resource.quantity <= 0) continue;
+
+    const cx = tx * tilePx + viewport.offsetX + tilePx / 2;
+    const cy = ty * tilePx + viewport.offsetY + tilePx / 2;
+
+    // Shake sutil
+    const shakeX = Math.sin(now / 40) * (tilePx * 0.04);
+    const shakeY = Math.cos(now / 50) * (tilePx * 0.04);
+
+    const img = resourceSprites.get(resource.id);
+    if (img) {
+      ctx.drawImage(img, cx - size / 2 + shakeX, cy - size / 2 + shakeY, size, size);
+    } else {
+      ctx.save();
+      ctx.translate(shakeX, shakeY);
+      renderResourceGlyph(ctx, resource, cx, cy, size);
+      ctx.restore();
+    }
+  }
+
+  // TODO: Implementar floating icons aquí en el futuro usando un sistema de partículas/cola
+}
 // Cache de bitmaps pre-rasterizados: evita que ctx.drawImage(svgImg)
 // re-rasterice el SVG en cada frame. Clave = `${tileId}@${size}`.
 const _tileBitmapCache = new Map<string, HTMLCanvasElement>();
@@ -1703,6 +1748,22 @@ export function MapView({
         tileLayerDirtyRef.current = true;
       }
 
+      // 1. Identificar tiles que están siendo cosechados ACTIVAMENTE por NPCs
+      const harvestingTiles = new Set<number>();
+      for (const npc of rp.npcs) {
+        if (!npc.alive) continue;
+        const state = actionStateFor(npc, [], false, true); 
+        if (state === 'harvesting') {
+          harvestingTiles.add(npc.position.y * rp.world.width + npc.position.x);
+        }
+      }
+
+      const lastHarvestingTiles = lastHarvestingTilesRef.current;
+      if (!setsEqual(harvestingTiles, lastHarvestingTiles)) {
+        tileLayerDirtyRef.current = true;
+        lastHarvestingTilesRef.current = harvestingTiles;
+      }
+
       // ── Layer estático (tiles + recursos + estructuras + niebla) ──
       // Se regenera solo cuando el contenido cambia; luego se blit-ea.
       let tileLayer = tileLayerRef.current;
@@ -1716,7 +1777,9 @@ export function MapView({
         const tlCtx = tileLayer.getContext('2d');
         if (tlCtx) {
           renderTiles(tlCtx, rp.world, currentDims, currentViewport, rp.tileSprites, rp.fog, fogBufferRef.current);
-          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites, rp.fog, fogBufferRef.current);          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, sprites); // Usar 'sprites' del hook          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport);
+          renderResources(tlCtx, rp.world.resources, currentDims, currentViewport, rp.world, rp.resourceSprites, rp.fog, fogBufferRef.current, harvestingTiles);
+          renderStructures(tlCtx, rp.structures, currentDims, currentViewport, sprites);
+          renderBuildProject(tlCtx, rp.buildProject, currentDims, currentViewport, sprites);
           // OPTIMIZACIÓN: Usamos el buffer cacheado
           renderFogOverlayWithBuffer(tlCtx, rp.fog, fogBufferRef.current, currentDims, currentViewport, rp.world);
           if (influenceLayerOnRef.current) renderInfluenceOverlay(tlCtx, rp.world, currentDims, currentViewport);
@@ -1727,7 +1790,10 @@ export function MapView({
       ctx.clearRect(0, 0, W, H);
       ctx.drawImage(tileLayer, 0, 0);
 
-      // ── Overlay de Estaciones (Sprint Clima) ──
+      // ── Capas dinámicas (VFX + Fauna + NPCs + UI) ──
+      renderVFXLayer(ctx, now, harvestingTiles, rp.world, currentDims, currentViewport, rp.resourceSprites, sprites, particlesRef.current);
+      
+      // Overlay de Estaciones (Sprint Clima)
       if (rp.climate) {
         let overlayColor = '';
         switch (rp.climate.season) {
@@ -1751,14 +1817,10 @@ export function MapView({
       // Render de la fauna
       renderAnimals(ctx, rp.animals, currentDims, currentViewport, rp.fog, fogBufferRef.current, rp.sprites);
 
-      // Set de tiles con recursos activos para detectar cosecha
-      const resourceTileSet = new Set<number>(
-        rp.world.resources.filter((r) => r.quantity > 0).map((r) => r.y * rp.world.width + r.x),
-      );
       const currentTilePx = currentDims.tileSize * currentViewport.zoom;
       renderNPCs(
         ctx, lerpedPlacements, true, rp.items, pulse, rp.sprites, now,
-        rp.npcStatuses, rp.intentTrails, resourceTileSet, rp.world.width,
+        rp.npcStatuses, rp.intentTrails, harvestingTiles, rp.world.width,
         currentTilePx,
       );
       renderNpcStatusBadges(ctx, lerpedPlacements, rp.npcStatuses, rp.sprites);
