@@ -1582,6 +1582,7 @@ export function MapView({
     new Map(npcs.map((n) => [n.id, { ...n.position }])),
   );
   const lastTickMsRef = useRef<number>(0);
+  const lastHarvestingTilesRef = useRef<Set<number>>(new Set());
   // Ref que guarda los npcs del RENDER ANTERIOR — necesario para
   // capturar las posiciones viejas ANTES de que npcs cambie.
   const npcsSnapshotRef = useRef<readonly typeof npcs[0][]>(npcs);
