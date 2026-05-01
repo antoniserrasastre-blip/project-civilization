@@ -52,10 +52,10 @@ function triggerMigration(state: GameState, prng: PRNGState): GameState {
   while (newNPCs.length < count && attempts < 100) {
     attempts++;
     let x = 0, y = 0;
-    if (sideChar === 'N') { x = Math.floor(Math.random() * width); y = 0; }
-    else if (sideChar === 'S') { x = Math.floor(Math.random() * width); y = height - 1; }
-    else if (sideChar === 'E') { x = width - 1; y = Math.floor(Math.random() * height); }
-    else if (sideChar === 'W') { x = 0; y = Math.floor(Math.random() * height); }
+    if (sideChar === 'N') { const r = nextInt(currentPrng, 0, width); x = r.value; y = 0; currentPrng = r.next; }
+    else if (sideChar === 'S') { const r = nextInt(currentPrng, 0, width); x = r.value; y = height - 1; currentPrng = r.next; }
+    else if (sideChar === 'E') { const r = nextInt(currentPrng, 0, height); x = width - 1; y = r.value; currentPrng = r.next; }
+    else if (sideChar === 'W') { const r = nextInt(currentPrng, 0, height); x = 0; y = r.value; currentPrng = r.next; }
 
     const tile = tiles[y * width + x];
     if (tile !== TILE.WATER && tile !== TILE.SHALLOW_WATER) {

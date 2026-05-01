@@ -9,6 +9,7 @@
 import type { NPC, NPCInventory } from './npcs';
 import { ITEM_KIND, type ItemKind, createItem, type EquippableItem } from './items';
 import { clanInventoryTotal, consumeForRecipe as consumeForBuildRecipe } from './crafting';
+import { type PRNGState, seedState } from './prng';
 
 export interface ItemRecipe {
   kind: ItemKind;
@@ -88,9 +89,10 @@ export function craftItem(
   tick: number,
   maker: NPC | null,
   structures: readonly Structure[] = [],
-): { item: EquippableItem; npcs: NPC[]; structures: Structure[] } {
+  prng?: PRNGState,
+): { item: EquippableItem; npcs: NPC[]; structures: Structure[]; next: PRNGState } {
   const recipe = ITEM_RECIPES[kind];
-  
+
   // Determinar material principal basado en los inputs
   let material: any = 'stone';
   if (recipe.inputs.obsidian) material = 'obsidian';
@@ -111,7 +113,8 @@ export function craftItem(
     buildRecipeLike as Parameters<typeof consumeForBuildRecipe>[1],
     structures,
   );
-  
-  const item = createItem(kind, material, maker, tick);
-  return { item, npcs: updatedNpcs, structures: updatedStructures };
+
+  const currentPrng = prng ?? seedState(tick);
+  const { item, next } = createItem(kind, material, maker, tick, currentPrng);
+  return { item, npcs: updatedNpcs, structures: updatedStructures, next };
 }

@@ -55,6 +55,7 @@ import {
   type TechUnlockCtx,
   computeCultureAxis,
   computeActiveTraits,
+  aggregateBonuses,
 } from './technologies';
 import { tickClimate } from './climate';
 import { recordLegend } from './legends';
@@ -293,23 +294,27 @@ function tickInfrastructureDecay(state: GameState): { structures: Structure[], c
 }
 
 function tickClanSystems(state: GameState): GameState {
-  const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items, state.climate);
+  // Calcular bonuses de rasgos culturales activos (§A4: se computan del estado, no mutados)
+  const techBonuses = aggregateBonuses(state.tech.activeTraits ?? []);
+
+  const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items, state.climate, state.prng, techBonuses);
   const logistics = tickLogistics(harvested.npcs, state.structures);
   const traditions = { ...(state.world.traditions || {}) };
   for (const npc of state.npcs) { if (npc.alive) { const role = computeRole(npc, null); traditions[role] = (traditions[role] || 0) + 1; } }
 
   const { structures: decayedStructures, chronicle: nextChronicle } = tickInfrastructureDecay({ ...state, structures: logistics.structures });
   const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
-  
+
   // Decodificamos el buffer aquí también para que esté disponible en tickNeeds
   const fogBuffer = decodeFogBitmap(state.fog.bitmap);
-  
+
   const npcsBeforeNeeds = logistics.npcs;
   const npcsWithNeeds = tickNeeds(npcsBeforeNeeds, {
     world: state.world, npcs: npcsBeforeNeeds,
-    moodModifier, prng: state.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: [],
+    moodModifier, prng: harvested.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: [],
     fog: state.fog, fogBuffer,
-    climate: state.climate
+    climate: state.climate,
+    techBonuses,
   });
 
   // GRATITUD: contabilizar escapes de hambre (sv subió desde zona crítica)
@@ -338,6 +343,7 @@ function tickClanSystems(state: GameState): GameState {
     ...state, npcs: npcsWithNeeds, structures: decayedStructures, chronicle: nextChronicle,
     village,
     items: nextItems,
+    prng: harvested.prng,
     world: { ...state.world, resources: harvested.resources, reserves: harvested.reserves, traditions }
   };
 }
@@ -453,19 +459,20 @@ function tryAutoCraftItems(state: GameState): GameState {
   if (unarmedNpc.vocation === VOCATION.SIMPLEZAS) kindToCraft = ITEM_KIND.BASKET;
 
   if (canCraftItem(kindToCraft, state.npcs, state.structures)) {
-    const { item, npcs, structures } = craftItem(kindToCraft, state.npcs, state.tick, crafter, state.structures);
-    
+    const { item, npcs, structures, next: nextPrng } = craftItem(kindToCraft, state.npcs, state.tick, crafter, state.structures, state.prng);
+
     // Asignar inmediatamente al necesitado
     const nextNpcs = npcs.map(n => n.id === unarmedNpc.id ? { ...n, equippedItemId: item.id } : n);
-    
+
     return {
       ...state,
+      prng: nextPrng,
       npcs: nextNpcs,
       structures,
       items: [...state.items, item],
-      chronicle: addChronicleEntry(state.chronicle, { 
+      chronicle: addChronicleEntry(state.chronicle, {
         text: `${crafter.name} ha forjado una nueva ${kindToCraft} para ${unarmedNpc.name}.`,
-        type: 'system', impact: 5, duration: TICKS_PER_DAY 
+        type: 'system', impact: 5, duration: TICKS_PER_DAY
       }, state.tick)
     };
   }

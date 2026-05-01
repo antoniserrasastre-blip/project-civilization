@@ -22,6 +22,7 @@ import { nextInt, type PRNGState } from './prng';
 import type { Synergy } from './synergies';
 import { isDiscovered, type FogState } from './fog';
 import { SEASON } from './climate';
+import type { TechEffect } from './technologies';
 
 const CLAIM_PENALTY = 8;
 const CURSED_PENALTY = 100; 
@@ -134,6 +135,7 @@ export interface DestinationContext {
   fog?: FogState;
   fogBuffer?: Uint8Array;
   climate?: ClimateState;
+  techBonuses?: NonNullable<TechEffect['bonus']>;
 }
 
 export interface Position { x: number; y: number; }
@@ -308,14 +310,16 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
   return { position: npc.position, next: currentPrng };
 }
 
-function consumeInventoryFood(npc: NPC): { npc: NPC; nutrition: number; kind: 'berry' | 'fish' | 'game' | null } {
+function consumeInventoryFood(npc: NPC, foodNutritionBonus?: number): { npc: NPC; nutrition: number; kind: 'berry' | 'fish' | 'game' | null } {
   const inv = { ...npc.inventory };
   let kind: 'berry' | 'fish' | 'game' | null = null;
   if (inv.berry > 0) { inv.berry--; kind = 'berry'; }
   else if (inv.fish > 0) { inv.fish--; kind = 'fish'; }
   else if (inv.game > 0) { inv.game--; kind = 'game'; }
   else return { npc, nutrition: 0, kind: null };
-  return { npc: { ...npc, inventory: inv }, nutrition: FOOD_NUTRITION[kind], kind };
+  const baseNutrition = FOOD_NUTRITION[kind];
+  const nutrition = foodNutritionBonus ? Math.round(baseNutrition * (1 + foodNutritionBonus)) : baseNutrition;
+  return { npc: { ...npc, inventory: inv }, nutrition, kind };
 }
 
 function findFoodDonorIndex(hungry: NPC, npcs: readonly NPC[], communal: boolean): number {
@@ -332,6 +336,8 @@ function findFoodDonorIndex(hungry: NPC, npcs: readonly NPC[], communal: boolean
 export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] {
   const out = npcs.map(n => ({ ...n, inventory: { ...n.inventory }, stats: { ...n.stats } }));
   const mood = ctx.moodModifier || 0;
+  const foodNutritionBonus = ctx.techBonuses?.food_nutrition;
+  const decayReductionBonus = ctx.techBonuses?.decay_reduction;
 
   for (let i = 0; i < out.length; i++) {
     const n = out[i]; if (!n.alive) continue;
@@ -340,21 +346,26 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
 
     // 1. Metabolismo y Alimentación
     let survivalDecay = NEED_TICK_RATES.supervivenciaDecay;
-    
+
+    // Aplicar reducción de decaimiento por rasgos culturales
+    if (decayReductionBonus) {
+      survivalDecay *= (1 - decayReductionBonus);
+    }
+
     // VERANO: Aumento de sed (decaimiento de supervivencia)
     if (ctx.climate?.season === SEASON.SUMMER) {
       survivalDecay *= 2.0;
     }
 
     if (sv < NEED_THRESHOLDS.supervivenciaEatFromInventory && carriedFood(npc) > 0) {
-      const meal = consumeInventoryFood(npc);
+      const meal = consumeInventoryFood(npc, foodNutritionBonus);
       npc = meal.npc;
       sv += ctx.firePosition ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER) : meal.nutrition;
       if (ctx.firePosition) so += COOKED_FOOD_SOCIAL_BONUS;
     } else if (sv < NEED_THRESHOLDS.supervivenciaHungry) {
       const donorIdx = findFoodDonorIndex(npc, out, !!ctx.firePosition);
       if (donorIdx !== -1) {
-        const meal = consumeInventoryFood(out[donorIdx]);
+        const meal = consumeInventoryFood(out[donorIdx], foodNutritionBonus);
         out[donorIdx] = meal.npc;
         sv += ctx.firePosition ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER) : meal.nutrition;
       } else {
