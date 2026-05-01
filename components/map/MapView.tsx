@@ -1551,6 +1551,12 @@ export function MapView({
   initialCenter,
   tickIntervalMs = 250,
 }: MapViewProps = {}) {
+  // Defined here to avoid closure issues in the RAF loop
+  function setsEqual(a: Set<number>, b: Set<number>): boolean {
+    if (a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  }
   const [relationsLayerOn, setRelationsLayerOn] = useState(false);
   const [influenceLayerOn, setInfluenceLayerOn] = useState(false);
   const sprites = useUnitSprites();
