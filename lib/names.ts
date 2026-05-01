@@ -12,8 +12,6 @@
 
 import { nextInt, type PRNGState } from './prng';
 import { SEX, type Sex } from './npcs';
-import { faker } from '@faker-js/faker';
-
 /** Nombres masculinos baleares — Joan/Miquel son arquetipos; Tomeu
  *  = diminutivo canónico de Bartomeu; se mantienen ambos porque
  *  conviven culturalmente. */
@@ -98,22 +96,13 @@ function poolFor(sex: Sex): readonly string[] {
 }
 
 /** Elige un nombre determinista a partir de (seed, sex, cursor).
- *  No garantiza unicidad; para eso usa `pickUniqueName`. */
+ *  No garantiza unicidad; para eso usa `pickUniqueName`.
+ *  Siempre retorna un nombre del pool catalano-balear sin modificar. */
 export function pickName(seed: number, sex: Sex, cursor: number): string {
   const pool = poolFor(sex);
   const prng: PRNGState = { seed: seed | 0, cursor };
   const { value } = nextInt(prng, 0, pool.length);
-  
-  // Faker seed para determinismo
-  faker.seed(seed + cursor);
-  const baseName = pool[value];
-  
-  // 15% de probabilidad de apodo job-based
-  if (faker.number.int(100) < 15) {
-    return `${baseName} ${faker.person.jobDescriptor()}`;
-  }
-  
-  return baseName;
+  return pool[value];
 }
 
 /** Elige un nombre determinista que no esté en `exclude`, avanzando

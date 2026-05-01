@@ -67,7 +67,8 @@ describe('decideDestination — filtrado por herramienta', () => {
       npcs: [npc],
       items: [item],
     };
-    const dest = decideDestination(npc, ctx);
+    const result = decideDestination(npc, ctx);
+    const dest = 'position' in result ? result.position : result;
     // Debe elegir la posición de caza, no la de bayas
     const gameSpawn = world.resources.find((r) => r.id === RESOURCE.GAME)!;
     expect(dest).toEqual({ x: gameSpawn.x, y: gameSpawn.y });
@@ -90,7 +91,8 @@ describe('decideDestination — filtrado por herramienta', () => {
       npcs: [npc],
       items: [item],
     };
-    const dest = decideDestination(npc, ctx);
+    const result = decideDestination(npc, ctx);
+    const dest = 'position' in result ? result.position : result;
     const berrySpawn = world.resources.find((r) => r.id === RESOURCE.BERRY)!;
     expect(dest).toEqual({ x: berrySpawn.x, y: berrySpawn.y });
   });
@@ -112,7 +114,8 @@ describe('decideDestination — filtrado por herramienta', () => {
       npcs: [npc],
       items: [item],
     };
-    const dest = decideDestination(npc, ctx);
+    const result = decideDestination(npc, ctx);
+    const dest = 'position' in result ? result.position : result;
     // Supervivencia crítica → agua, no caza
     const waterSpawn = world.resources.find((r) => r.id === RESOURCE.WATER)!;
     expect(dest).toEqual({ x: waterSpawn.x, y: waterSpawn.y });

@@ -36,9 +36,11 @@ describe('Impulso de Trabajo (Work Impulse)', () => {
       position: { x: 0, y: 0 },
       stats: { supervivencia: 80, socializacion: 80 },
       archetype: ARCHETYPE.CAZADOR,
+      vocation: 'guerrero', // GUERRERO tiene afinidad con GAME
     });
 
-    const destination = decideDestination(npc, { world, npcs: [npc] });
+    const result = decideDestination(npc, { world, npcs: [npc] });
+    const destination = 'position' in result ? result.position : result;
 
     // Debería dirigirse al recurso de su rol (GAME)
     expect(destination).toEqual({ x: 10, y: 10 });
@@ -74,7 +76,8 @@ describe('Impulso de Trabajo (Work Impulse)', () => {
       archetype: ARCHETYPE.CAZADOR,
     });
 
-    const destination = decideDestination(npc, { world, npcs: [npc] });
+    const result = decideDestination(npc, { world, npcs: [npc] });
+    const destination = 'position' in result ? result.position : result;
 
     // Debería ir a las bayas por urgencia
     expect(destination).toEqual({ x: 1, y: 1 });

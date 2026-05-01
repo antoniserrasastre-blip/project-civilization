@@ -56,15 +56,15 @@ export function tickHarvests(
   npcsIn: readonly NPC[],
   resourcesIn: readonly ResourceSpawn[],
   currentTick: number,
-  reservesIn: readonly number[],
-  worldWidth: number,
+  reservesIn: readonly number[] = [],
+  worldWidth = 0,
   structures: readonly Structure[] = [],
   itemsIn: readonly EquippableItem[] = [],
   climate?: ClimateState,
   prngIn?: PRNGState,
   techBonuses?: NonNullable<TechEffect['bonus']>,
 ): HarvestTickResult {
-  const npcs = npcsIn.map(n => ({ ...n, inventory: { ...n.inventory } }));
+  const npcs = npcsIn.map(n => ({ ...n, inventory: { ...n.inventory }, skills: { ...n.skills } }));
   const resources = resourcesIn.map(r => ({ ...r }));
   const reserves = [...reservesIn];
   const items = itemsIn.map(i => ({ ...i }));
@@ -79,20 +79,25 @@ export function tickHarvests(
     for (const r of resources) {
       if (r.x !== npc.position.x || r.y !== npc.position.y || r.quantity <= 0) continue;
 
+      // El agua no va al inventario (WATER es continuo y no se recolecta)
+      if (r.id === RESOURCE.WATER) continue;
+
       const key = inventoryKeyFor(r.id);
       if (!key || npc.inventory[key] >= invCap) continue;
 
       // RECOLECCIÓN
       const idx = r.y * worldWidth + r.x;
-      let harvestBase = 2;
+      let harvestBase = 1;
 
       // Impacto de las Estaciones en las Bayas
       if (r.id === RESOURCE.BERRY && climate) {
-        if (climate.season === SEASON.SUMMER) harvestBase = 4;
+        if (climate.season === SEASON.SUMMER) harvestBase = 2;
         else if (climate.season === SEASON.WINTER) harvestBase = 0;
       }
 
-      let amountToHarvest = Math.min(r.quantity, harvestBase, reserves[idx]);
+      // Si hay reservas, limitar por ellas; si no, solo limitar por quantity y harvestBase
+      const reserveAvailable = reserves.length > 0 ? (reserves[idx] ?? 0) : Infinity;
+      let amountToHarvest = Math.min(r.quantity, harvestBase, reserveAvailable);
       if (amountToHarvest <= 0) continue;
 
       // Aplicar bonos culturales de tecnología
@@ -104,12 +109,19 @@ export function tickHarvests(
         // Round to integer, minimum 1 if base was > 0
         amountToHarvest = Math.max(1, Math.round(amountToHarvest * mult));
         // Cannot exceed what's available
-        amountToHarvest = Math.min(amountToHarvest, r.quantity, reserves[idx]);
+        amountToHarvest = Math.min(amountToHarvest, r.quantity, reserveAvailable === Infinity ? r.quantity : reserveAvailable);
       }
 
       npc.inventory[key] += amountToHarvest;
       r.quantity -= amountToHarvest;
-      reserves[idx] -= amountToHarvest;
+      if (reserves.length > 0 && idx < reserves.length) {
+        reserves[idx] -= amountToHarvest;
+      }
+
+      // Si quantity llegó a 0, marcar depletedAtTick (sistema legacy)
+      if (r.quantity === 0 && r.depletedAtTick !== undefined) {
+        r.depletedAtTick = currentTick;
+      }
 
       // APRENDIZAJE DEL NPC (MAESTRÍA)
       const skillToGain = r.id === RESOURCE.GAME ? 'hunting' :

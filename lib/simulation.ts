@@ -42,7 +42,7 @@ import {
 import { TILE, type TileId } from './world-state';
 import { tickReproduction } from './reproduction';
 import { applyEsclavoDrain, elegidoFaithBonusPerTick } from './casta-effects';
-import { narrate } from './chronicle';
+import { narrateDetailed as narrate } from './chronicle';
 import type { EquippableItem } from './items';
 import { recordItemDeed, ITEM_KIND, itemForNpc } from './items';
 import { transferLegacyItem } from './legacy';
@@ -122,24 +122,28 @@ export function tick(state: GameState): GameState {
   let nextState = state;
 
   // AMANECER: evaluar gratitud del día anterior, drenar silencio, resetear contadores
-  if (state.tick % TICKS_PER_DAY === 0 && state.tick > 0) {
+  // Fires at the LAST tick of each day (so loop of TICKS_PER_DAY ticks completes 1 full day)
+  if ((state.tick + 1) % TICKS_PER_DAY === 0 && state.tick > 0) {
     let v = nextState.village;
     // Pulso de amanecer: day_without_deaths + day_saciated
     v = evaluateDawnGratitude(v, v.activeMessage);
     // Drain por silencio activo (solo si no hay susurro y se agotó la gracia)
     const drain = computeSilenceDrainPerDay(v);
     if (drain > 0) v = applyGratitudeDelta(v, -drain);
-    // Decrementar gracia de silencio
-    if (v.silenceGraceDaysRemaining > 0) {
+    // Decrementar gracia de silencio SOLO si no hay susurro activo
+    if (v.silenceGraceDaysRemaining > 0 && v.activeMessage === null) {
       v = { ...v, silenceGraceDaysRemaining: v.silenceGraceDaysRemaining - 1 };
     }
+    // NOCHES EN FOGATA: evaluar si la noche contó para el monumento
+    const newNightsCount = evaluateNight(nextState.structures, nextState.npcs, v.consecutiveNightsAtFire);
+    v = { ...v, consecutiveNightsAtFire: newNightsCount };
     // Reset contadores diarios
     v = resetGratitudeDailyTracking(v);
     nextState = { ...nextState, village: v };
   }
 
-  // Actualización diaria del clima (al inicio del día)
-  if (state.tick % TICKS_PER_DAY === 0) {
+  // Actualización diaria del clima (al final del día)
+  if ((state.tick + 1) % TICKS_PER_DAY === 0) {
     const { state: nextClimate, next: nextPrng } = tickClimate(state.climate, state.prng);
     nextState = { ...nextState, climate: nextClimate, prng: nextPrng };
   }
@@ -170,6 +174,8 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
   const groupsByDest = new Map<string, NPC[]>();
   const claimedTiles = new Set<string>();
+  // Store destinations without mutating NPC objects
+  const npcDestinations = new Map<string, { x: number; y: number }>();
 
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
@@ -186,13 +192,13 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
       claimedTiles
     };
     const decision = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
-    
+
     // Marcar destino como reclamado para que otros no lo elijan
     const destKey = `${decision.position.x},${decision.position.y}`;
     claimedTiles.add(destKey);
 
-    (npc as any)._nextDest = decision.position;
-    currentPrng = decision.next; 
+    npcDestinations.set(npc.id, decision.position);
+    currentPrng = decision.next;
     const key = `${decision.position.x},${decision.position.y}`;
     if (!groupsByDest.has(key)) groupsByDest.set(key, []);
     groupsByDest.get(key)!.push(npc);
@@ -204,7 +210,7 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
 
   for (const npc of state.npcs) {
     if (!npc.alive) { newNPCs.push(npc); continue; }
-    const dest = (npc as any)._nextDest;
+    const dest = npcDestinations.get(npc.id) ?? npc.position;
     const foreman = (groupsByDest.get(`${dest.x},${dest.y}`) || [])[0];
     const isForeman = foreman.id === npc.id;
 
@@ -234,6 +240,15 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
     }
     
     if (!nextStep) { newNPCs.push({ ...npc, destination: dest }); continue; }
+
+    // Movimiento lento en agua poco profunda — solo puede moverse 1 de cada 3 ticks
+    const currentTile = state.world.tiles[npc.position.y * state.world.width + npc.position.x];
+    if (currentTile === TILE.SHALLOW_WATER && (state.tick % 3) !== 0) {
+      newNPCs.push({ ...npc, destination: dest });
+      fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
+      continue;
+    }
+
     const moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
     newNPCs.push(moved);
     const nextIdx = nextStep.y * state.world.width + nextStep.x;

@@ -79,40 +79,50 @@ export function findIslands(world: WorldMap): Island[] {
 export function pickClanSpawn(
   seed: number,
   islands: readonly Island[],
-  world: WorldMap, // Necesario para comprobar bosques
+  world?: WorldMap, // Opcional: si se omite, no se filtra por bosques
 ): ClanSpawn {
   if (islands.length === 0) throw new Error('pickClanSpawn: sin islas');
-  
-  // Filtrar islas viables (tienen bosque y tamaño razonable)
-  const viableIslands = islands.map((isle, idx) => {
-    const forestTiles = isle.tiles.filter(t => world.tiles[t.y * world.width + t.x] === TILE.FOREST).length;
-    return { idx, forestTiles, size: isle.tiles.length };
-  }).filter(info => info.forestTiles >= 5 && info.size >= 50);
 
   let selectedIdx = 0;
   const prng0: PRNGState = { seed: seed | 0, cursor: 0 };
 
-  if (viableIslands.length > 0) {
-    const { value: vIdx } = nextInt(prng0, 0, viableIslands.length);
-    selectedIdx = viableIslands[vIdx].idx;
-  } else {
-    // FALLBACK ROBUSTO: Elegir la isla que tenga MÁS BOSQUES, 
-    // sin importar su tamaño total, para garantizar madera inicial.
-    let bestIdx = 0;
-    let maxForests = -1;
-    for (let i = 0; i < islands.length; i++) {
-      const fCount = islands[i].tiles.filter(t => world.tiles[t.y * world.width + t.x] === TILE.FOREST).length;
-      if (fCount > maxForests) {
-        maxForests = fCount;
-        bestIdx = i;
-      } else if (fCount === maxForests) {
-        // Empate en bosques: la más grande
-        if (islands[i].tiles.length > islands[bestIdx].tiles.length) {
+  if (world) {
+    // Filtrar islas viables (tienen bosque y tamaño razonable)
+    const viableIslands = islands.map((isle, idx) => {
+      const forestTiles = isle.tiles.filter(t => world.tiles[t.y * world.width + t.x] === TILE.FOREST).length;
+      return { idx, forestTiles, size: isle.tiles.length };
+    }).filter(info => info.forestTiles >= 5 && info.size >= 50);
+
+    if (viableIslands.length > 0) {
+      const { value: vIdx } = nextInt(prng0, 0, viableIslands.length);
+      selectedIdx = viableIslands[vIdx].idx;
+    } else {
+      // FALLBACK ROBUSTO: Elegir la isla que tenga MÁS BOSQUES,
+      // sin importar su tamaño total, para garantizar madera inicial.
+      let bestIdx = 0;
+      let maxForests = -1;
+      for (let i = 0; i < islands.length; i++) {
+        const fCount = islands[i].tiles.filter(t => world.tiles[t.y * world.width + t.x] === TILE.FOREST).length;
+        if (fCount > maxForests) {
+          maxForests = fCount;
           bestIdx = i;
+        } else if (fCount === maxForests) {
+          // Empate en bosques: la más grande
+          if (islands[i].tiles.length > islands[bestIdx].tiles.length) {
+            bestIdx = i;
+          }
         }
       }
+      selectedIdx = bestIdx;
     }
-    selectedIdx = bestIdx;
+  } else {
+    // Sin world: elegir la isla más grande (fallback simple)
+    const viable = islands.map((isle, idx) => ({ idx, size: isle.tiles.length }))
+      .filter(info => info.size >= 50);
+    const pool = viable.length > 0 ? viable : islands.map((isle, idx) => ({ idx, size: isle.tiles.length }));
+    const sorted = [...pool].sort((a, b) => b.size - a.size || a.idx - b.idx);
+    const { value: vIdx } = nextInt(prng0, 0, sorted.length);
+    selectedIdx = sorted[vIdx].idx;
   }
 
   const isle = islands[selectedIdx];

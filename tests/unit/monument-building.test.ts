@@ -40,7 +40,7 @@ function all5Built() {
   for (const k of [
     CRAFTABLE.REFUGIO,
     CRAFTABLE.FOGATA_PERMANENTE,
-    CRAFTABLE.PIEL_ROPA,
+    CRAFTABLE.STOCKPILE_WOOD,
     CRAFTABLE.DESPENSA,
   ]) {
     s = addStructure(s, k, { x: 0, y: 0 }, 0, s.length);

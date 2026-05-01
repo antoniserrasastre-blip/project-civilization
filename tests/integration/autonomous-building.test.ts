@@ -128,12 +128,13 @@ describe('Fase 4.7 — clan autónomo construye los 5 crafteables', () => {
       }
       expect(s.structures.length).toBe(4);
       const kinds = s.structures.map((x) => x.kind).sort();
+      // Prioridad de construcción actual (Sprint 15): fogata, stockpiles, despensa, refugio
       expect(kinds).toEqual(
         [
           CRAFTABLE.DESPENSA,
           CRAFTABLE.FOGATA_PERMANENTE,
-          CRAFTABLE.PIEL_ROPA,
-          CRAFTABLE.REFUGIO,
+          CRAFTABLE.STOCKPILE_STONE,
+          CRAFTABLE.STOCKPILE_WOOD,
         ].sort(),
       );
       expect(s.tick).toBeLessThan(20_000);

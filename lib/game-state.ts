@@ -1,4 +1,4 @@
-import { createFog, type FogState } from './fog';
+import { createFog, markDiscovered, type FogState } from './fog';
 import type { NPC } from './npcs';
 import type { PRNGState } from './prng';
 import { seedState } from './prng';
@@ -122,7 +122,14 @@ export function initialGameState(
     })),
     godType,
     animals: [],
-    fog: createFog(world.width, world.height),
+    fog: (() => {
+      // Reveal around each NPC's initial position
+      let fog = createFog(world.width, world.height);
+      for (const n of nextNpcs) {
+        fog = markDiscovered(fog, n.position.x, n.position.y, n.visionRadius ?? 6);
+      }
+      return fog;
+    })(),
     structures: [],
     buildProject: null,
     items: [],

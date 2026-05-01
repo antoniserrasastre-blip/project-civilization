@@ -350,6 +350,8 @@ function scatterResources(
           quantity: isWater ? 9999 : q.value,
           initialQuantity: isWater ? 9999 : (isBiotic ? q.value : q.value * 20),
           regenerationRate: isWater ? 100 : (isBiotic ? Math.max(1, Math.floor(q.value / 10)) : 0),
+          regime,
+          depletedAtTick: null,
         });
       }
     }

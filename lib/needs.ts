@@ -200,6 +200,20 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
 
     const food = nearestResource(npc.position, ctx.world.resources, rid => [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH].includes(rid), ctx, undefined, id);
     if (food) return { position: food, next: currentPrng };
+
+    // Si no hay comida visible y está hambriento, explorar activamente para encontrarla
+    // Solo explorar si hay tiles de tierra accesibles fuera de la zona actual
+    if (ctx.world.width > 5 && ctx.world.height > 5) {
+      const angle = ((roll * 13) % 100 / 100) * Math.PI * 2;
+      const dist = 5;
+      const target = {
+        x: Math.max(0, Math.min(ctx.world.width - 1, Math.round(npc.position.x + Math.cos(angle) * dist))),
+        y: Math.max(0, Math.min(ctx.world.height - 1, Math.round(npc.position.y + Math.sin(angle) * dist))),
+      };
+      if (!ctx.isReachable || ctx.isReachable(npc.position, target)) {
+        return { position: target, next: currentPrng };
+      }
+    }
   }
 
   // 4. URGENCIA: Socialización (Si está muy bajo, busca compañía o la fogata)
@@ -242,6 +256,19 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
 
   // 3. PRIORIDAD POR VOCACIÓN (Identidad de IA)
   const vocationResources = VOCATION_RESOURCES[npc.vocation] ?? [];
+
+  // FILTRO POR HERRAMIENTA EQUIPADA: La herramienta añade afinidad con recursos de su skill
+  const equippedItemForIntent = npc.equippedItemId && ctx.items
+    ? ctx.items.find(it => it.id === npc.equippedItemId) ?? null
+    : null;
+  const itemAffinity = equippedItemForIntent ? ITEM_DEFS[equippedItemForIntent.kind]?.skillAffinity : null;
+  const itemResources: ResourceId[] = itemAffinity === 'hunting' ? [RESOURCE.GAME]
+    : itemAffinity === 'gathering' ? [RESOURCE.BERRY, RESOURCE.WOOD]
+    : itemAffinity === 'fishing' ? [RESOURCE.FISH]
+    : [];
+  const allVocationResources = itemResources.length > 0
+    ? [...new Set([...vocationResources, ...itemResources])]
+    : vocationResources;
     
   // PESADO DE INTENCIONES: Si necesitamos madera/piedra para construir, 
   // aumentamos su prioridad aunque no sea nuestra vocación principal.
@@ -262,13 +289,13 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
        return { position: ctx.buildSitePosition, next: currentPrng };
     }
 
-    if (vocationResources.length > 0 || neededForBuild.size > 0) {
+    if (allVocationResources.length > 0 || neededForBuild.size > 0) {
       const vocationTarget = nearestResource(
-        npc.position, 
-        ctx.world.resources, 
-        rid => vocationResources.includes(rid) || (neededForBuild.has(rid) && npc.vocation === VOCATION.SIMPLEZAS), 
+        npc.position,
+        ctx.world.resources,
+        rid => allVocationResources.includes(rid) || (neededForBuild.has(rid) && npc.vocation === VOCATION.SIMPLEZAS),
         ctx,
-        rid => neededForBuild.has(rid) ? 15 : 0, // Bonus de peso (15 casillas de distancia)
+        rid => neededForBuild.has(rid) ? 15 : (itemResources.includes(rid) ? 10 : 0),
         id
       );
       if (vocationTarget) return { position: vocationTarget, next: currentPrng };

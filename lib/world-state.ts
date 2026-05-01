@@ -101,9 +101,13 @@ export interface ResourceSpawn {
   quantity: number;
   /** Cantidad máxima que el nodo puede contener tras regenerar. */
   initialQuantity: number;
-  /** Unidades que recupera automáticamente cada ciclo de regeneración. */
-  regenerationRate: number;
-  /** Marca de tiempo del último uso o agotamiento para el cooldown. */
+  /** Régimen de regeneración — decisión #21. Campo legacy para compatibilidad. */
+  regime?: ResourceRegime;
+  /** Tick en que se agotó (para regeneración basada en tiempo). null = no agotado. */
+  depletedAtTick?: number | null;
+  /** Unidades que recupera automáticamente cada ciclo de regeneración (sistema nuevo). */
+  regenerationRate?: number;
+  /** Marca de tiempo del último uso o agotamiento para el cooldown (sistema nuevo). */
   lastHarvestTick?: number;
 }
 

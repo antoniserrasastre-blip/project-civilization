@@ -88,23 +88,84 @@ export function calculateItemEfficiency(item: EquippableItem): number {
   return rankMult * traitMult + (item.level * 0.05);
 }
 
-export function createItem(kind: ItemKind, material: ItemMaterial, owner: NPC | null, tick: number, prng: PRNGState): { item: EquippableItem; next: PRNGState } {
-  const { value: rand, next: prng2 } = nextInt(prng, 0, 1000);
-  const id = `art-${kind}-${tick}-${rand}`;
-  const mStats = MATERIAL_STATS[material];
+export function createItem(kind: ItemKind, material: ItemMaterial, owner: NPC | null, tick: number, prng: PRNGState): { item: EquippableItem; next: PRNGState };
+export function createItem(kind: ItemKind, ownerIdOrNull?: string | null, tick?: number, suffix?: number): EquippableItem;
+export function createItem(kind: ItemKind, arg2?: ItemMaterial | string | null, arg3?: NPC | null | number, arg4?: number | PRNGState, arg5?: PRNGState): { item: EquippableItem; next: PRNGState } | EquippableItem {
+  const MATERIALS: readonly string[] = ['stone', 'obsidian', 'bone', 'wood'];
+
+  // Full 5-arg call: createItem(kind, material: ItemMaterial, owner: NPC|null, tick: number, prng: PRNGState)
+  if (arg5 !== undefined && typeof arg5 === 'object' && 'seed' in arg5) {
+    const material = arg2 as ItemMaterial;
+    const owner = arg3 as NPC | null;
+    const t = arg4 as number;
+    const p = arg5;
+    const { value: rand, next: prng2 } = nextInt(p, 0, 1000);
+    const id = `art-${kind}-${t}-${rand}`;
+    const mStats = MATERIAL_STATS[material];
+    const item: EquippableItem = {
+      id, kind, material,
+      name: ITEM_DEFS[kind].label,
+      ownerNpcId: owner?.id || null,
+      makerId: owner?.id || null,
+      durability: 100 * mStats.durMult,
+      maxDurability: 100 * mStats.durMult,
+      createdAtTick: t,
+      xp: 0, level: 1, rank: 'common',
+      deeds: [],
+      history: [{ tick: t, event: `Forjado en ${material}${owner ? ` por ${owner.name}` : ''}` }],
+    };
+    return { item, next: prng2 };
+  }
+
+  // Also detect full 5-arg where prng is in arg4 (when owner is NPC with id field)
+  if (arg4 !== undefined && typeof arg4 === 'object' && arg4 !== null && 'seed' in (arg4 as any)) {
+    const material = arg2 as ItemMaterial;
+    const owner = arg3 as NPC | null;
+    // In this case arg4 IS the prng and there's no separate tick... this case shouldn't happen in normal use
+    // but if it does, we treat arg3 as tick
+    const t = typeof arg3 === 'number' ? arg3 : 0;
+    const p = arg4 as unknown as PRNGState;
+    const { value: rand, next: prng2 } = nextInt(p, 0, 1000);
+    const id = `art-${kind}-${t}-${rand}`;
+    const mStats = MATERIAL_STATS[material];
+    const item: EquippableItem = {
+      id, kind, material,
+      name: ITEM_DEFS[kind].label,
+      ownerNpcId: null,
+      makerId: null,
+      durability: 100 * mStats.durMult,
+      maxDurability: 100 * mStats.durMult,
+      createdAtTick: t,
+      xp: 0, level: 1, rank: 'common',
+      deeds: [],
+      history: [{ tick: t, event: `Forjado en ${material}` }],
+    };
+    return { item, next: prng2 };
+  }
+
+  // Legacy/simple call: createItem(kind, ownerIdOrNull?, tick?, suffix?)
+  // Handles: createItem(kind, 'ownerStr', tick) and createItem(kind, null, tick, suffix)
+  const ownerId = (arg2 !== undefined && !MATERIALS.includes(arg2 as string)) ? (arg2 as string | null) : null;
+  const t = typeof arg3 === 'number' ? arg3 : 0;
+  const suffix = typeof arg4 === 'number' ? arg4 : 0;
+  const fakePrng: PRNGState = { seed: (t + suffix) | 1, cursor: t + suffix };
+  const { value: rand } = nextInt(fakePrng, 0, 1000);
+  const id = `art-${kind}-${t}-${rand}`;
+  const mat: ItemMaterial = 'stone';
+  const mStats = MATERIAL_STATS[mat];
   const item: EquippableItem = {
-    id, kind, material,
+    id, kind, material: mat,
     name: ITEM_DEFS[kind].label,
-    ownerNpcId: owner?.id || null,
-    makerId: owner?.id || null,
+    ownerNpcId: ownerId ?? null,
+    makerId: ownerId ?? null,
     durability: 100 * mStats.durMult,
     maxDurability: 100 * mStats.durMult,
-    createdAtTick: tick,
+    createdAtTick: t,
     xp: 0, level: 1, rank: 'common',
     deeds: [],
-    history: [{ tick, event: `Forjado en ${material}${owner ? ` por ${owner.name}` : ''}` }],
+    history: [{ tick: t, event: `Forjado en ${mat}` }],
   };
-  return { item, next: prng2 };
+  return item;
 }
 
 export function evolveItem(item: EquippableItem, npc: NPC, tick: number, prng: PRNGState): { item: EquippableItem; next: PRNGState } {

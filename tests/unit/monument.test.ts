@@ -13,14 +13,14 @@ import { CRAFTABLE } from '@/lib/crafting';
 import { makeTestNPC, LINAJE } from '@/lib/npcs';
 import { initialVillageState } from '@/lib/village';
 
-/** Sprint 9: HERRAMIENTA_SILEX es ahora un item, no un edificio. */
+/** Sprint 15: Estructuras umbral actualizadas con stockpiles. */
 function all4Built() {
   let s: ReturnType<typeof addStructure> = [];
   let pos = { x: 0, y: 0 };
   for (const k of [
     CRAFTABLE.REFUGIO,
     CRAFTABLE.FOGATA_PERMANENTE,
-    CRAFTABLE.PIEL_ROPA,
+    CRAFTABLE.STOCKPILE_WOOD,
     CRAFTABLE.DESPENSA,
   ]) {
     s = addStructure(s, k, pos, 0, s.length);

@@ -19,6 +19,7 @@ Sprint 14.5: biomas bioclimáticos con 14 tipos de tile.
 | `assets/tiles/water_shallow.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `35b7ec44b0759199fa92fa6627bf940229a7bf3a84a6f446c696e93abc371bda` |
 | `assets/tiles/water_deep.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `b80c6fc5150805f68895cbeb0fa7ce48e7760a2bd191449ad07bd8beef92b891` |
 | `assets/tiles/shore.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `208dd413d19ba69a9d22054999c3a9c4fb0da511c284c820be760a4d9d043ca6` |
+| `assets/tiles/shore_diagonal.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `7b58cd77f5717ae103f222688f15913cced85ed988cfa9f74177d8469895f8aa` |
 | `assets/tiles/sand.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `1bb42424958e89db26d43079a4fd3b7add01f7d07e1817a4963db3ab9a66dac5` |
 | `assets/tiles/sand_tropical.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `459a6db66a66b4e60edbbc6cc7685e3ed5db998c0daa2bc8864389e3b8cad6f9` |
 | `assets/tiles/grass.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `65009a0aa702875178939c9af45a0fe5690efc5229663d2794cc7e95827a1498` |
@@ -59,6 +60,7 @@ Sprint 14.5: biomas bioclimáticos con 14 tipos de tile.
 
 | Fichero | Origen | Licencia | Autor | URL origen | SHA-256 |
 |-|-|-|-|-|-|
+| `assets/units/animal_bear.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `9cc94e191cfb8da099523cbedbd3e595fb31d46f37bfe4f2dd2079430b97c303` |
 | `assets/units/animal_boar.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `abbc70d4e179185a2f585c1f6c40aafe08c3852336b7da588c2047910e6be7f1` |
 | `assets/units/animal_crab.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `7ad251cd519859fc57723c23b90cf32dcf142c2e28361e9bf74e0e02b59a8aa5` |
 | `assets/units/animal_deer.svg` | Proyecto Civilización (procedural) | CC0 | Equipo interno | — | `056aa40f3979fc9619876a4a657a4ef1e0cedbe12571d41117532e8e0e7e84fb` |

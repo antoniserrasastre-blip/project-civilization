@@ -55,6 +55,30 @@ export const ITEM_RECIPES: Record<ItemKind, ItemRecipe> = {
     daysWork: 4,
     requiresUnlock: false,
   },
+  [ITEM_KIND.CANOE]: {
+    kind: ITEM_KIND.CANOE,
+    inputs: { wood: 8 },
+    daysWork: 4,
+    requiresUnlock: true,
+  },
+  [ITEM_KIND.BOW]: {
+    kind: ITEM_KIND.BOW,
+    inputs: { wood: 3 },
+    daysWork: 2,
+    requiresUnlock: false,
+  },
+  [ITEM_KIND.SLING]: {
+    kind: ITEM_KIND.SLING,
+    inputs: { stone: 1 },
+    daysWork: 1,
+    requiresUnlock: false,
+  },
+  [ITEM_KIND.CLUB]: {
+    kind: ITEM_KIND.CLUB,
+    inputs: { wood: 2 },
+    daysWork: 1,
+    requiresUnlock: false,
+  },
 };
 
 import type { Structure } from './structures';

@@ -36,6 +36,15 @@ export function findPath(
 
   if (from.x === to.x && from.y === to.y) return { path: [from], next: prng };
 
+  // Check if start or end are impassable
+  const startTile = world.tiles[from.y * world.width + from.x];
+  const endTile = world.tiles[to.y * world.width + to.x];
+  const isPassableTile = (tile: number) => {
+    if (options.passable) return options.passable(tile);
+    return tile !== 0; // 0 = WATER
+  };
+  if (!isPassableTile(startTile) || !isPassableTile(endTile)) return { path: null, next: prng };
+
   const open: Node[] = [];
   const closed = new Set<number>();
   const all: Node[] = [];
