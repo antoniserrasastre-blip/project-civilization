@@ -88,6 +88,7 @@ export function GameShell({ seed }: GameShellProps) {
   const { state, paused, isTabActive, tick, setPaused, setIsTabActive, updateState, initializeFromDraft, bootstrap } = useGameStore();
   
   const [draftDone, setDraftDone] = useState(false);
+  const [speed, setSpeed] = useState<1 | 2 | 5>(1);
   const [selectorOpen, setSelectorOpen] = useState(false);
   const [codexOpen, setCodexOpen] = useState(false);
   const [selectedNpcId, setSelectedNpcId] = useState<string | null>(null);
@@ -128,10 +129,11 @@ export function GameShell({ seed }: GameShellProps) {
   // Loop de simulación centralizado
   useEffect(() => {
     if (!draftDone || paused) return;
-    const interval = isTabActive ? TICK_INTERVAL_MS : TICK_INTERVAL_MS * 4;
+    const base = isTabActive ? TICK_INTERVAL_MS : TICK_INTERVAL_MS * 4;
+    const interval = Math.round(base / speed);
     const id = setInterval(tick, interval);
     return () => clearInterval(id);
-  }, [draftDone, paused, isTabActive, tick]);
+  }, [draftDone, paused, isTabActive, tick, speed]);
 
   const handleDraftStart = (result: DraftResult) => {
     initializeFromDraft(result.seed, result.mapType, result.npcs);
@@ -312,7 +314,8 @@ export function GameShell({ seed }: GameShellProps) {
         totalCount={state.npcs.length} monumentPhase={state.monument.phase}
         monumentProgress={state.monument.progress} village={state.village}
         buildStatus={buildStatus} communalInventory={communalInventory}
-        activeSynergies={activeSynergies} paused={paused}
+        activeSynergies={activeSynergies} paused={paused} speed={speed}
+        onSetSpeed={setSpeed}
         onTogglePause={() => setPaused(!paused)} onOpenWhisper={() => setSelectorOpen(true)}
         onOpenCodex={() => setCodexOpen(true)}
         godType={state.godType} unlockedKinds={state.unlockedItemKinds.filter(k => !dismissedEurekas.has(k))}

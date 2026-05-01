@@ -110,6 +110,8 @@ export interface HUDProps {
   /** Sprint 13: sinergias activas por composición del clan. */
   activeSynergies?: ActiveSynergy[];
   paused: boolean;
+  speed?: 1 | 2 | 5;
+  onSetSpeed?: (s: 1 | 2 | 5) => void;
   onTogglePause: () => void;
   onOpenWhisper: () => void;
   onOpenCodex: () => void;
@@ -201,6 +203,8 @@ export function HUD({
   communalInventory = { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
   activeSynergies = [],
   paused,
+  speed = 1,
+  onSetSpeed,
   onTogglePause,
   onOpenWhisper,
   onOpenCodex,
@@ -287,14 +291,28 @@ export function HUD({
       <div className="pointer-events-auto flex flex-col items-end gap-2">
         <TimeOrbit tick={tick} climate={climate} />
         
-        <div className="flex gap-2">
+        <div className="flex gap-1 items-center">
           <button
             onClick={onTogglePause}
             className="pixel-box bg-stone-800/90 w-10 h-10 flex items-center justify-center text-xl text-white hover:bg-stone-700 transition-colors border-white/10"
-            title={paused ? 'Reanudar' : 'Pausar'}
+            title={paused ? 'Reanudar (Space)' : 'Pausar (Space)'}
           >
             {paused ? '▶' : '⏸'}
           </button>
+          {([1, 2, 5] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => { onSetSpeed?.(s); if (paused) onTogglePause(); }}
+              className={`pixel-box w-10 h-10 flex items-center justify-center text-[11px] font-black transition-colors border-white/10 ${
+                speed === s && !paused
+                  ? 'bg-wb-gold text-stone-900'
+                  : 'bg-stone-800/90 text-white hover:bg-stone-700'
+              }`}
+              title={`Velocidad ×${s}`}
+            >
+              ×{s}
+            </button>
+          ))}
         </div>
 
         {showProgress && monumentProgress < 100 && (
