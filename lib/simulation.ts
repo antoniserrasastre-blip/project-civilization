@@ -121,10 +121,27 @@ export function makeNpcReachabilityChecker(state: GameState): (from: { x: number
 export function tick(state: GameState): GameState {
   let nextState = state;
 
+  // AMANECER: evaluar gratitud del día anterior, drenar silencio, resetear contadores
+  if (state.tick % TICKS_PER_DAY === 0 && state.tick > 0) {
+    let v = nextState.village;
+    // Pulso de amanecer: day_without_deaths + day_saciated
+    v = evaluateDawnGratitude(v, v.activeMessage);
+    // Drain por silencio activo (solo si no hay susurro y se agotó la gracia)
+    const drain = computeSilenceDrainPerDay(v);
+    if (drain > 0) v = applyGratitudeDelta(v, -drain);
+    // Decrementar gracia de silencio
+    if (v.silenceGraceDaysRemaining > 0) {
+      v = { ...v, silenceGraceDaysRemaining: v.silenceGraceDaysRemaining - 1 };
+    }
+    // Reset contadores diarios
+    v = resetGratitudeDailyTracking(v);
+    nextState = { ...nextState, village: v };
+  }
+
   // Actualización diaria del clima (al inicio del día)
   if (state.tick % TICKS_PER_DAY === 0) {
     const { state: nextClimate, next: nextPrng } = tickClimate(state.climate, state.prng);
-    nextState = { ...state, climate: nextClimate, prng: nextPrng };
+    nextState = { ...nextState, climate: nextClimate, prng: nextPrng };
   }
 
   // ACUMULACIÓN DE FE: El clan genera fe según sus seguidores vivos
@@ -287,13 +304,24 @@ function tickClanSystems(state: GameState): GameState {
   // Decodificamos el buffer aquí también para que esté disponible en tickNeeds
   const fogBuffer = decodeFogBitmap(state.fog.bitmap);
   
-  const npcsWithNeeds = tickNeeds(logistics.npcs, { 
-    world: state.world, npcs: logistics.npcs,
-    faith: state.village.faith, gratitude: state.village.gratitude,
+  const npcsBeforeNeeds = logistics.npcs;
+  const npcsWithNeeds = tickNeeds(npcsBeforeNeeds, {
+    world: state.world, npcs: npcsBeforeNeeds,
     moodModifier, prng: state.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: [],
     fog: state.fog, fogBuffer,
     climate: state.climate
   });
+
+  // GRATITUD: contabilizar escapes de hambre (sv subió desde zona crítica)
+  let village = state.village;
+  for (const after of npcsWithNeeds) {
+    if (!after.alive) continue;
+    const before = npcsBeforeNeeds.find(n => n.id === after.id);
+    if (before && before.stats.supervivencia < NEED_THRESHOLDS.supervivenciaCritical &&
+        after.stats.supervivencia >= NEED_THRESHOLDS.supervivenciaCritical) {
+      village = { ...village, dailyHungerEscapes: village.dailyHungerEscapes + 1 };
+    }
+  }
 
   // REGISTRO DE HAZAÑAS DE SUPERVIVENCIA (Legado)
   let nextItems = [...harvested.items];
@@ -308,6 +336,7 @@ function tickClanSystems(state: GameState): GameState {
 
   return {
     ...state, npcs: npcsWithNeeds, structures: decayedStructures, chronicle: nextChronicle,
+    village,
     items: nextItems,
     world: { ...state.world, resources: harvested.resources, reserves: harvested.reserves, traditions }
   };
@@ -463,6 +492,10 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
           items = result.items; npcs = result.npcs;
         }
       }
+
+      // GRATITUD: contabilizar muerte + penalizar si era Elegido
+      village = { ...village, dailyDeaths: village.dailyDeaths + 1 };
+      if (prev.casta === 'Elegido') village = penalizeElegidoDeath(village);
 
       // LEYENDA: Muerte de un miembro
       const ent = { id: cur.id, name: cur.name, type: 'npc' as const, description: 'Miembro del clan' };
