@@ -1,17 +1,10 @@
 'use client';
 
 /**
- * ChronicleFeed — feed lateral del historial narrativo del clan
- * (Sprint #2 Fase 5 LEGIBILIDAD-MVP).
+ * ChronicleFeed — consola narrativa (Estilo Gran Estrategia).
  *
- * Muestra dos capas de información:
- *
- *   1. Susurro activo actual, si lo hay — "los nuestros escuchan X".
- *   2. Historial de susurros archivados (`village.messageHistory`).
- *   3. Entradas narradas de `state.chronicle` si las hay (muertes,
- *      nacimientos, migraciones — cableado mínimo en el tick).
- *
- * Ordenación: más reciente arriba. Cap visual de últimas N.
+ * Muestra el historial diario y el Códice de Leyendas en un formato
+ * horizontal de consola.
  */
 
 import type { MessageChoice } from '@/lib/messages';
@@ -51,7 +44,7 @@ function buildRows(props: ChronicleFeedProps): Row[] {
     rows.push({
       key: 'active',
       day: Number.MAX_SAFE_INTEGER,
-      text: `Los nuestros escuchan: ${WHISPER_ES[props.activeMessage]}.`,
+      text: `Escuchan: ${WHISPER_ES[props.activeMessage]}.`,
     });
   }
   for (let i = 0; i < props.messageHistory.length; i++) {
@@ -75,145 +68,63 @@ export function ChronicleFeed(props: ChronicleFeedProps) {
   const rows = buildRows(props);
 
   return (
-    <aside
+    <div
       data-testid="chronicle-feed"
-      aria-label="Crónica del clan"
-      style={{
-        position: 'fixed',
-        top: 12,
-        right: 12,
-        width: 280,
-        maxHeight: '75vh',
-        overflowY: 'auto',
-        background: 'rgba(20, 20, 15, 0.9)',
-        color: '#f5f5dc',
-        padding: '0',
-        borderRadius: 8,
-        border: '1px solid #3d3d29',
-        fontSize: '0.82rem',
-        lineHeight: 1.4,
-        zIndex: 10,
-        fontFamily: 'var(--font-sans, system-ui)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-      }}
+      className="pixel-box-dark bg-stone-900/95 w-72 h-[500px] flex flex-col overflow-hidden border-wb-stone/20 shadow-2xl pointer-events-auto"
     >
-      <div style={{ 
-        display: 'flex', 
-        borderBottom: '1px solid #3d3d29',
-        background: 'rgba(0,0,0,0.3)'
-      }}>
+      {/* Tabs */}
+      <div className="flex bg-black/60 border-b border-white/5">
         <button 
           onClick={() => setActiveTab('chronicle')}
-          style={{
-            flex: 1,
-            padding: '10px',
-            background: activeTab === 'chronicle' ? 'rgba(61, 61, 41, 0.4)' : 'transparent',
-            border: 'none',
-            color: activeTab === 'chronicle' ? '#ffd700' : '#8a8a78',
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-            fontWeight: activeTab === 'chronicle' ? 'bold' : 'normal',
-            transition: 'all 0.2s'
-          }}
+          className={`flex-1 p-3 text-[9px] uppercase font-black transition-colors ${activeTab === 'chronicle' ? 'text-wb-gold bg-white/5 border-b-2 border-wb-gold' : 'text-wb-stone/30'}`}
         >
           Crónica
         </button>
         <button 
           onClick={() => setActiveTab('legends')}
-          style={{
-            flex: 1,
-            padding: '10px',
-            background: activeTab === 'legends' ? 'rgba(61, 61, 41, 0.4)' : 'transparent',
-            border: 'none',
-            color: activeTab === 'legends' ? '#ffd700' : '#8a8a78',
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-            fontWeight: activeTab === 'legends' ? 'bold' : 'normal',
-            transition: 'all 0.2s'
-          }}
+          className={`flex-1 p-3 text-[9px] uppercase font-black transition-colors ${activeTab === 'legends' ? 'text-wb-gold bg-white/5 border-b-2 border-wb-gold' : 'text-wb-stone/30'}`}
         >
           Leyendas
         </button>
       </div>
 
-      <div style={{ padding: '12px' }}>
+      {/* List */}
+      <div className="flex-1 overflow-y-auto p-4 font-monospace custom-scrollbar">
         {activeTab === 'chronicle' ? (
-          <>
+          <div className="space-y-3">
             {rows.length === 0 ? (
-              <p style={{ margin: 0, opacity: 0.6, fontSize: '0.78rem' }}>
-                Nada aún. Los Hijos esperan tu voz.
-              </p>
+              <p className="text-[10px] opacity-40 italic lowercase text-center py-10">Los Hijos esperan tu voz...</p>
             ) : (
-              <ul
-                style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: 0,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                }}
-              >
-                {rows.map((r) => (
-                  <li
-                    key={r.key}
-                    data-testid="chronicle-entry"
-                    style={{
-                      borderLeft: '2px solid #3d3d29',
-                      paddingLeft: 10,
-                      opacity: 0.9,
-                    }}
-                  >
-                    {r.text}
-                  </li>
-                ))}
-              </ul>
+              rows.map((r) => (
+                <div key={r.key} className="text-[11px] border-l border-wb-stone/30 pl-3 py-0.5 opacity-90 lowercase leading-snug">
+                   {r.text}
+                </div>
+              ))
             )}
-          </>
+          </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="space-y-4">
             {props.legends.threads.length === 0 ? (
-              <p style={{ margin: 0, opacity: 0.6, fontSize: '0.78rem', fontStyle: 'italic' }}>
-                Las hogueras aún no han escuchado grandes hazañas...
-              </p>
+              <p className="text-[10px] opacity-40 italic lowercase text-center py-10">Las hogueras están en silencio...</p>
             ) : (
               props.legends.threads.map((thread) => (
                 <div 
                   key={thread.id}
-                  style={{
-                    padding: '10px',
-                    background: 'linear-gradient(135deg, #2a2a1c 0%, #1a1a0d 100%)',
-                    border: '1px solid #d4af37',
-                    borderRadius: '4px',
-                    position: 'relative',
-                    boxShadow: 'inset 0 0 10px rgba(212, 175, 55, 0.1)'
-                  }}
+                  className="p-3 bg-gradient-to-br from-wb-blood/5 to-black/60 border border-wb-gold/10 rounded shadow-inner"
                 >
-                  <div style={{ 
-                    fontSize: '0.65rem', 
-                    color: '#d4af37', 
-                    textTransform: 'uppercase',
-                    letterSpacing: '1px',
-                    marginBottom: '4px',
-                    fontWeight: 'bold'
-                  }}>
-                    Saga del Día {thread.day}
-                  </div>
-                  <div style={{ 
-                    color: '#f5f5dc', 
-                    fontFamily: 'serif',
-                    fontStyle: 'italic',
-                    fontSize: '0.85rem',
-                    lineHeight: '1.3'
-                  }}>
-                    "{thread.saga}"
-                  </div>
+                  <div className="text-[8px] text-wb-gold/60 uppercase font-black tracking-tighter mb-1.5 italic">Saga del Día {thread.day}</div>
+                  <div className="text-[11px] text-wb-parchment/90 italic leading-relaxed font-serif">"{thread.saga}"</div>
                 </div>
               ))
             )}
           </div>
         )}
       </div>
-    </aside>
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #2f2f2f; }
+      `}</style>
+    </div>
   );
 }

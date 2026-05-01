@@ -46,7 +46,6 @@ export function isValidBuildTile(world: WorldMap, pos: { x: number; y: number })
     case TILE.SHORE:
     case TILE.FOREST:
     case TILE.JUNGLE_SOIL:
-    case TILE.RIVER:
       return true;
     default:
       return false;

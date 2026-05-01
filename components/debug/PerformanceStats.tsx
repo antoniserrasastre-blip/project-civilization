@@ -14,8 +14,10 @@ export function PerformanceStats() {
     
     const dom = stats.dom;
     dom.style.position = 'fixed';
-    dom.style.top = '10px';
-    dom.style.left = '10px';
+    dom.style.bottom = '10px';
+    dom.style.right = '10px';
+    dom.style.top = 'auto';
+    dom.style.left = 'auto';
     dom.style.zIndex = '10000';
     
     containerRef.current?.appendChild(dom);

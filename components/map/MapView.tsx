@@ -382,31 +382,44 @@ function renderNPCs(
   ctx.imageSmoothingEnabled = false;
   ctx.lineJoin = 'miter';
 
+  // LOD: A zoom muy bajo, renderizamos puntos simples en lugar de sprites
+  const isLowDetail = tilePx < 8;
+  const isMedDetail = tilePx < 20;
+
   for (let i = 0; i < placements.length; i++) {
     const { npc, marker, cx, cy } = placements[i];
+
+    if (isLowDetail) {
+      ctx.fillStyle = npc.casta === 'elegido' ? '#ffd700' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
 
     // Acción actual del NPC
     const badges = badgeMap.get(npc.id) ?? [];
     const isMoving = movingSet.has(npc.id);
     const tileIdx = npc.position.y * worldWidth + npc.position.x;
-    const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
-
-    // spriteSize proporcional a tilePx
-    const spriteSize = Math.max(8, tilePx * 0.85);
-
+    
     // 1. Dibujar el cuerpo (base)
+    const spriteSize = Math.max(8, tilePx * 0.85);
     const spriteKey = spriteKeyFor(npc, items);
     const img = sprites.get(spriteKey);
 
-    if (img) {
+    if (img && !isMedDetail) {
+      const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
       drawSprite(ctx, img, cx, cy, spriteSize, i, now, action, npc.linaje);
     } else {
-      // Fallback si no carga la imagen
-      ctx.fillStyle = marker.colors.fill;
-      ctx.beginPath();
-      ctx.arc(cx, cy, spriteSize / 2, 0, Math.PI * 2);
-      ctx.fill();
+      // Simplificado: círculo/diamante sin animación
+      if (npc.casta === 'elegido') {
+        drawDiamond(ctx, cx, cy, spriteSize * 0.8, marker.colors.fill, marker.colors.stroke, 1);
+      } else {
+        drawCircle(ctx, cx, cy, spriteSize * 0.7, marker.colors.fill, marker.colors.stroke, 1);
+      }
     }
+
+    if (isMedDetail) continue;
 
     // 2. Corona para Elegidos (encima del sprite)
     if (npc.casta === 'elegido') {
@@ -419,7 +432,7 @@ function renderNPCs(
       drawItemOverlay(ctx, cx, cy, spriteSize, equippedItem.kind, sprites);
     }
 
-    // 4. Burbujas de estado (NUEVO)
+    // 4. Burbujas de estado
     if (badges.length > 0) {
       drawBubble(ctx, cx, cy, spriteSize, badges[0], sprites);
     }
@@ -979,6 +992,10 @@ function renderResources(
   fogBuffer?: Uint8Array | null,
 ) {
   const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
+
+  // LOD: No renderizar recursos individuales a zoom muy bajo
+  if (tilePx < 8) return;
+
   const size = Math.max(7, Math.min(20, tilePx * 1.05));
   for (const resource of resources) {
     if (resource.quantity <= 0) continue;
@@ -990,12 +1007,20 @@ function renderResources(
     const cx = resource.x * tilePx + state.offsetX + tilePx / 2;
     const cy = resource.y * tilePx + state.offsetY + tilePx / 2;
     const img = resourceSprites.get(resource.id);
+    
+    // VISUAL DE VITALIDAD: Los nodos casi agotados se ven más tenues
+    const isExhausted = resource.quantity < resource.initialQuantity * 0.15;
+    const oldAlpha = ctx.globalAlpha;
+    if (isExhausted) ctx.globalAlpha = 0.35;
+
     if (img) {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, cx - size / 2, cy - size / 2, size, size);
     } else {
       renderResourceGlyph(ctx, resource, cx, cy, size);
     }
+    
+    if (isExhausted) ctx.globalAlpha = oldAlpha;
   }
 }
 
@@ -1056,8 +1081,13 @@ function renderTiles(
   const { firstX, firstY, lastX, lastY, tilePx } = visibleTileBounds(dims, state, world);
   const tileW = Math.ceil(tilePx);
 
-  for (let y = firstY; y < lastY; y++) {
-    for (let x = firstX; x < lastX; x++) {
+  // LOD: A zoom estratégico (muy bajo), renderizamos en bloques más grandes
+  // o saltamos tiles para ahorrar ciclos.
+  const step = tilePx < 4 ? 2 : 1;
+  const blockSize = tilePx < 4 ? tileW * 2 : tileW;
+
+  for (let y = firstY; y < lastY; y += step) {
+    for (let x = firstX; x < lastX; x += step) {
       // CULLING DE NIEBLA: Si el tile está oculto, saltamos el renderizado pesado
       if (fog && fogBuffer && !fogDiscovered(fogBuffer, fog.width, x, y)) continue;
 
@@ -1066,22 +1096,24 @@ function renderTiles(
       const sx = x * tilePx + state.offsetX;
       const sy = y * tilePx + state.offsetY;
 
-      // Render de sombras ...
-      const isMountain = tile === TILE.MOUNTAIN || tile === TILE.MOUNTAIN_SNOW || tile === TILE.MOUNTAIN_VOLCANO;
-      const isTree = tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL;
-      
-      if ((isMountain || isTree) && tileSprites?.has('shadow')) {
-        const shadowSprite = tileSprites.get('shadow')!;
-        if (shadowSprite.complete && shadowSprite.naturalWidth > 0) {
-          const offset = tilePx * 0.12; 
-          ctx.globalAlpha = 0.35;
-          ctx.drawImage(getTileBitmap('shadow', tileW, shadowSprite), sx + offset, sy + offset);
-          ctx.globalAlpha = 1.0;
+      // LOD: Omitir sombras a zoom bajo
+      if (tilePx >= 8) {
+        const isMountain = tile === TILE.MOUNTAIN || tile === TILE.MOUNTAIN_SNOW || tile === TILE.MOUNTAIN_VOLCANO;
+        const isTree = tile === TILE.FOREST || tile === TILE.JUNGLE_SOIL;
+        
+        if ((isMountain || isTree) && tileSprites?.has('shadow')) {
+          const shadowSprite = tileSprites.get('shadow')!;
+          if (shadowSprite.complete && shadowSprite.naturalWidth > 0) {
+            const offset = tilePx * 0.12; 
+            ctx.globalAlpha = 0.35;
+            ctx.drawImage(getTileBitmap('shadow', tileW, shadowSprite), sx + offset, sy + offset);
+            ctx.globalAlpha = 1.0;
+          }
         }
       }
 
       const sprite = tileSprites?.get(variant);
-      if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      if (sprite && sprite.complete && sprite.naturalWidth > 0 && tilePx >= 4) {
         if (tile === TILE.SHORE) {
           const rotation = getShoreRotation(x, y, world);
           ctx.save();
@@ -1094,7 +1126,7 @@ function renderTiles(
         }
       } else {
         ctx.fillStyle = TILE_COLOR[tile] ?? '#000';
-        ctx.fillRect(sx, sy, tileW, tileW);
+        ctx.fillRect(sx, sy, blockSize, blockSize);
       }
     }
   }
@@ -1598,7 +1630,7 @@ export function MapView({
   useEffect(() => {
     renderPropsRef.current = {
       world, fog, structures, buildProject, intentTrails,
-      npcStatuses, relations, relationsLayerOn, items, npcs, animals, sprites, resourceSprites, tileSprites,
+      npcStatuses, relations, relationsLayerOn, items, npcs, animals, sprites, resourceSprites, tileSprites, climate,
     };
   });
 
@@ -1720,7 +1752,7 @@ export function MapView({
       renderAnimals(ctx, rp.animals, currentDims, currentViewport, rp.fog, fogBufferRef.current, rp.sprites);
 
       // Set de tiles con recursos activos para detectar cosecha
-      const resourceTileSet = new Set(
+      const resourceTileSet = new Set<number>(
         rp.world.resources.filter((r) => r.quantity > 0).map((r) => r.y * rp.world.width + r.x),
       );
       const currentTilePx = currentDims.tileSize * currentViewport.zoom;

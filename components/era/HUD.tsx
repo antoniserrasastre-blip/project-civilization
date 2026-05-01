@@ -263,85 +263,53 @@ export function HUD({
   const pulsing = lastFloater !== undefined;
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex flex-col justify-between p-4 font-monospace uppercase tracking-wider">
-      {/* SUPERIOR: Info Divina y Tiempo */}
-      <div className="flex w-full items-start justify-between">
-        <div className="pointer-events-auto flex gap-4 items-start">
-          <DivineHeader
-            godType={godType as any}
-            faith={faith}
-            maxFaith={FAITH_CAP}
-            gratitude={gratitude}
-            maxGratitude={GRATITUDE_CEILING}
-            currentWind={currentWind}
-          />
-          <button 
-            onClick={onOpenCodex}
-            className="pixel-box bg-stone-900/90 p-3 text-wb-gold hover:bg-stone-800 transition-colors pointer-events-auto flex flex-col items-center gap-1 border-wb-gold/30"
+    <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex h-24 items-start justify-between p-4">
+      {/* IZQUIERDA: Status Divino y Códice */}
+      <div className="pointer-events-auto flex items-start gap-4">
+        <DivineHeader
+          godType={godType as any}
+          faith={faith}
+          maxFaith={FAITH_CAP}
+          gratitude={gratitude}
+          maxGratitude={GRATITUDE_CEILING}
+          currentWind={currentWind}
+        />
+        <button 
+          onClick={onOpenCodex}
+          className="pixel-box bg-stone-900/90 p-3 text-wb-gold hover:bg-stone-800 transition-colors flex flex-col items-center gap-1 border-wb-gold/30 shadow-xl"
+        >
+          <span className="text-[10px] font-black italic uppercase tracking-tighter">Códice</span>
+          <span className="text-[8px] opacity-60 font-bold uppercase">Tribu</span>
+        </button>
+      </div>
+
+      {/* DERECHA: Tiempo y Velocidad */}
+      <div className="pointer-events-auto flex flex-col items-end gap-2">
+        <TimeOrbit tick={tick} climate={climate} />
+        
+        <div className="flex gap-2">
+          <button
+            onClick={onTogglePause}
+            className="pixel-box bg-stone-800/90 w-10 h-10 flex items-center justify-center text-xl text-white hover:bg-stone-700 transition-colors border-white/10"
+            title={paused ? 'Reanudar' : 'Pausar'}
           >
-            <span className="text-[10px] font-black italic">Códice</span>
-            <span className="text-[8px] opacity-60 font-bold">Tribu</span>
+            {paused ? '▶' : '⏸'}
           </button>
         </div>
 
-        <div className="flex flex-col items-end gap-3">
-          <TimeOrbit tick={tick} climate={climate} />
-          {showProgress && monumentProgress < 100 && (
-            <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 pointer-events-auto border-amber-500/20">
-              Obra Monumental: {Math.round((monumentProgress / 480) * 100)}%
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* LATERAL: Eurekas */}
-      <div className="pointer-events-auto absolute right-4 top-48">
-        <EurekaToast events={eurekaEvents} onDismiss={onDismissEureka} />
-      </div>
-
-      {/* INFERIOR: Recursos y Controles */}
-      <div className="flex w-full items-end justify-between">
-        <div className="pointer-events-auto flex flex-col gap-3">
-           <ResourceMonitor resources={resources} />
-           
-           <div className="flex gap-2">
-             <button
-                onClick={onOpenWhisper}
-                className="pixel-box bg-stone-800/90 px-4 py-2 text-sm text-amber-200 transition-colors hover:bg-stone-700"
-              >
-                {activeMessage ? `Susurro: ${WHISPER_ES[activeMessage]}` : 'Hablar al clan'}
-              </button>
-              <button
-                onClick={onTogglePause}
-                className="pixel-box bg-stone-800/90 px-4 py-2 text-sm text-stone-300 transition-colors hover:bg-stone-700"
-              >
-                {paused ? '▶' : '⏸'}
-              </button>
-           </div>
-        </div>
-
-        <div className="text-right pointer-events-auto flex flex-col items-end gap-1">
-          {activeSynergies.length > 0 && (
-            <div className="flex gap-1 mb-2">
-               {activeSynergies.map((s) => (
-                  <div key={s.id} className="pixel-box bg-cyan-900/40 px-2 py-1 text-[8px] text-cyan-300 border-cyan-500/30">
-                    ⚡ {SYNERGY_CATALOG[s.id].name}
-                  </div>
-                ))}
-            </div>
-          )}
-          <div className="bg-black/40 px-2 py-1 rounded text-[10px] text-stone-300 backdrop-blur-sm border border-white/5 lowercase">
-             Tribu Viva: <span className="font-bold text-white uppercase">{aliveCount}</span> / {totalCount}
+        {showProgress && monumentProgress < 100 && (
+          <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 border-amber-500/20 shadow-lg">
+            Obra Monumental: {Math.round((monumentProgress / 480) * 100)}%
           </div>
-        </div>
+        )}
       </div>
-      
+
       <style jsx global>{`
         .pixel-box {
           border: 2px solid #2f2f2f;
           box-shadow: 2px 2px 0px #000;
         }
       `}</style>
-    </div>
+    </header>
   );
 }

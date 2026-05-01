@@ -47,8 +47,8 @@ describe('Decay pasivo de supervivencia', () => {
       id: 'n',
       stats: { supervivencia: 80, socializacion: 60 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    expect(after.stats.supervivencia).toBe(
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    expect(after.stats.supervivencia).toBeCloseTo(
       80 - NEED_TICK_RATES.supervivenciaDecay,
     );
   });
@@ -59,7 +59,7 @@ describe('Decay pasivo de supervivencia', () => {
       id: 'n',
       stats: { supervivencia: 0, socializacion: 60 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.supervivencia).toBe(0);
   });
 
@@ -67,11 +67,10 @@ describe('Decay pasivo de supervivencia', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 1, socializacion: 60 },
+      stats: { supervivencia: 0.1, socializacion: 60 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    // Con decay 1 y supervivencia inicial 1 → 0, muere.
-    if (NEED_TICK_RATES.supervivenciaDecay >= 1) {
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    if (NEED_TICK_RATES.supervivenciaDecay >= 0.1) {
       expect(after.alive).toBe(false);
     }
   });
@@ -80,7 +79,7 @@ describe('Decay pasivo de supervivencia', () => {
 describe('Recovery on-the-spot', () => {
   it('NPC sobre spawn de baya — la comida NO cura on-tile, solo decae', () => {
     // La comida se cosecha al inventario; no cura pasivamente al estar encima.
-    // sv=60, decay=2 → 60-2=58.
+    // sv=60, decay=0.15 → 60-0.15=59.85.
     const world = mkWorld();
     world.resources.push({
       id: RESOURCE.BERRY,
@@ -96,8 +95,8 @@ describe('Recovery on-the-spot', () => {
       position: { x: 5, y: 5 },
       stats: { supervivencia: 60, socializacion: 60 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
-    expect(after.stats.supervivencia).toBe(58); // 60 - decay(2)
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    expect(after.stats.supervivencia).toBeCloseTo(59.85);
   });
 
   it('NPC sobre caza y NPC sobre baya decaen igual (comida no cura on-tile)', () => {
@@ -116,15 +115,14 @@ describe('Recovery on-the-spot', () => {
       position: { x: 5, y: 5 },
       stats: { supervivencia: 60, socializacion: 60 },
     });
-    const [berry] = tickNeeds([npc], { world: berryWorld, npcs: [npc] });
-    const [game]  = tickNeeds([npc], { world: gameWorld,  npcs: [npc] });
-    // Ambos decaen -2, ninguno se cura on-tile
-    expect(berry.stats.supervivencia).toBe(58);
-    expect(game.stats.supervivencia).toBe(58);
+    const [berry] = tickNeeds([npc], { world: berryWorld, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    const [game]  = tickNeeds([npc], { world: gameWorld,  npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    expect(berry.stats.supervivencia).toBeCloseTo(59.85);
+    expect(game.stats.supervivencia).toBeCloseTo(59.85);
   });
 
-  it('agua SÍ cura on-tile, pero solo hasta el umbral hungry (40)', () => {
-    // Si sv=39: cura +2 (decay se omite) = 41. Si sv=40: no cura, decay -2 = 38.
+  it('agua SÍ cura on-tile, y se suma al decay', () => {
+    // Agua suma 5. Decay resta 0.15. Neto +4.85.
     const world = mkWorld();
     world.resources.push({
       id: RESOURCE.WATER, x: 5, y: 5,
@@ -135,23 +133,16 @@ describe('Recovery on-the-spot', () => {
       position: { x: 5, y: 5 },
       stats: { supervivencia: 39, socializacion: 60, proposito: 100 },
     });
-    const npc40 = makeTestNPC({
-      id: 'n2',
-      position: { x: 5, y: 5 },
-      stats: { supervivencia: 40, socializacion: 60, proposito: 100 },
-    });
-    const [after39, after40] = tickNeeds([npc39, npc40], { world, npcs: [npc39, npc40] });
-    expect(after39.stats.supervivencia).toBe(41); // 39 + 2
-    expect(after40.stats.supervivencia).toBe(38); // 40 - 2
+    const [after39] = tickNeeds([npc39], { world, npcs: [npc39], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+    expect(after39.stats.supervivencia).toBeCloseTo(43.85); // 39 - 0.15 + 5
   });
 });
 
 describe('Consumo de comida en inventario', () => {
   it('NPC con baya en inventario consume 1 y recupera supervivencia', () => {
-    // sv=35 < supervivenciaEatFromInventory(55) → come baya del inventario.
-    // FOOD_NUTRITION.berry=8, decay=2 → neto: 35+8-2=41... pero la lógica
-    // es: come (sv+=8) y luego decay (-2) en ramas separadas? No — come
-    // en vez de decaer. sv = 35 + 8 = 43.
+    // sv=35 < supervivenciaEatFromInventory(65) → come baya del inventario.
+    // FOOD_NUTRITION.berry=15. No hay decay si come.
+    // sv = 35 + 15 = 50.
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
@@ -159,10 +150,10 @@ describe('Consumo de comida en inventario', () => {
       inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
 
     expect(after.inventory.berry).toBe(1);
-    expect(after.stats.supervivencia).toBe(43); // 35 + berry(8)
+    expect(after.stats.supervivencia).toBe(50); // 35 + berry(15)
   });
 
   it('consume comida en orden berry → fish → game de forma determinista', () => {
@@ -173,7 +164,7 @@ describe('Consumo de comida en inventario', () => {
       inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 1, obsidian: 0, shell: 0 },
     });
 
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
 
     expect(after.inventory).toMatchObject({ berry: 0, game: 1, fish: 0, obsidian: 0, shell: 0 });
   });
@@ -186,10 +177,10 @@ describe('Consumo de comida en inventario', () => {
       inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
 
     expect(after.inventory.berry).toBe(2);
-    expect(after.stats.supervivencia).toBe(
+    expect(after.stats.supervivencia).toBeCloseTo(
       70 - NEED_TICK_RATES.supervivenciaDecay,
     );
   });
@@ -214,7 +205,7 @@ describe('Consumo de comida en inventario', () => {
 
     const [afterBerry, afterFish, afterGame] = tickNeeds(
       [berry, fish, game],
-      { world, npcs: [berry, fish, game] },
+      { world, npcs: [berry, fish, game], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] },
     );
 
     expect(afterFish.stats.supervivencia).toBeGreaterThan(
@@ -233,11 +224,12 @@ describe('Consumo de comida en inventario', () => {
       inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
     });
 
-    const [raw] = tickNeeds([npc], { world, npcs: [npc] });
+    const [raw] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     const [cooked] = tickNeeds([npc], {
       world,
       npcs: [npc],
       firePosition: { x: 0, y: 0 },
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
 
     expect(cooked.stats.supervivencia).toBeGreaterThan(
@@ -262,6 +254,7 @@ describe('Consumo de comida en inventario', () => {
     const [afterHungry, afterDonor] = tickNeeds([hungry, donor], {
       world,
       npcs: [hungry, donor],
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
 
     expect(afterHungry.stats.supervivencia).toBeGreaterThan(35);
@@ -284,11 +277,13 @@ describe('Consumo de comida en inventario', () => {
     const [withoutFire] = tickNeeds([hungry, donor], {
       world,
       npcs: [hungry, donor],
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
     const [withFire, donorAfterFire] = tickNeeds([hungry, donor], {
       world,
       npcs: [hungry, donor],
       firePosition: { x: 10, y: 10 },
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
 
     expect(withoutFire.stats.supervivencia).toBeLessThan(35);
@@ -305,7 +300,7 @@ describe('Socialización — radio del clan', () => {
       position: { x: 0, y: 0 },
       stats: { supervivencia: 80, socializacion: 60 },
     });
-    const [after] = tickNeeds([npc], { world, npcs: [npc] });
+    const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.socializacion).toBeLessThan(60);
   });
 
@@ -321,7 +316,7 @@ describe('Socialización — radio del clan', () => {
       position: { x: 6, y: 5 },
       stats: { supervivencia: 80, socializacion: 60 },
     });
-    const [afterA] = tickNeeds([a, b], { world, npcs: [a, b] });
+    const [afterA] = tickNeeds([a, b], { world, npcs: [a, b], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(afterA.stats.socializacion).toBeGreaterThan(60);
   });
 });
@@ -342,6 +337,7 @@ describe('Feed-forward: hambre alta drena socialización cercanos', () => {
     const [, after] = tickNeeds([hungry, neighbor], {
       world,
       npcs: [hungry, neighbor],
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
     // Sin feed-forward el vecino subiría socialización (están
     // juntos). Con feed-forward debe bajar o mantenerse — menos
@@ -354,6 +350,7 @@ describe('Feed-forward: hambre alta drena socialización cercanos', () => {
     const [, afterWithoutHunger] = tickNeeds([well, neighbor], {
       world,
       npcs: [well, neighbor],
+      prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: []
     });
     expect(after.stats.socializacion).toBeLessThan(
       afterWithoutHunger.stats.socializacion,
@@ -366,7 +363,8 @@ describe('Pureza', () => {
     const world = mkWorld();
     const npc = makeTestNPC({ id: 'n' });
     const snap = JSON.stringify(npc);
-    tickNeeds([npc], { world, npcs: [npc] });
+    tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(JSON.stringify(npc)).toBe(snap);
   });
 });
+

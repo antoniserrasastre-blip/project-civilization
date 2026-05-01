@@ -50,6 +50,7 @@ import { transferLegacyItem } from './legacy';
 import { computeRole } from './roles';
 import { nextInt } from './prng';
 import { craftItem, canCraftItem, ITEM_RECIPES } from './item-crafting';
+import { TECH_DEFS, type Technology } from './technologies';
 import { tickClimate } from './climate';
 import { recordLegend } from './legends';
 
@@ -148,6 +149,7 @@ function tickMovement(state: GameState): GameState {
   
   // Optimizamos: decodificar una sola vez por tick
   const fogBuffer = decodeFogBitmap(state.fog.bitmap);
+  const claimedTiles = new Set<string>();
 
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
@@ -160,9 +162,15 @@ function tickMovement(state: GameState): GameState {
       nextBuildPriority: buildPrio, prng: currentPrng,
       fog: state.fog,
       fogBuffer,
-      climate: state.climate
+      climate: state.climate,
+      claimedTiles
     };
     const decision = decideDestination(npc, { ...ctx, isBuilder: activeBuilderIds.has(npc.id) });
+    
+    // Marcar destino como reclamado para que otros no lo elijan
+    const destKey = `${decision.position.x},${decision.position.y}`;
+    claimedTiles.add(destKey);
+
     (npc as any)._nextDest = decision.position;
     currentPrng = decision.next; 
     const key = `${decision.position.x},${decision.position.y}`;
@@ -219,7 +227,7 @@ function tickMovement(state: GameState): GameState {
 function tickWorldSystems(state: GameState): GameState {
   const influenceSources = state.structures.map(s => ({ position: s.position, kind: s.kind }));
   const nextInfluence = tickInfluence(state.world.influence || [], state.npcs, state.world.width, state.world.height, influenceSources);
-  const nextResources = tickResources(state.world.resources, state.tick, nextInfluence, state.world.width, state.world.reserves || []);
+  const nextResources = tickResources(state.world.resources, state.tick, nextInfluence, state.world.width, state.world.reserves || [], state.climate);
   return { ...state, world: { ...state.world, influence: nextInfluence, resources: nextResources.resources, reserves: nextResources.reserves } };
 }
 
@@ -303,7 +311,95 @@ function tickClanSystems(state: GameState): GameState {
 function tickDevelopment(state: GameState): GameState {
   let nextState = tryAutoBuild(state);
   nextState = tryAutoCraftItems(nextState);
+  nextState = tickTech(nextState); // Activar investigación
   return nextState;
+}
+
+/** Sistema de Sabiduría y Árbol Tecnológico. */
+function tickTech(state: GameState): GameState {
+  let { tech, npcs, chronicle, tick } = state;
+  let nextWisdom = tech.wisdom;
+  let nextUnlocked = [...tech.unlocked];
+  let nextResearching = tech.researching;
+  let nextProgress = tech.researchProgress;
+
+  // 1. GENERACIÓN DE SABIDURÍA: Los Sabios e investigadores aportan puntos
+  const sages = npcs.filter(n => n.alive && (n.vocation === VOCATION.SABIO || n.vocation === VOCATION.AMBICIOSO));
+  for (const s of sages) {
+    const power = (s.attributes.wisdom / 100) * 0.15;
+    nextWisdom += power;
+  }
+
+  // 2. DISPARADORES DE EUREKAS (Aprendizaje por acción / azar)
+  if (tick % 50 === 0) {
+    for (const n of npcs) {
+      if (!n.alive) continue;
+      // Eureka: Armas de Caza
+      if (n.vocation === VOCATION.GUERRERO && n.attributes.dexterity > 60 && !nextUnlocked.includes('hunting_weapons')) {
+        if (Math.random() < 0.01) { 
+           nextUnlocked.push('hunting_weapons');
+           chronicle = addChronicleEntry(chronicle, { text: `¡Eureka! ${n.name} ha inventado una forma de afilar lanzas.`, type: 'wisdom', impact: 10, duration: TICKS_PER_DAY }, tick);
+        }
+      }
+      // Eureka: Carpintería (si está en el bosque)
+      const tileIdx = n.position.y * state.world.width + n.position.x;
+      if (state.world.tiles[tileIdx] === TILE.FOREST && !nextUnlocked.includes('carpentry')) {
+        if (Math.random() < 0.005) {
+          nextUnlocked.push('carpentry');
+          chronicle = addChronicleEntry(chronicle, { text: `¡Inspiración! ${n.name} ha descubierto cómo encajar maderas.`, type: 'wisdom', impact: 10, duration: TICKS_PER_DAY }, tick);
+        }
+      }
+    }
+  }
+
+  // 3. SELECCIÓN DE INVESTIGACIÓN: Si no hay nada, elegir la más barata
+  if (!nextResearching) {
+    const available = (Object.values(TECH_DEFS) as Technology[])
+      .filter(t => !nextUnlocked.includes(t.id))
+      .filter(t => t.requires.every(req => nextUnlocked.includes(req)))
+      .sort((a, b) => a.cost - b.cost);
+    
+    if (available.length > 0) {
+      nextResearching = available[0].id;
+      nextProgress = 0;
+    }
+  }
+
+  // 4. PROGRESO
+  if (nextResearching) {
+    const currentTech = TECH_DEFS[nextResearching];
+    const pointsToInvest = Math.min(nextWisdom, 0.4);
+    nextWisdom -= pointsToInvest;
+    nextProgress += pointsToInvest;
+
+    if (nextProgress >= currentTech.cost) {
+      nextUnlocked.push(nextResearching);
+      chronicle = addChronicleEntry(chronicle, {
+        text: `¡CONOCIMIENTO! El clan domina ${currentTech.name}.`,
+        type: 'wisdom', impact: 15, duration: TICKS_PER_DAY * 2
+      }, tick);
+      nextResearching = null;
+      nextProgress = 0;
+    }
+  }
+
+  // 5. SINCRONIZAR RECETAS DESBLOQUEADAS
+  const nextUnlockedItems = [...state.unlockedItemKinds];
+  for (const tid of nextUnlocked) {
+    const tdef = TECH_DEFS[tid as TechId];
+    if (tdef?.effects.unlocks) {
+      for (const uid of tdef.effects.unlocks) {
+        if (!nextUnlockedItems.includes(uid as string)) nextUnlockedItems.push(uid as string);
+      }
+    }
+  }
+
+  return {
+    ...state,
+    unlockedItemKinds: nextUnlockedItems,
+    chronicle,
+    tech: { ...tech, wisdom: nextWisdom, unlocked: nextUnlocked, researching: nextResearching, researchProgress: nextProgress }
+  };
 }
 
 /** Los Sabios/Artesanos fabrican herramientas para los desarmados. */

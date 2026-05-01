@@ -37,6 +37,16 @@ export type MessageIntent = (typeof MESSAGE_INTENTS)[keyof typeof MESSAGE_INTENT
 export const SILENCE = 'silence' as const;
 export type MessageChoice = MessageIntent | typeof SILENCE;
 
+export const WHISPER_ES: Record<MessageChoice, string> = {
+  [MESSAGE_INTENTS.AUXILIO]: 'Auxilio',
+  [MESSAGE_INTENTS.CORAJE]: 'Coraje',
+  [MESSAGE_INTENTS.PACIENCIA]: 'Paciencia',
+  [MESSAGE_INTENTS.ENCUENTRO]: 'Encuentro',
+  [MESSAGE_INTENTS.RENUNCIA]: 'Renuncia',
+  [MESSAGE_INTENTS.ESPERANZA]: 'Esperanza',
+  [SILENCE]: 'Silencio',
+};
+
 /** Una elección válida del jugador para el selector de susurro. */
 export const VALID_CHOICES: readonly MessageChoice[] = [
   MESSAGE_INTENTS.AUXILIO,

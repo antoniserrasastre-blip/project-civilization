@@ -71,27 +71,37 @@ function nearestResource(
   npcId?: string,
 ): Position | null {
   let best: { score: number; x: number; y: number } | null = null;
-  const role = npcId ? computeRole(ctx.npcs.find(n => n.id === npcId)!, undefined) : null;
+  const targetNpc = npcId ? ctx.npcs.find(n => n.id === npcId) : null;
+  const equippedItem = (targetNpc && targetNpc.equippedItemId && ctx.items) 
+    ? ctx.items.find(it => it.id === targetNpc.equippedItemId) || null 
+    : null;
+  const role = targetNpc ? computeRole(targetNpc, equippedItem) : null;
+  const roleFilter = role ? intentFilter(role) : {};
 
   for (const r of resources) {
     if (r.quantity <= 0 || !acceptable(r.id)) continue;
     
     // MEMORIA COLECTIVA: Solo conocemos recursos en tiles descubiertos
-    // Optimizamos usando el buffer decodificado si está disponible
     if (ctx.fog && !isDiscovered(ctx.fog, r.x, r.y, ctx.fogBuffer)) continue;
 
     const pos = { x: r.x, y: r.y };
     if (ctx.isReachable && !ctx.isReachable(from, pos)) continue;
     
-    let score = manhattan(from.x, from.y, r.x, r.y) - (intentWeight ? intentWeight(r.id) : 0);
-    const posKey = `${r.x},${r.y}`;
-    if (ctx.world.terrainTags?.[posKey]?.includes('maldita')) score += CURSED_PENALTY;
-    let claimedPenalty = ctx.claimedTiles?.has(posKey) ? CLAIM_PENALTY : 0;
-    if (claimedPenalty > 0 && role) {
-      const peersNear = ctx.npcs.filter(n => n.id !== npcId && n.alive && computeRole(n, undefined) === role && manhattan(n.position.x, n.position.y, r.x, r.y) < 5).length;
-      claimedPenalty = Math.max(0, claimedPenalty - peersNear * 2);
+    const weight = intentWeight ? intentWeight(r.id) : (roleFilter[r.id] || 0);
+    let score = manhattan(from.x, from.y, r.x, r.y) - weight;
+    
+    // IA DE VITALIDAD: Penalizar nodos con poca cantidad
+    if (r.quantity < r.initialQuantity * 0.2) {
+      score += (npcId && ctx.npcs.find(n => n.id === npcId)?.vocation === VOCATION.SIMPLEZAS) ? 20 : 5;
     }
-    score += claimedPenalty;
+
+    const posKey = `${r.x},${r.y}`;
+    
+    // EXCLUSIÓN ABSOLUTA: Si el recurso ya ha sido reclamado por otro en este tick, saltar
+    if (ctx.claimedTiles?.has(posKey)) continue;
+
+    if (ctx.world.terrainTags?.[posKey]?.includes('maldita')) score += CURSED_PENALTY;
+    
     if (!best || score < best.score) best = { score, x: r.x, y: r.y };
   }
   return best ? { x: best.x, y: best.y } : null;
@@ -189,6 +199,32 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
     if (food) return { position: food, next: currentPrng };
   }
 
+  // 4. URGENCIA: Socialización (Si está muy bajo, busca compañía o la fogata)
+  if (socializacion < NEED_THRESHOLDS.socializacionLow) {
+    const fireDist = ctx.firePosition ? manhattan(npc.position.x, npc.position.y, ctx.firePosition.x, ctx.firePosition.y) : 999;
+    
+    // Si ya estamos en el fuego, quedarnos si hay alguien más o esperar un poco
+    if (fireDist <= 2) {
+       const othersAtFire = ctx.npcs.some(other => other.id !== npc.id && other.alive && manhattan(other.position.x, other.position.y, ctx.firePosition!.x, ctx.firePosition!.y) <= 3);
+       if (othersAtFire || (roll % 10) < 3) return { position: npc.position, next: currentPrng };
+    }
+
+    // Buscar al NPC más cercano para hablar (dentro de un radio razonable)
+    let nearestOther: NPC | null = null;
+    let minDist = 100; 
+    for (const other of ctx.npcs) {
+      if (!other.alive || other.id === npc.id) continue;
+      const d = manhattan(npc.position.x, npc.position.y, other.position.x, other.position.y);
+      if (d < minDist) {
+        minDist = d;
+        nearestOther = other;
+      }
+    }
+
+    if (nearestOther) return { position: nearestOther.position, next: currentPrng };
+    if (ctx.firePosition) return { position: ctx.firePosition, next: currentPrng };
+  }
+
   // TRADICIÓN ORAL (NOCHE): Si es noche y el miedo es bajo, escuchar sagas cerca del fuego
   // La supervivencia (agua, refugio, comida) es lo primero, por eso va después.
   const isNight = (ctx.currentTick % ctx.ticksPerDay) > (ctx.ticksPerDay / 2);
@@ -202,25 +238,25 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
   }
 
   // 3. PRIORIDAD POR VOCACIÓN (Identidad de IA)
-  if (supervivencia >= 50) {
+  const vocationResources = VOCATION_RESOURCES[npc.vocation] ?? [];
+    
+  // PESADO DE INTENCIONES: Si necesitamos madera/piedra para construir, 
+  // aumentamos su prioridad aunque no sea nuestra vocación principal.
+  const neededForBuild = new Set<ResourceId>();
+  if (ctx.nextBuildPriority) {
+    const recipe = RECIPES[ctx.nextBuildPriority];
+    const inv = clanInventoryTotal(ctx.npcs, ctx.structures || []);
+    for (const [res, amount] of Object.entries(recipe.inputs)) {
+      if (inv[res as keyof NPCInventory] < (amount as number)) {
+        neededForBuild.add(res as ResourceId);
+      }
+    }
+  }
+
+  if (supervivencia >= 50 || (carriedFood(npc) > 0 && neededForBuild.size > 0)) {
     // Los SABIOS y AMBICIOSOS priorizan monumentos aunque no sean el constructor principal
     if ((npc.vocation === VOCATION.SABIO || npc.vocation === VOCATION.AMBICIOSO) && ctx.buildSitePosition) {
        return { position: ctx.buildSitePosition, next: currentPrng };
-    }
-
-    const vocationResources = VOCATION_RESOURCES[npc.vocation] ?? [];
-    
-    // PESADO DE INTENCIONES: Si necesitamos madera/piedra para construir, 
-    // aumentamos su prioridad aunque no sea nuestra vocación principal.
-    const neededForBuild = new Set<ResourceId>();
-    if (ctx.nextBuildPriority) {
-      const recipe = RECIPES[ctx.nextBuildPriority];
-      const inv = clanInventoryTotal(ctx.npcs, ctx.structures || []);
-      for (const [res, amount] of Object.entries(recipe.inputs)) {
-        if (inv[res as keyof NPCInventory] < (amount as number)) {
-          neededForBuild.add(res as ResourceId);
-        }
-      }
     }
 
     if (vocationResources.length > 0 || neededForBuild.size > 0) {
@@ -237,7 +273,7 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
   }
 
   // 5. EXPLORACIÓN Y LOGÍSTICA DE REPARTO
-  if (supervivencia > 70) {
+  if (supervivencia > 60) {
     // LOGÍSTICA ACTIVA: Si soy 'Simplezas' y llevo comida, busco a alguien que la necesite
     if (npc.vocation === VOCATION.SIMPLEZAS && carriedFood(npc) > 0) {
       const needySpecialist = ctx.npcs.find(other => 
@@ -251,10 +287,14 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
       }
     }
 
-    // EXPLORACIÓN NATURAL (GUERREROS)
-    if (npc.vocation === VOCATION.GUERRERO || (roll < 5 && socializacion > 60)) {
+    // EXPLORACIÓN NATURAL: Si no tenemos nada urgente que hacer, exploramos el mundo
+    // Aumentamos el umbral para que no se queden quietos cuando todo está al 100%
+    const isSatisfied = socializacion > 80 && supervivencia > 80;
+    const explorationChance = npc.vocation === VOCATION.GUERRERO ? 100 : (isSatisfied ? 25 : 10);
+
+    if (roll < explorationChance) {
       const angle = ((roll * 7) % 100 / 100) * Math.PI * 2;
-      const dist = npc.vocation === VOCATION.GUERRERO ? 15 : 6;
+      const dist = npc.vocation === VOCATION.GUERRERO ? 15 : 10;
       const target = { 
         x: Math.max(0, Math.min(ctx.world.width - 1, Math.round(npc.position.x + Math.cos(angle) * dist))),
         y: Math.max(0, Math.min(ctx.world.height - 1, Math.round(npc.position.y + Math.sin(angle) * dist)))
@@ -341,8 +381,15 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
     if (recoveryResourceAtPosition(npc.position, ctx.world) === RESOURCE.WATER) sv = Math.min(100, sv + 5);
 
     // 3. Socialización
-    const near = out.filter(other => other.id !== npc.id && other.alive && manhattan(npc.position.x, npc.position.y, other.position.x, other.position.y) <= NEED_TICK_RATES.socialRadius).length;
-    so = Math.max(0, Math.min(100, so + (near > 0 ? NEED_TICK_RATES.socializacionNear : -NEED_TICK_RATES.socializacionAlone)));
+    const companions = out.filter(other => other.id !== npc.id && other.alive && manhattan(npc.position.x, npc.position.y, other.position.x, other.position.y) <= NEED_TICK_RATES.socialRadius);
+    const near = companions.length;
+    so = so + (near > 0 ? NEED_TICK_RATES.socializacionNear : -NEED_TICK_RATES.socializacionAlone);
+    
+    // Feed-forward: NPCs hambrientos drenan socialización de los que están cerca
+    const hungryNear = companions.filter(other => other.stats.supervivencia < 30).length;
+    so -= hungryNear * NEED_TICK_RATES.feedForwardHunger;
+    
+    so = Math.max(0, Math.min(100, so));
 
     // 4. Miedo (Fear)
     let fear = n.stats.miedo;
@@ -362,7 +409,15 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
     const activityBonus = (near > 0 ? 0.05 : -0.1); // Estar solo aburre
     pr = Math.max(0, Math.min(100, pr + (mood / 100) + activityBonus));
 
-    out[i] = { ...npc, stats: { supervivencia: sv, socializacion: so, proposito: pr, miedo: Math.max(0, Math.min(100, fear)) } };
+    out[i] = {
+      ...npc,
+      stats: {
+        supervivencia: Math.max(0, Math.min(100, sv)),
+        socializacion: Math.max(0, Math.min(100, so)),
+        proposito: Math.max(0, Math.min(100, pr)),
+        miedo: Math.max(0, Math.min(100, fear))
+      }
+    };
     if (out[i].stats.supervivencia <= 0) out[i].alive = false;
   }
   return out;

@@ -341,7 +341,16 @@ function scatterResources(
       if (res) {
         const q = nextInt(prng, quantityRange[0], quantityRange[1] + 1);
         prng = q.next;
-        spawns.push({ id: res, x, y, quantity: res === RESOURCE.WATER ? 999 : q.value, initialQuantity: res === RESOURCE.WATER ? 999 : q.value, regime, depletedAtTick: null });
+        const isBiotic = [RESOURCE.WOOD, RESOURCE.BERRY, RESOURCE.FISH, RESOURCE.GAME, RESOURCE.COCONUT, RESOURCE.MUSHROOM].includes(res);
+        const isWater = res === RESOURCE.WATER;
+        
+        spawns.push({
+          id: res,
+          x, y,
+          quantity: isWater ? 9999 : q.value,
+          initialQuantity: isWater ? 9999 : (isBiotic ? q.value : q.value * 20),
+          regenerationRate: isWater ? 100 : (isBiotic ? Math.max(1, Math.floor(q.value / 10)) : 0),
+        });
       }
     }
   }

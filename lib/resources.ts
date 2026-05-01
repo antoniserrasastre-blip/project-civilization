@@ -1,38 +1,11 @@
 /**
- * Régimen de recursos primigenia (decisión #21, §3.5 vision).
+ * Régimen de recursos primigenia (Nodos de Vitalidad).
  */
 
 import { RESOURCE, type ResourceId, type ResourceSpawn } from './world-state';
+import type { ClimateState } from './world-state';
 
 export const TICKS_PER_DAY = 480;
-
-export const REGEN_DAYS: Record<ResourceId, number | null> = {
-  [RESOURCE.WOOD]: 60,
-  [RESOURCE.BERRY]: 45,
-  [RESOURCE.GAME]: 100,
-  [RESOURCE.STONE]: null,
-  [RESOURCE.WATER]: 0,
-  [RESOURCE.FISH]: 0,
-  [RESOURCE.OBSIDIAN]: null,
-  [RESOURCE.SHELL]: 30,
-  [RESOURCE.CLAY]: null,
-  [RESOURCE.COCONUT]: 90,
-  [RESOURCE.FLINT]: null,
-  [RESOURCE.MUSHROOM]: 20,
-};
-
-export function regenTicksFor(id: ResourceId): number | null {
-  const days = REGEN_DAYS[id];
-  if (days === null) return null;
-  return days * TICKS_PER_DAY;
-}
-
-/** Multiplicador de regeneración parabólico: las zonas vírgenes se recuperan
- *  rápido, las zonas con mucha influencia se estancan. */
-function regenMultiplier(influence: number): number {
-  const normalized = influence / 1000;
-  return 1 + (normalized * normalized * 4); // Hasta 5x de tiempo extra
-}
 
 export interface ResourceTickResult {
   resources: ResourceSpawn[];
@@ -40,7 +13,8 @@ export interface ResourceTickResult {
 }
 
 /**
- * Avanza timers de regeneración y recupera 'reserves' (capacidad total).
+ * Los Nodos de Vitalidad regeneran su cantidad disponible orgánicamente.
+ * El clima afecta a la velocidad de crecimiento de lo vivo.
  */
 export function tickResources(
   spawns: readonly ResourceSpawn[],
@@ -48,30 +22,38 @@ export function tickResources(
   influenceGrid: readonly number[],
   worldWidth: number,
   reserves: readonly number[],
+  climate?: ClimateState,
 ): ResourceTickResult {
-  // 1. Regenerar Spawns (cantidad actual)
-  const nextResources = spawns.map((s) => {
-    if (s.regime !== 'regenerable' || s.depletedAtTick === null) return s;
-    const base = regenTicksFor(s.id);
-    if (base === null) return s;
-    
-    const idx = s.y * worldWidth + s.x;
-    const influence = influenceGrid[idx] ?? 0;
-    const required = Math.ceil(base * regenMultiplier(influence));
-    
-    if (currentTick - s.depletedAtTick < required) return s;
-    return { ...s, quantity: s.initialQuantity, depletedAtTick: null };
-  });
+  const nextReserves = [...reserves];
 
-  // 2. Regenerar Reservas (capacidad máxima del tile)
-  // La naturaleza reclama el terreno si la influencia es baja (< 100)
-  const nextReserves = reserves.map((val, idx) => {
-    const influence = influenceGrid[idx] ?? 0;
-    if (influence < 100) {
-      // Recuperación lenta: +1 de reserva cada día (480 ticks)
-      if (currentTick % TICKS_PER_DAY === 0) return val + 1;
+  // Determinar multiplicador estacional de crecimiento
+  let seasonMult = 1.0;
+  if (climate) {
+    if (climate.season === 'spring') seasonMult = 2.0;
+    if (climate.season === 'summer') seasonMult = 1.5;
+    if (climate.season === 'winter') seasonMult = 0.0; // En invierno nada crece
+  }
+
+  const nextResources = spawns.map((s) => {
+    let nextQty = s.quantity;
+
+    // LÓGICA DE REGENERACIÓN ORGÁNICA
+    // Solo si el nodo no está lleno y tiene capacidad de regenerar
+    if (s.regenerationRate > 0 && s.quantity < s.initialQuantity) {
+      // Regeneramos un poco en cada amanecer
+      if (currentTick % TICKS_PER_DAY === 0) {
+        const gain = Math.floor(s.regenerationRate * seasonMult);
+        if (gain > 0) {
+          nextQty = Math.min(s.initialQuantity, s.quantity + gain);
+          
+          // Sincronizar con el mapa de reservas
+          const idx = s.y * worldWidth + s.x;
+          nextReserves[idx] = Math.max(0, nextReserves[idx] + (nextQty - s.quantity));
+        }
+      }
     }
-    return val;
+
+    return { ...s, quantity: nextQty };
   });
 
   return { resources: nextResources, reserves: nextReserves };

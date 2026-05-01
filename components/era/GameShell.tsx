@@ -13,8 +13,10 @@ import {
 } from '@/components/era/NpcSheet';
 import { TribalPlaceholder } from '@/components/era/TribalPlaceholder';
 import { DivineLogPanel, type DivineLogEntry } from '@/components/era/DivineLogPanel';
+import { ResourceMonitor } from '@/components/ui/ResourceMonitor';
+import { EurekaToast } from '@/components/ui/EurekaToast';
 import type { GameState } from '@/lib/game-state';
-import { applyPlayerIntent, type MessageChoice } from '@/lib/messages';
+import { applyPlayerIntent, type MessageChoice, WHISPER_ES } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import {
   makeNpcReachabilityChecker,
@@ -26,7 +28,7 @@ import { decideDestination, NEED_THRESHOLDS, carriedFood } from '@/lib/needs';
 import { firstStructureOfKind } from '@/lib/structures';
 import { clanInventoryTotal, CRAFTABLE, RECIPES } from '@/lib/crafting';
 import type { NPC, NPCInventory } from '@/lib/npcs';
-import { RESOURCE, TILE, type TileId } from '@/lib/world-state';
+import { RESOURCE, TILE, RESOURCE_LABEL, type TileId } from '@/lib/world-state';
 import { buildNpcBiography } from '@/lib/biography';
 import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
@@ -293,8 +295,8 @@ export function GameShell({ seed }: GameShellProps) {
   if (state.era === 'tribal') return <TribalPlaceholder />;
 
   return (
-    <main data-testid="primigenia-page" className="fixed inset-0 overflow-hidden bg-[#0c0a09] text-stone-200 select-none">
-      {/* CAPA 0: EL MUNDO (Background) */}
+    <main data-testid="primigenia-page" className="fixed inset-0 overflow-hidden bg-[#0c0a09] text-stone-200 select-none font-monospace uppercase">
+      {/* CAPA 0: EL MUNDO */}
       <MapView
         world={state.world} fog={state.fog} npcs={state.npcs} animals={state.animals} structures={state.structures}
         buildProject={state.buildProject} intentTrails={intentTrails} npcStatuses={npcStatuses}
@@ -302,7 +304,7 @@ export function GameShell({ seed }: GameShellProps) {
         initialCenter={spawnCenter} tickIntervalMs={TICK_INTERVAL_MS}
       />
 
-      {/* CAPA 1: HUD PERMANENTE (No bloqueante) */}
+      {/* CAPA 1: ZONA A (Top Bar) */}
       <HUD
         day={day} tick={state.tick} climate={state.climate}
         gratitude={state.village.gratitude} faith={state.village.faith}
@@ -317,15 +319,15 @@ export function GameShell({ seed }: GameShellProps) {
         onDismissEureka={handleDismissEureka}
       />
 
-      {/* CAPA 2: PANELES DE GESTIÓN (Lateral Izquierdo - Estilo Paradox) */}
-      <div className="pointer-events-none fixed inset-y-0 left-0 z-[60] flex w-[400px] flex-col gap-4 p-4 pt-20">
+      {/* CAPA 2: ZONA B (Sidebar Izquierda - Gestión) */}
+      <aside className="pointer-events-none fixed inset-y-0 left-0 z-[90] flex w-[420px] flex-col p-4 pt-24">
         {codexOpen && (
-          <div className="pointer-events-auto h-full shadow-2xl shadow-black">
+          <div className="pointer-events-auto h-full shadow-2xl shadow-black/80">
             <CivilizationCodex state={state} onClose={() => setCodexOpen(false)} />
           </div>
         )}
         {selectedNpc && !codexOpen && (
-          <div className="pointer-events-auto h-full shadow-2xl shadow-black">
+          <div className="pointer-events-auto h-full shadow-2xl shadow-black/80">
             <NpcSheet 
               npc={selectedNpc} village={state.village} status={selectedNpcStatus} 
               biography={selectedNpcBiography} role={selectedNpcRole} 
@@ -334,11 +336,11 @@ export function GameShell({ seed }: GameShellProps) {
             />
           </div>
         )}
-      </div>
+      </aside>
 
-      {/* CAPA 3: FEED DE EVENTOS (Bottom Center) */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-center p-4">
-        <div className="pointer-events-auto w-full max-w-2xl">
+      {/* CAPA 3: ZONA D (Sidebar Derecha - Registro Histórico y Alertas) */}
+      <aside className="pointer-events-none fixed inset-y-0 right-0 z-[80] flex w-[320px] flex-col items-end gap-4 p-4 pt-36">
+        <div className="pointer-events-auto w-full">
           <ChronicleFeed 
             activeMessage={state.village.activeMessage} 
             messageHistory={state.village.messageHistory} 
@@ -346,11 +348,46 @@ export function GameShell({ seed }: GameShellProps) {
             legends={state.legends}
           />
         </div>
+        <div className="pointer-events-auto">
+          <EurekaToast events={state.unlockedItemKinds.map(kind => ({
+            id: kind,
+            title: '¡Eureka!',
+            description: `Secreto de ${kind} revelado`,
+            icon: '/ui/bubble_work.svg',
+          }))} onDismiss={handleDismissEureka} />
+        </div>
+      </aside>
+
+      {/* CAPA 4: ZONA C (Bottom Center - Tesorería y Controles) */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center p-6 gap-3">
+           {/* Botón de Susurro */}
+           <div className="pointer-events-auto flex justify-center mb-1">
+             <button
+                onClick={() => setSelectorOpen(true)}
+                className="pixel-box bg-wb-gold/90 px-8 py-2.5 text-xs text-black font-black hover:bg-white transition-colors shadow-2xl border-black/30 tracking-widest"
+              >
+                {state.village.activeMessage ? `✨ SUSURRANDO: ${WHISPER_ES[state.village.activeMessage]}` : '🕯️ HABLAR AL CLAN'}
+              </button>
+           </div>
+           
+           <div className="pointer-events-auto w-full max-w-4xl flex justify-center">
+             <ResourceMonitor 
+              resources={Object.entries(communalInventory)
+                .filter(([_, amount]) => amount > 0)
+                .map(([id, amount]) => ({
+                  id,
+                  name: (RESOURCE_LABEL as Record<string, string>)[id] || id,
+                  amount,
+                  icon: `/resources/${id}.svg`,
+                  trend: 'stable'
+                }))} 
+            />
+           </div>
       </div>
 
-      {/* MODALES TÉCNICOS (Centrados) */}
+      {/* MODALES TÉCNICOS (Prioridad 100) */}
       {selectorOpen && (
-        <div className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="pointer-events-auto fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md">
           <WhisperSelector 
             activeMessage={state.village.activeMessage} 
             faith={state.village.faith} 

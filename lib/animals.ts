@@ -7,20 +7,24 @@ import { manhattan } from './utils';
 import type { NPC } from './npcs';
 
 /** Frecuencia de chequeo de spawn salvaje. */
-const SPAWN_CHECK_INTERVAL = TICKS_PER_DAY;
-const MAX_ANIMALS_TOTAL = 30;
+const SPAWN_CHECK_INTERVAL = Math.floor(TICKS_PER_DAY / 4); // Cada 6 horas in-game
+const MAX_ANIMALS_TOTAL = 40;
 
 export function tickAnimals(state: GameState): GameState {
   let { animals, prng, tick, world } = state;
   let currentPrng = prng;
   
-  // 1. GESTIÓN DE POBLACIÓN (Spawn)
+  // 1. GESTIÓN DE POBLACIÓN (Spawn más agresivo)
   if (tick % SPAWN_CHECK_INTERVAL === 0 && animals.filter(a => a.alive).length < MAX_ANIMALS_TOTAL) {
-    const spawnRes = trySpawnAnimal(world, currentPrng, tick);
-    if (spawnRes.animal) {
-      animals = [...animals, spawnRes.animal];
+    // Intentar hasta 3 veces encontrar un sitio de tierra
+    for (let i = 0; i < 3; i++) {
+      const spawnRes = trySpawnAnimal(world, currentPrng, tick);
+      currentPrng = spawnRes.prng;
+      if (spawnRes.animal) {
+        animals = [...animals, spawnRes.animal];
+        break; 
+      }
     }
-    currentPrng = spawnRes.prng;
   }
 
   // 2. SIMULACIÓN DE AGENTES SALVAJES
@@ -67,13 +71,21 @@ export function tickAnimals(state: GameState): GameState {
         }
       }
     } else {
-      // Deambular aleatoriamente
-      const { value: moveRoll, next: nP } = nextInt(currentPrng, 0, 4);
+      // Deambular con tendencia hacia el centro del mapa o zonas de influencia
+      const { value: moveRoll, next: nP } = nextInt(currentPrng, 0, 100);
       currentPrng = nP;
-      if (moveRoll === 0 && ax > 0) ax--;
-      if (moveRoll === 1 && ax < world.width - 1) ax++;
-      if (moveRoll === 2 && ay > 0) ay--;
-      if (moveRoll === 3 && ay < world.height - 1) ay++;
+      
+      // 70% deambular puro, 30% tendencia hacia el centro (donde suele estar el clan)
+      if (moveRoll < 30) {
+        if (ax < world.width / 2) ax++; else ax--;
+        if (ay < world.height / 2) ay++; else ay--;
+      } else {
+        const dir = moveRoll % 4;
+        if (dir === 0 && ax > 0) ax--;
+        if (dir === 1 && ax < world.width - 1) ax++;
+        if (dir === 2 && ay > 0) ay--;
+        if (dir === 3 && ay < world.height - 1) ay++;
+      }
     }
 
     // Evitar agua profunda
