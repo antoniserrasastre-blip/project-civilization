@@ -63,9 +63,22 @@ interface QuickStartDef {
 
 const QUICK_STARTS: QuickStartDef[] = [
   {
+    id: 'test-clan',
+    name: '⚗ Clan de Prueba',
+    description: 'Seed fijo 42. Cazador + Artesano + Pescador + Recolector. Activa todos los sistemas: caza, pesca, construcción, recolección. Náufragos para tener urgencia real.',
+    difficulty: '●○○',
+    scenarioId: SCENARIO.NAUFRAGOS,
+    blockA: [
+      { archetype: ARCHETYPE.CAZADOR,   sex: SEX.M },
+      { archetype: ARCHETYPE.ARTESANO,  sex: SEX.F },
+      { archetype: ARCHETYPE.PESCADOR,  sex: SEX.M },
+      { archetype: ARCHETYPE.RECOLECTOR,sex: SEX.F },
+    ],
+  },
+  {
     id: 'supervivientes',
     name: 'Supervivientes',
-    description: 'Náufragos en la costa. Cazador y pescador dan comida inmediata; el curandero mantiene vivo al clan. Prueba el ciclo básico de supervivencia.',
+    description: 'Náufragos en la costa. Cazador y pescador dan comida inmediata; el curandero mantiene vivo al clan.',
     difficulty: '●○○',
     scenarioId: SCENARIO.NAUFRAGOS,
     blockA: [
@@ -78,64 +91,12 @@ const QUICK_STARTS: QuickStartDef[] = [
   {
     id: 'constructores',
     name: 'Los Constructores',
-    description: 'Éxodo con recursos iniciales. Dos artesanos levantan la fogata en días; los recolectores llenan el almacén. Prueba el sistema de construcción.',
+    description: 'Éxodo con recursos iniciales. Dos artesanos levantan la fogata en días; los recolectores llenan el almacén.',
     difficulty: '●○○',
     scenarioId: SCENARIO.EXODO,
     blockA: [
       { archetype: ARCHETYPE.ARTESANO,   sex: SEX.M },
       { archetype: ARCHETYPE.ARTESANO,   sex: SEX.F },
-      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M },
-      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.F },
-    ],
-  },
-  {
-    id: 'colonia-pesquera',
-    name: 'La Colonia Pesquera',
-    description: 'Tres pescadores especializados y un curandero. Economía de pesca pura. Prueba la cohesión social y el rol de especialización.',
-    difficulty: '●○○',
-    scenarioId: SCENARIO.NAUFRAGOS,
-    blockA: [
-      { archetype: ARCHETYPE.PESCADOR,  sex: SEX.M },
-      { archetype: ARCHETYPE.PESCADOR,  sex: SEX.F },
-      { archetype: ARCHETYPE.PESCADOR,  sex: SEX.M },
-      { archetype: ARCHETYPE.CURANDERO, sex: SEX.F },
-    ],
-  },
-  {
-    id: 'clan-lider',
-    name: 'El Clan del Líder',
-    description: 'Un líder y tres exploradores. El Elegido principal acumula Fe rápido. Prueba el sistema de liderazgo y la influencia divina.',
-    difficulty: '●●○',
-    scenarioId: SCENARIO.EXODO,
-    blockA: [
-      { archetype: ARCHETYPE.LIDER,     sex: SEX.M },
-      { archetype: ARCHETYPE.SCOUT,     sex: SEX.F },
-      { archetype: ARCHETYPE.RECOLECTOR,sex: SEX.M },
-      { archetype: ARCHETYPE.RECOLECTOR,sex: SEX.F },
-    ],
-  },
-  {
-    id: 'nomadas',
-    name: 'Nómadas del Viento',
-    description: 'Dos exploradores, un cazador y un recolector. Movilidad máxima, sin asentamiento fijo. Prueba el comportamiento de movimiento y exploración.',
-    difficulty: '●●●',
-    scenarioId: SCENARIO.NAUFRAGOS,
-    blockA: [
-      { archetype: ARCHETYPE.SCOUT,      sex: SEX.M },
-      { archetype: ARCHETYPE.SCOUT,      sex: SEX.F },
-      { archetype: ARCHETYPE.CAZADOR,    sex: SEX.F },
-      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M },
-    ],
-  },
-  {
-    id: 'sin-especialistas',
-    name: 'Sin Especialistas',
-    description: 'Cuatro recolectores sin skills dominantes. El juego en modo difícil: la IA decide todo sin ventajas de arquetipo. Prueba la IA base.',
-    difficulty: '●●●',
-    scenarioId: SCENARIO.NAUFRAGOS,
-    blockA: [
-      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M },
-      { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.F },
       { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.M },
       { archetype: ARCHETYPE.RECOLECTOR, sex: SEX.F },
     ],
@@ -227,7 +188,8 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
   /* ─── Quick Start ──────────────────────────────────────────────── */
   const handleQuickStart = (qs: QuickStartDef) => {
     try {
-      let d = startDraft(seed);
+      const effectiveSeed = qs.id === 'test-clan' ? 42 : seed;
+      let d = startDraft(effectiveSeed);
       d = pickScenario(d, qs.scenarioId);
       qs.blockA.forEach((p, i) => {
         d = pickArchetype(d, i, p.archetype);
@@ -235,17 +197,17 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
       });
       const elegidos = finalizeBlockA(d);
 
-      let fd = startFollowerDraft(seed);
+      let fd = startFollowerDraft(effectiveSeed);
       const tiers: Array<'excelente' | 'bueno' | 'regular' | 'malo'> = ['excelente', 'bueno', 'regular', 'malo'];
       const counts = [3, 3, 2, 2];
       tiers.forEach((tier, ti) => {
-        const cands = generateCandidates(seed, tier, 0);
+        const cands = generateCandidates(effectiveSeed, tier, 0);
         for (let i = 0; i < counts[ti]; i++) fd = pickFollower(fd, cands[i]);
       });
       const usedNames = new Set(elegidos.map((n) => n.name));
       const ciudadanos = finalizeBlockB(fd, usedNames);
       const npcs = [...elegidos, ...ciudadanos];
-      onStart({ seed, npcs, mapType: d.mapType });
+      onStart({ seed: effectiveSeed, npcs, mapType: d.mapType });
     } catch { /* no debería fallar */ }
   };
 
