@@ -28,7 +28,7 @@ export interface HarvestTickResult {
   prng: PRNGState;
 }
 
-function inventoryKeyFor(id: ResourceId): keyof NPC['inventory'] | null {
+export function inventoryKeyFor(id: ResourceId): keyof NPC['inventory'] | null {
   if (id === RESOURCE.WOOD) return 'wood';
   if (id === RESOURCE.STONE) return 'stone';
   if (id === RESOURCE.BERRY) return 'berry';

@@ -16,7 +16,7 @@ import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
 import { ITEM_DEFS } from './items';
 import { computeRole, intentFilter, ROLE, type Role } from './roles';
-import { INVENTORY_CAP_PER_TYPE, effectiveInventoryCap } from './harvest';
+import { INVENTORY_CAP_PER_TYPE, effectiveInventoryCap, inventoryKeyFor } from './harvest';
 import type { Structure } from './structures';
 import { nextInt, type PRNGState } from './prng';
 import type { Synergy } from './synergies';
@@ -81,9 +81,16 @@ function nearestResource(
 
   for (const r of resources) {
     if (r.quantity <= 0 || !acceptable(r.id)) continue;
-    
+
     // MEMORIA COLECTIVA: Solo conocemos recursos en tiles descubiertos
     if (ctx.fog && !isDiscovered(ctx.fog, r.x, r.y, ctx.fogBuffer)) continue;
+
+    // Si ya estoy encima del recurso y el inventario está lleno para ese tipo, ignorarlo
+    // (evita que el NPC se quede pegado al tile porque "ya está en su destino")
+    if (r.x === from.x && r.y === from.y && targetNpc) {
+      const key = inventoryKeyFor(r.id);
+      if (key && targetNpc.inventory[key] >= INVENTORY_CAP_PER_TYPE - 1) continue;
+    }
 
     const pos = { x: r.x, y: r.y };
     if (ctx.isReachable && !ctx.isReachable(from, pos)) continue;
@@ -289,6 +296,19 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
        return { position: ctx.buildSitePosition, next: currentPrng };
     }
 
+    // DEPÓSITO: Si el inventario está casi lleno, ir a depositar en estructura cercana
+    const totalCarried = Object.values(npc.inventory).reduce((a, b) => a + b, 0);
+    const inventoryTypes = Object.keys(npc.inventory).length;
+    if (totalCarried >= inventoryTypes * INVENTORY_CAP_PER_TYPE * 0.7 && ctx.structures?.length) {
+      const depositTarget = ctx.structures
+        .filter(s => ['despensa', 'stockpile_wood', 'stockpile_stone', 'fogata_permanente'].includes(s.kind))
+        .sort((a, b) =>
+          manhattan(npc.position.x, npc.position.y, a.position.x, a.position.y) -
+          manhattan(npc.position.x, npc.position.y, b.position.x, b.position.y)
+        )[0];
+      if (depositTarget) return { position: depositTarget.position, next: currentPrng };
+    }
+
     if (allVocationResources.length > 0 || neededForBuild.size > 0) {
       const vocationTarget = nearestResource(
         npc.position,
@@ -415,8 +435,10 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
       }
     }
 
-    // 2. Agua (Recuperación pasiva)
-    if (recoveryResourceAtPosition(npc.position, ctx.world) === RESOURCE.WATER) sv = Math.min(100, sv + 5);
+    // 2. Agua (Recuperación pasiva) — solo cuando sv está baja, no como estación permanente
+    if (recoveryResourceAtPosition(npc.position, ctx.world) === RESOURCE.WATER && sv < 70) {
+      sv = Math.min(70, sv + 5);
+    }
 
     // 3. Socialización
     const companions = out.filter(other => other.id !== npc.id && other.alive && manhattan(npc.position.x, npc.position.y, other.position.x, other.position.y) <= NEED_TICK_RATES.socialRadius);
