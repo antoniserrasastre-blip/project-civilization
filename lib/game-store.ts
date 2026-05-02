@@ -4,16 +4,24 @@ import { initialGameState } from './game-state';
 import { makeDefaultClan } from './default-clan';
 import { generateWorld } from './world-gen';
 
-// Singleton del worker para evitar múltiples instancias en HMR
 let simulationWorker: Worker | null = null;
 let isTicking = false;
 
 function getWorker() {
   if (typeof window === 'undefined') return null;
   if (!simulationWorker) {
+    // Añadir un cache-bust en dev para que HMR no use el worker antiguo
     simulationWorker = new Worker(new URL('./simulation.worker.ts', import.meta.url));
   }
   return simulationWorker;
+}
+
+// En dev, invalida el worker cuando el módulo se recarga por HMR
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  (module as any).hot?.dispose(() => {
+    simulationWorker?.terminate();
+    simulationWorker = null;
+  });
 }
 
 interface GameStore {
