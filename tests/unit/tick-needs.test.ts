@@ -16,7 +16,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tickNeeds, NEED_TICK_RATES } from '@/lib/needs';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC, makeFullInventory } from '../helpers/npc-fixtures';
 import { RESOURCE, TILE, type WorldMap } from '@/lib/world-state';
 
 function mkWorld(w = 20, h = 20): WorldMap {
@@ -45,7 +45,7 @@ describe('Decay pasivo de supervivencia', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.supervivencia).toBeCloseTo(
@@ -57,7 +57,7 @@ describe('Decay pasivo de supervivencia', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 0, socializacion: 60 },
+      stats: { supervivencia: 0, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.supervivencia).toBe(0);
@@ -67,7 +67,7 @@ describe('Decay pasivo de supervivencia', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 0.1, socializacion: 60 },
+      stats: { supervivencia: 0.1, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     if (NEED_TICK_RATES.supervivenciaDecay >= 0.1) {
@@ -93,7 +93,7 @@ describe('Recovery on-the-spot', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 60, socializacion: 60 },
+      stats: { supervivencia: 60, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.supervivencia).toBeCloseTo(59.85);
@@ -113,7 +113,7 @@ describe('Recovery on-the-spot', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 60, socializacion: 60 },
+      stats: { supervivencia: 60, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [berry] = tickNeeds([npc], { world: berryWorld, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     const [game]  = tickNeeds([npc], { world: gameWorld,  npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
@@ -131,7 +131,7 @@ describe('Recovery on-the-spot', () => {
     const npc39 = makeTestNPC({
       id: 'n1',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 39, socializacion: 60, proposito: 100 },
+      stats: { supervivencia: 39, socializacion: 60, proposito: 100, miedo: 20 },
     });
     const [after39] = tickNeeds([npc39], { world, npcs: [npc39], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after39.stats.supervivencia).toBeCloseTo(43.85); // 39 - 0.15 + 5
@@ -146,8 +146,8 @@ describe('Consumo de comida en inventario', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 35, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 35, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ berry: 2 }),
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
@@ -160,8 +160,8 @@ describe('Consumo de comida en inventario', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 35, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 1, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 35, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ game: 1, fish: 1 }),
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
@@ -173,8 +173,8 @@ describe('Consumo de comida en inventario', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 70, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 2, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 70, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ berry: 2 }),
     });
 
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
@@ -189,18 +189,18 @@ describe('Consumo de comida en inventario', () => {
     const world = mkWorld();
     const berry = makeTestNPC({
       id: 'berry',
-      stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 30, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ berry: 1 }),
     });
     const fish = makeTestNPC({
       id: 'fish',
-      stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 1, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 30, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ fish: 1 }),
     });
     const game = makeTestNPC({
       id: 'game',
-      stats: { supervivencia: 30, socializacion: 60 },
-      inventory: { wood: 0, stone: 0, berry: 0, game: 1, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 30, socializacion: 60, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ game: 1 }),
     });
 
     const [afterBerry, afterFish, afterGame] = tickNeeds(
@@ -220,8 +220,8 @@ describe('Consumo de comida en inventario', () => {
     const world = mkWorld();
     const npc = makeTestNPC({
       id: 'n',
-      stats: { supervivencia: 35, socializacion: 40 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 35, socializacion: 40, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ berry: 1 }),
     });
 
     const [raw] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
@@ -243,12 +243,12 @@ describe('Consumo de comida en inventario', () => {
     const hungry = makeTestNPC({
       id: 'hungry',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 35, socializacion: 40 },
+      stats: { supervivencia: 35, socializacion: 40, proposito: 70, miedo: 20 },
     });
     const donor = makeTestNPC({
       id: 'donor',
       position: { x: 6, y: 5 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      inventory: makeFullInventory({ berry: 1 }),
     });
 
     const [afterHungry, afterDonor] = tickNeeds([hungry, donor], {
@@ -266,12 +266,12 @@ describe('Consumo de comida en inventario', () => {
     const hungry = makeTestNPC({
       id: 'hungry',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 35, socializacion: 40 },
+      stats: { supervivencia: 35, socializacion: 40, proposito: 70, miedo: 20 },
     });
     const donor = makeTestNPC({
       id: 'donor',
       position: { x: 19, y: 19 },
-      inventory: { wood: 0, stone: 0, berry: 1, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      inventory: makeFullInventory({ berry: 1 }),
     });
 
     const [withoutFire] = tickNeeds([hungry, donor], {
@@ -298,7 +298,7 @@ describe('Socialización — radio del clan', () => {
     const npc = makeTestNPC({
       id: 'solo',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [after] = tickNeeds([npc], { world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(after.stats.socializacion).toBeLessThan(60);
@@ -309,12 +309,12 @@ describe('Socialización — radio del clan', () => {
     const a = makeTestNPC({
       id: 'a',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const b = makeTestNPC({
       id: 'b',
       position: { x: 6, y: 5 },
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [afterA] = tickNeeds([a, b], { world, npcs: [a, b], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
     expect(afterA.stats.socializacion).toBeGreaterThan(60);
@@ -327,12 +327,12 @@ describe('Feed-forward: hambre alta drena socialización cercanos', () => {
     const hungry = makeTestNPC({
       id: 'hungry',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 15, socializacion: 60 },
+      stats: { supervivencia: 15, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const neighbor = makeTestNPC({
       id: 'neighbor',
       position: { x: 6, y: 5 },
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [, after] = tickNeeds([hungry, neighbor], {
       world,
@@ -345,7 +345,7 @@ describe('Feed-forward: hambre alta drena socialización cercanos', () => {
     const well = makeTestNPC({
       id: 'well',
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const [, afterWithoutHunger] = tickNeeds([well, neighbor], {
       world,

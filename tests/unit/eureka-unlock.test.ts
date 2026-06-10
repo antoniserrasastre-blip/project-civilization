@@ -17,7 +17,8 @@ import {
   WOUND_UNLOCK_DROP,
   WOOD_EXCESS_THRESHOLD,
 } from '../../lib/eureka';
-import { makeTestNPC } from '../../lib/npcs';
+import { makeTestNPC } from '../helpers/npc-fixtures';
+import { makeEmptyInventory } from '../helpers/npc-fixtures';
 
 // ── requiresUnlock ───────────────────────────────────────────────────────────
 
@@ -43,22 +44,22 @@ describe('ITEM_RECIPES.requiresUnlock', () => {
 
 describe('detectUnlockTrigger — primera herida → desbloquea SPEAR', () => {
   it('detecta herida cuando supervivencia cae ≥ WOUND_UNLOCK_DROP en un tick', () => {
-    const prev = makeTestNPC({ id: 'a', stats: { supervivencia: 70, socializacion: 50 } });
+    const prev = makeTestNPC({ id: 'a', stats: { supervivencia: 70, socializacion: 50, proposito: 70, miedo: 20 } });
     const next = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: 70 - WOUND_UNLOCK_DROP, socializacion: 50 },
+      stats: { supervivencia: 70 - WOUND_UNLOCK_DROP, socializacion: 50, proposito: 70, miedo: 20 },
     });
-    const result = detectUnlockTrigger([prev], [next], { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 });
+    const result = detectUnlockTrigger([prev], [next], makeEmptyInventory());
     expect(result).toContain(ITEM_KIND.SPEAR);
   });
 
   it('no detecta herida si la caída es menor al umbral', () => {
-    const prev = makeTestNPC({ id: 'a', stats: { supervivencia: 70, socializacion: 50 } });
+    const prev = makeTestNPC({ id: 'a', stats: { supervivencia: 70, socializacion: 50, proposito: 70, miedo: 20 } });
     const next = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: 70 - WOUND_UNLOCK_DROP + 1, socializacion: 50 },
+      stats: { supervivencia: 70 - WOUND_UNLOCK_DROP + 1, socializacion: 50, proposito: 70, miedo: 20 },
     });
-    const result = detectUnlockTrigger([prev], [next], { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 });
+    const result = detectUnlockTrigger([prev], [next], makeEmptyInventory());
     expect(result).not.toContain(ITEM_KIND.SPEAR);
   });
 });
@@ -66,14 +67,14 @@ describe('detectUnlockTrigger — primera herida → desbloquea SPEAR', () => {
 describe('detectUnlockTrigger — exceso de inventario → desbloquea BASKET', () => {
   it('detecta exceso de madera cuando wood > WOOD_EXCESS_THRESHOLD', () => {
     const npc = makeTestNPC({ id: 'a' });
-    const inv = { wood: WOOD_EXCESS_THRESHOLD + 1, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 };
+    const inv = { ...makeEmptyInventory(), wood: WOOD_EXCESS_THRESHOLD + 1 };
     const result = detectUnlockTrigger([npc], [npc], inv);
     expect(result).toContain(ITEM_KIND.BASKET);
   });
 
   it('no detecta exceso si wood <= WOOD_EXCESS_THRESHOLD', () => {
     const npc = makeTestNPC({ id: 'a' });
-    const inv = { wood: WOOD_EXCESS_THRESHOLD, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 };
+    const inv = { ...makeEmptyInventory(), wood: WOOD_EXCESS_THRESHOLD };
     const result = detectUnlockTrigger([npc], [npc], inv);
     expect(result).not.toContain(ITEM_KIND.BASKET);
   });

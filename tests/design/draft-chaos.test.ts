@@ -26,7 +26,7 @@ import {
   applyScenario,
   getScenarioDef,
 } from '@/lib/scenarios';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '@/tests/helpers/npc-fixtures';
 
 // ─── helpers locales ──────────────────────────────────────────────────
 
@@ -98,7 +98,7 @@ describe('Budget de rasgos — contratos duros', () => {
 
 describe('Clan con todos los rasgos negativos', () => {
   it('tiene stats de supervivencia menores que un clan sin rasgos', () => {
-    const npc = makeTestNPC({ id: 'chaos-1', stats: { supervivencia: 70, socializacion: 70 } });
+    const npc = makeTestNPC({ id: 'chaos-1', stats: { supervivencia: 70, socializacion: 70, proposito: 70, miedo: 20 } });
     const sinRasgos = npc;
     const conNegativos = applyTraits(npc, negativosTodos());
     expect(conNegativos.stats.supervivencia).toBeLessThan(
@@ -107,7 +107,7 @@ describe('Clan con todos los rasgos negativos', () => {
   });
 
   it('tiene stats de supervivencia menores que un clan con rasgos positivos', () => {
-    const npc = makeTestNPC({ id: 'chaos-2', stats: { supervivencia: 70, socializacion: 70 } });
+    const npc = makeTestNPC({ id: 'chaos-2', stats: { supervivencia: 70, socializacion: 70, proposito: 70, miedo: 20 } });
     const conNegativos = applyTraits(npc, negativosTodos());
     const conPositivos = applyTraits(npc, mejorSeleccion());
     expect(conNegativos.stats.supervivencia).toBeLessThan(
@@ -133,7 +133,7 @@ describe('Clan con todos los rasgos negativos', () => {
 describe('Escenario Náufragos vs Éxodo', () => {
   it('un clan en naufragos tiene supervivencia media menor que en exodo', () => {
     const npcs = Array.from({ length: 4 }, (_, i) =>
-      makeTestNPC({ id: `sc-${i}`, stats: { supervivencia: 80, socializacion: 70 } }),
+      makeTestNPC({ id: `sc-${i}`, stats: { supervivencia: 80, socializacion: 70, proposito: 70, miedo: 20 } }),
     );
     const mediaStats = (arr: ReturnType<typeof makeTestNPC>[], escenario: typeof SCENARIO[keyof typeof SCENARIO]) => {
       return arr.reduce((s, npc) => s + applyScenario(npc, escenario).stats.supervivencia, 0) / arr.length;
@@ -162,7 +162,7 @@ describe('Escenario Náufragos vs Éxodo', () => {
 describe('Combo peor caso — todo negativo + naufragos', () => {
   it('supervivencia media del clan es < 50 (zona de colapso potencial)', () => {
     const npcs = Array.from({ length: 4 }, (_, i) =>
-      makeTestNPC({ id: `worst-${i}`, stats: { supervivencia: 70, socializacion: 70 } }),
+      makeTestNPC({ id: `worst-${i}`, stats: { supervivencia: 70, socializacion: 70, proposito: 70, miedo: 20 } }),
     );
     const stats = npcs.map((npc) => {
       const conRasgos = applyTraits(npc, negativosTodos());

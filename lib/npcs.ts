@@ -104,6 +104,20 @@ export interface NPCInventory {
   mushroom: number;
 }
 
+/** SSOT defaults for NPCStats (4-field post-expansion) and NPCInventory (11-field).
+ *  Centralizes creation to avoid drift in proposito/miedo and new resources.
+ *  Pure, deterministic, JSON-roundtrippable per §A4. */
+export function defaultStats(): NPCStats {
+  return { supervivencia: 80, socializacion: 60, proposito: 100, miedo: 0 };
+}
+
+export function makeEmptyInventory(): NPCInventory {
+  return {
+    wood: 0, stone: 0, berry: 0, game: 0, fish: 0,
+    obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0,
+  };
+}
+
 /** Atributos ADN — Constitución física y mental básica (0-100). 
  *  Representan el potencial genético y afectan al aprendizaje de Maestrías. */
 export interface NPCAttributes {
@@ -227,7 +241,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     casta: CASTA.CIUDADANO,
     linaje,
     archetype: null,
-    stats: { supervivencia: 80, socializacion: 60, proposito: 100, miedo: 0 },
+    stats: defaultStats(),
     skills: {
       hunting: 20,
       gathering: 20,
@@ -241,7 +255,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
     traits: [],
     birthTick: 0,
     alive: true,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, clay: 0, coconut: 0, flint: 0, mushroom: 0 },
+    inventory: makeEmptyInventory(),
     equippedItemId: null,
     lastReproducedTick: null,
     vocation: overrides.vocation ?? VOCATION.SIMPLEZAS,

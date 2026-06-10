@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { initialGameState } from '@/lib/game-state';
 import { tick } from '@/lib/simulation';
-import { makeTestNPC, CASTA, LINAJE, SEX } from '@/lib/npcs';
+import { makeTestNPC, CASTA, LINAJE, SEX } from '@/tests/helpers/npc-fixtures';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 import { isMonumentUnlocked } from '@/lib/monument';
 import { CRAFTABLE } from '@/lib/crafting';
@@ -111,7 +111,7 @@ function buildDraftedClan() {
         // 4 Tramuntana + 5 Migjorn + 5 Ponent.
         linaje: i < 4 ? linajes[0] : linajes[(i % 2) + 1],
         position: { x: 11 + (i % 3), y: 11 + Math.floor(i / 3) },
-        stats: { supervivencia: 95, socializacion: 85 },
+        stats: { supervivencia: 95, socializacion: 85, proposito: 70, miedo: 20 },
         skills: {
           hunting: 35,
           gathering: 35,

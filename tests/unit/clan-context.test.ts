@@ -15,7 +15,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { summarizeClanState, DISTRESS_THRESHOLD } from '@/lib/clan-context';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '../helpers/npc-fixtures';
 import { TICKS_PER_DAY } from '@/lib/resources';
 
 describe('summarizeClanState — hambre media', () => {
@@ -27,8 +27,8 @@ describe('summarizeClanState — hambre media', () => {
 
   it('todos al 100% → hambre 0%', () => {
     const npcs = [
-      makeTestNPC({ id: 'a', stats: { supervivencia: 100, socializacion: 50 } }),
-      makeTestNPC({ id: 'b', stats: { supervivencia: 100, socializacion: 50 } }),
+      makeTestNPC({ id: 'a', stats: { supervivencia: 100, socializacion: 50, proposito: 70, miedo: 20 } }),
+      makeTestNPC({ id: 'b', stats: { supervivencia: 100, socializacion: 50, proposito: 70, miedo: 20 } }),
     ];
     expect(summarizeClanState(npcs, 0).hungerMeanPct).toBe(0);
   });
@@ -38,7 +38,7 @@ describe('summarizeClanState — hambre media', () => {
       makeTestNPC({
         id: 'a',
         alive: false,
-        stats: { supervivencia: 0, socializacion: 0 },
+        stats: { supervivencia: 0, socializacion: 0, proposito: 70, miedo: 20 },
       }),
     ];
     const s = summarizeClanState(npcs, 0);
@@ -48,12 +48,12 @@ describe('summarizeClanState — hambre media', () => {
 
   it('media sobre vivos: muertos no cuentan', () => {
     const npcs = [
-      makeTestNPC({ id: 'a', stats: { supervivencia: 80, socializacion: 50 } }),
-      makeTestNPC({ id: 'b', stats: { supervivencia: 40, socializacion: 50 } }),
+      makeTestNPC({ id: 'a', stats: { supervivencia: 80, socializacion: 50, proposito: 70, miedo: 20 } }),
+      makeTestNPC({ id: 'b', stats: { supervivencia: 40, socializacion: 50, proposito: 70, miedo: 20 } }),
       makeTestNPC({
         id: 'dead',
         alive: false,
-        stats: { supervivencia: 10, socializacion: 10 },
+        stats: { supervivencia: 10, socializacion: 10, proposito: 70, miedo: 20 },
       }),
     ];
     const s = summarizeClanState(npcs, 0);
@@ -63,9 +63,9 @@ describe('summarizeClanState — hambre media', () => {
 
   it('redondea a entero', () => {
     const npcs = [
-      makeTestNPC({ id: 'a', stats: { supervivencia: 77, socializacion: 50 } }),
-      makeTestNPC({ id: 'b', stats: { supervivencia: 78, socializacion: 50 } }),
-      makeTestNPC({ id: 'c', stats: { supervivencia: 79, socializacion: 50 } }),
+      makeTestNPC({ id: 'a', stats: { supervivencia: 77, socializacion: 50, proposito: 70, miedo: 20 } }),
+      makeTestNPC({ id: 'b', stats: { supervivencia: 78, socializacion: 50, proposito: 70, miedo: 20 } }),
+      makeTestNPC({ id: 'c', stats: { supervivencia: 79, socializacion: 50, proposito: 70, miedo: 20 } }),
     ];
     const s = summarizeClanState(npcs, 0);
     // 100 - (77+78+79)/3 = 100 - 78 = 22
@@ -84,15 +84,15 @@ describe('summarizeClanState — en apuros (proxy herido/cansado)', () => {
     const npcs = [
       makeTestNPC({
         id: 'a',
-        stats: { supervivencia: DISTRESS_THRESHOLD - 1, socializacion: 50 },
+        stats: { supervivencia: DISTRESS_THRESHOLD - 1, socializacion: 50, proposito: 70, miedo: 20 },
       }),
       makeTestNPC({
         id: 'b',
-        stats: { supervivencia: DISTRESS_THRESHOLD, socializacion: 50 },
+        stats: { supervivencia: DISTRESS_THRESHOLD, socializacion: 50, proposito: 70, miedo: 20 },
       }),
       makeTestNPC({
         id: 'c',
-        stats: { supervivencia: DISTRESS_THRESHOLD + 10, socializacion: 50 },
+        stats: { supervivencia: DISTRESS_THRESHOLD + 10, socializacion: 50, proposito: 70, miedo: 20 },
       }),
     ];
     const s = summarizeClanState(npcs, 0);
@@ -104,7 +104,7 @@ describe('summarizeClanState — en apuros (proxy herido/cansado)', () => {
       makeTestNPC({
         id: 'dead',
         alive: false,
-        stats: { supervivencia: 5, socializacion: 5 },
+        stats: { supervivencia: 5, socializacion: 5, proposito: 70, miedo: 20 },
       }),
     ];
     expect(summarizeClanState(npcs, 0).inDistressCount).toBe(0);
@@ -154,7 +154,7 @@ describe('summarizeClanState — días desde último nacimiento', () => {
 describe('summarizeClanState — §A4 pureza', () => {
   it('no muta el array de NPCs ni sus items', () => {
     const npcs = [
-      makeTestNPC({ id: 'a', stats: { supervivencia: 50, socializacion: 50 } }),
+      makeTestNPC({ id: 'a', stats: { supervivencia: 50, socializacion: 50, proposito: 70, miedo: 20 } }),
     ];
     const snap = JSON.stringify(npcs);
     summarizeClanState(npcs, 100);
@@ -163,7 +163,7 @@ describe('summarizeClanState — §A4 pureza', () => {
 
   it('round-trip JSON del resultado', () => {
     const npcs = [
-      makeTestNPC({ id: 'a', stats: { supervivencia: 50, socializacion: 50 } }),
+      makeTestNPC({ id: 'a', stats: { supervivencia: 50, socializacion: 50, proposito: 70, miedo: 20 } }),
     ];
     const s = summarizeClanState(npcs, 100);
     expect(JSON.parse(JSON.stringify(s))).toEqual(s);

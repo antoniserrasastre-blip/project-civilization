@@ -28,7 +28,7 @@ import {
   SUSURRO_DOMAINS,
   type GratitudeEvent,
 } from '@/lib/gratitude';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '../helpers/npc-fixtures';
 import { MESSAGE_INTENTS, SILENCE } from '@/lib/messages';
 import { initialVillageState } from '@/lib/village';
 
@@ -36,7 +36,7 @@ function thrivingClan(n: number) {
   return Array.from({ length: n }, (_, i) =>
     makeTestNPC({
       id: `npc-${i}`,
-      stats: { supervivencia: 80, socializacion: 50 },
+      stats: { supervivencia: 80, socializacion: 50, proposito: 70, miedo: 20 },
     }),
   );
 }
@@ -96,7 +96,7 @@ describe('computeGratitudeTickDelta — legacy con y sin mensaje', () => {
     const hungryClan = Array.from({ length: 10 }, (_, i) =>
       makeTestNPC({
         id: `npc-${i}`,
-        stats: { supervivencia: 20, socializacion: 50 },
+        stats: { supervivencia: 20, socializacion: 50, proposito: 70, miedo: 20 },
       }),
     );
     expect(
@@ -110,7 +110,7 @@ describe('computeGratitudeTickDelta — legacy con y sin mensaje', () => {
       makeTestNPC({
         id: 'dead',
         alive: false,
-        stats: { supervivencia: 90, socializacion: 50 },
+        stats: { supervivencia: 90, socializacion: 50, proposito: 70, miedo: 20 },
       }),
     ];
     expect(

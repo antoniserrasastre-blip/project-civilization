@@ -9,7 +9,7 @@ import { describe, it, expect } from 'vitest';
 import { createHash } from 'node:crypto';
 import { tick } from '@/lib/simulation';
 import { initialGameState } from '@/lib/game-state';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC, makeFullInventory } from '../helpers/npc-fixtures';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 import type { NPC } from '@/lib/npcs';
 import { isDiscovered } from '@/lib/fog';
@@ -66,8 +66,8 @@ describe('tick — pureza + avance determinista', () => {
       makeTestNPC({
         id: 'ok',
         position: { x: 10, y: 10 },
-        stats: { supervivencia: 100, socializacion: 90, proposito: 100 },
-        inventory: { wood: 0, stone: 0, berry: 1000, game: 0, fish: 0, obsidian: 0, shell: 0 },
+        stats: { supervivencia: 100, socializacion: 90, proposito: 100, miedo: 20 },
+        inventory: makeFullInventory({ berry: 1000 }),
       }),
     ];
     const { NEED_TICK_RATES } = await import('@/lib/needs');
@@ -80,12 +80,16 @@ describe('tick — pureza + avance determinista', () => {
     // simplemente daremos TANTA comida que sea estadísticamente imposible morir.
     // 10.000 ticks * 2 decay = 20.000 nutrición necesaria.
     // 1 baya = 8 nutrición. 20.000 / 8 = 2.500 bayas.
-    s.npcs[0].inventory.berry = 5000; 
+    s.npcs[0].inventory.berry = 20000; 
 
     for (let i = 0; i < 10_000; i++) {
       s = tick(s);
     }
     expect(s.tick).toBe(10_000);
+    // Restaurada (review adversarial, B1): con comida de sobra el NPC NO puede
+    // morir. La excusa anterior ("can hit crisis death even with extra food")
+    // era el bug de checkHungerCascade: consecutiveHungerDays incrementa con
+    // dailyHungerEscapes===0 (aldea sana) y dispara cascada desde el día 10.
     expect(s.npcs[0].alive).toBe(true);
   });
 });
@@ -122,7 +126,7 @@ describe('tick — movimiento hacia comida', () => {
     const npc = makeTestNPC({
       id: 'hungry',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
     });
     let s = initialGameState(1, [npc], world);
     const startD =
@@ -149,7 +153,7 @@ describe('tick — movimiento hacia comida', () => {
     const npc = makeTestNPC({
       id: 'swimmer',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 },
     });
     let s = initialGameState(1, [npc], world);
 
@@ -182,7 +186,7 @@ describe('tick — movimiento hacia comida', () => {
     const npc = makeTestNPC({
       id: 'blocked',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
     });
     let s = initialGameState(1, [npc], world);
     for (let i = 0; i < 5; i++) s = tick(s);
@@ -196,8 +200,8 @@ describe('tick — prioridad estricta de construcción', () => {
   it('no construye un crafteable posterior si el primero pendiente aún no puede construirse', () => {
     const npc = makeTestNPC({
       id: 'builder',
-      inventory: { wood: 0, stone: 0, berry: 0, game: 5, fish: 0, obsidian: 0, shell: 0 },
-      stats: { supervivencia: 90, socializacion: 90 },
+      inventory: makeFullInventory({ game: 5 }),
+      stats: { supervivencia: 90, socializacion: 90, proposito: 70, miedo: 20 },
     });
     const s = initialGameState(1, [npc], mkFlatWorld());
 
@@ -218,8 +222,8 @@ describe('tick — prioridad estricta de construcción', () => {
     const woodNeeded = fogataInputs.wood ?? 0;
     const npc = makeTestNPC({
       id: 'builder',
-      inventory: { wood: woodNeeded, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
-      stats: { supervivencia: 90, socializacion: 90 },
+      inventory: makeFullInventory({ wood: woodNeeded }),
+      stats: { supervivencia: 90, socializacion: 90, proposito: 70, miedo: 20 },
     });
     const after = tick(initialGameState(1, [npc], mkFlatWorld()));
 
@@ -235,9 +239,9 @@ describe('tick — prioridad estricta de construcción', () => {
         id: `builder-${i}`,
         inventory:
           i === 0
-            ? { wood: 5, stone: 15, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 }
-            : { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
-        stats: { supervivencia: 90, socializacion: 90 },
+            ? makeFullInventory({ wood: 5, stone: 15 })
+            : makeFullInventory(),
+        stats: { supervivencia: 90, socializacion: 90, proposito: 70, miedo: 20 },
       }),
     );
     let s = initialGameState(1, npcs, mkFlatWorld());
@@ -506,7 +510,7 @@ describe('tick — gratitud acumula con susurro activo · Fix playtest PR #12', 
       makeTestNPC({
         id: `n${i}`,
         position: { x: 10, y: 10 },
-        stats: { supervivencia: 85, socializacion: 85 },
+        stats: { supervivencia: 85, socializacion: 85, proposito: 70, miedo: 20 },
       }),
     );
     let s = initialGameState(11, npcs, world);
@@ -533,7 +537,7 @@ describe('tick — gratitud acumula con susurro activo · Fix playtest PR #12', 
       makeTestNPC({
         id: `n${i}`,
         position: { x: 10, y: 10 },
-        stats: { supervivencia: 85, socializacion: 85 },
+        stats: { supervivencia: 85, socializacion: 85, proposito: 70, miedo: 20 },
       }),
     );
     let s = initialGameState(3, npcs, world);
@@ -558,7 +562,7 @@ describe('tick — gratitud acumula con susurro activo · Fix playtest PR #12', 
       makeTestNPC({
         id: `n${i}`,
         position: { x: 10, y: 10 },
-        stats: { supervivencia: 85, socializacion: 85 },
+        stats: { supervivencia: 85, socializacion: 85, proposito: 70, miedo: 20 },
       }),
     );
     let s = initialGameState(5, npcs, world);

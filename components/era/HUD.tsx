@@ -35,7 +35,7 @@ import { SYNERGY_CATALOG, type ActiveSynergy } from '@/lib/synergies';
 import { DivineHeader } from '../ui/DivineHeader';
 import { ResourceMonitor, type ResourceData } from '../ui/ResourceMonitor';
 import { EurekaToast, type EurekaEvent } from '../ui/EurekaToast';
-import { RESOURCE_LABEL } from '@/lib/world-state';
+import { RESOURCE_LABEL, type ResourceId } from '@/lib/world-state';
 import { GRATITUDE_CEILING } from '@/lib/gratitude';
 
 const PHASE_ES: Record<MonumentPhase, string> = {
@@ -56,7 +56,7 @@ const WHISPER_ES: Record<MessageChoice, string> = {
   [SILENCE]: 'Silencio',
 };
 
-const CRAFTABLE_ES: Record<CraftableId, string> = {
+const CRAFTABLE_ES: Partial<Record<CraftableId, string>> = {
   refugio: 'Refugio',
   fogata_permanente: 'Fogata',
   piel_ropa: 'Piel/ropa',
@@ -65,20 +65,10 @@ const CRAFTABLE_ES: Record<CraftableId, string> = {
   stockpile_stone: 'Almacén piedra',
 };
 
-const INVENTORY_ES = {
-  wood: 'madera',
-  stone: 'piedra',
-  berry: 'bayas',
-  game: 'caza',
-  fish: 'pescado',
-  obsidian: 'obsidiana',
-  shell: 'concha',
-} as const;
-
 export interface BuildHudStatus {
   next: CraftableId | null;
   ready: boolean;
-  missing: Partial<Record<keyof typeof INVENTORY_ES, number>>;
+  missing: Partial<Record<keyof NPCInventory, number>>;
   active?: {
     kind: CraftableId;
     progress: number;
@@ -218,7 +208,7 @@ export function HUD({
     .filter(([_, amount]) => amount > 0)
     .map(([id, amount]) => ({
       id,
-      name: (RESOURCE_LABEL as Record<string, string>)[id] || id,
+      name: (RESOURCE_LABEL as Record<ResourceId, string>)[id as ResourceId] || id,
       amount,
       // Los archivos se llaman berry.svg, wood.svg, etc.
       icon: `/resources/${id}.svg`,
@@ -261,7 +251,7 @@ export function HUD({
         activeMessage: null,
         messageHistory: [],
         blessings: [],
-      } as VillageState),
+      } as unknown as VillageState),
   );
   const lastFloater = floaters[floaters.length - 1];
   const pulsing = lastFloater !== undefined;

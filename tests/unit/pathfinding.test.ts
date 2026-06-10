@@ -9,7 +9,8 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { findPath, type PathWorld } from '@/lib/pathfinding';
+import { findPath } from '@/lib/pathfinding';
+import type { WorldMap } from '@/lib/world-state';
 import { seedState } from '@/lib/prng';
 import { TILE } from '@/lib/world-state';
 
@@ -19,7 +20,7 @@ import { TILE } from '@/lib/world-state';
 // (0,2) ··X··
 // (0,3) ·X·X·
 // (0,4) ······
-function mkWorld(rows: string[]): PathWorld {
+function mkWorld(rows: string[]): WorldMap {
   const width = rows[0].length;
   const height = rows.length;
   const tiles = new Array<number>(width * height);
@@ -28,7 +29,17 @@ function mkWorld(rows: string[]): PathWorld {
       tiles[y * width + x] = rows[y][x] === 'X' ? TILE.WATER : TILE.GRASS;
     }
   }
-  return { tiles, width, height };
+  return {
+    tiles,
+    width,
+    height,
+    traffic: new Uint8Array(width * height),
+    influence: new Array<number>(width * height).fill(0),
+    reserves: new Array<number>(width * height).fill(0),
+    resources: [],
+    terrainTags: {},
+    traditions: {},
+  } as unknown as WorldMap;
 }
 
 describe('A* — happy paths sobre mini fixture', () => {

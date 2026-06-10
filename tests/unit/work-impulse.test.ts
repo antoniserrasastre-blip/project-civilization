@@ -1,7 +1,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { decideDestination } from '@/lib/needs';
-import { makeTestNPC, ARCHETYPE } from '@/lib/npcs';
+import { makeTestNPC, ARCHETYPE, makeTestDestinationContext } from '../helpers/npc-fixtures';
 import { RESOURCE, TILE, type WorldMap } from '@/lib/world-state';
 
 function mkWorld(w = 20, h = 20): WorldMap {
@@ -34,12 +34,12 @@ describe('Impulso de Trabajo (Work Impulse)', () => {
     const npc = makeTestNPC({
       id: 'n1',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 90, miedo: 10 },
       archetype: ARCHETYPE.CAZADOR,
       vocation: 'guerrero', // GUERRERO tiene afinidad con GAME
     });
 
-    const result = decideDestination(npc, { world, npcs: [npc] });
+    const result = decideDestination(npc, makeTestDestinationContext({ world, npcs: [npc] }));
     const destination = 'position' in result ? result.position : result;
 
     // Debería dirigirse al recurso de su rol (GAME)
@@ -72,11 +72,11 @@ describe('Impulso de Trabajo (Work Impulse)', () => {
     const npc = makeTestNPC({
       id: 'n1',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 40, miedo: 30 },
       archetype: ARCHETYPE.CAZADOR,
     });
 
-    const result = decideDestination(npc, { world, npcs: [npc] });
+    const result = decideDestination(npc, makeTestDestinationContext({ world, npcs: [npc] }));
     const destination = 'position' in result ? result.position : result;
 
     // Debería ir a las bayas por urgencia

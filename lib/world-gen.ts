@@ -20,6 +20,7 @@ import {
   type WorldMap,
   type ResourceSpawn,
 } from './world-state';
+import { isBioticResource } from './resources';
 
 export const CANONICAL_SEED = 20260419;
 const GENERATOR_VERSION = 5; // Refactor: Tipos de mapa (Archipiélago, Pangea, Continentes)
@@ -341,7 +342,7 @@ function scatterResources(
       if (res) {
         const q = nextInt(prng, quantityRange[0], quantityRange[1] + 1);
         prng = q.next;
-        const isBiotic = [RESOURCE.WOOD, RESOURCE.BERRY, RESOURCE.FISH, RESOURCE.GAME, RESOURCE.COCONUT, RESOURCE.MUSHROOM].includes(res);
+        const isBiotic = isBioticResource(res);
         const isWater = res === RESOURCE.WATER;
         
         spawns.push({

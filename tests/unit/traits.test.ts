@@ -19,7 +19,7 @@ import {
   applyTraits,
   type TraitId,
 } from '@/lib/traits';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '../helpers/npc-fixtures';
 
 describe('Constantes de traits', () => {
   it('TRAIT_BUDGET = 15', () => {
@@ -168,7 +168,7 @@ describe('applyTraits', () => {
   });
 
   it('un rasgo con modificador de supervivencia lo aplica al NPC', () => {
-    const npc = makeTestNPC({ id: 'test-3', stats: { supervivencia: 50, socializacion: 50 } });
+    const npc = makeTestNPC({ id: 'test-3', stats: { supervivencia: 50, socializacion: 50, proposito: 70, miedo: 20 } });
     const conModSuperv = (Object.values(TRAIT) as TraitId[]).find(
       (id) =>
         TRAIT_CATALOG[id].modifiers.supervivencia !== undefined &&
@@ -179,7 +179,7 @@ describe('applyTraits', () => {
   });
 
   it('un rasgo con modificador negativo reduce el stat correspondiente', () => {
-    const npc = makeTestNPC({ id: 'test-4', stats: { supervivencia: 80, socializacion: 80 } });
+    const npc = makeTestNPC({ id: 'test-4', stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 } });
     const negativo = (Object.values(TRAIT) as TraitId[]).find(
       (id) =>
         TRAIT_CATALOG[id].cost < 0 &&

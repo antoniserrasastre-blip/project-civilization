@@ -11,6 +11,11 @@ import {
   type WorldMap,
   type ClimateState,
 } from './world-state';
+import {
+  isFoodResource,
+  isWaterResource,
+  isRecoveryResource,
+} from './resources';
 import { clanInventoryTotal, RECIPES, STORAGE_SPECIALTY, STOCKPILE_CAPACITY, type Recipe, CRAFTABLE } from './crafting';
 import type { CraftableId } from './crafting';
 import type { EquippableItem } from './items';
@@ -19,7 +24,7 @@ import { computeRole, intentFilter, ROLE, type Role } from './roles';
 import { INVENTORY_CAP_PER_TYPE, effectiveInventoryCap } from './harvest';
 import type { Structure } from './structures';
 import { nextInt, type PRNGState } from './prng';
-import type { Synergy } from './synergies';
+import type { ActiveSynergy } from './synergies';
 import { isDiscovered, type FogState } from './fog';
 import { SEASON } from './climate';
 import type { TechEffect } from './technologies';
@@ -58,7 +63,7 @@ function recoveryResourceAtPosition(position: Position, world: WorldMap): Resour
   for (const r of world.resources) {
     if (r.x !== position.x || r.y !== position.y) continue;
     if (r.quantity <= 0) continue;
-    if ([RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH, RESOURCE.WATER].includes(r.id)) return r.id;
+    if (isRecoveryResource(r.id)) return r.id;
   }
   return null;
 }
@@ -71,6 +76,11 @@ function resourceInventoryKey(id: ResourceId): keyof NPCInventory | null {
   if (id === RESOURCE.FISH)     return 'fish';
   if (id === RESOURCE.OBSIDIAN) return 'obsidian';
   if (id === RESOURCE.SHELL)    return 'shell';
+  // Post-expansion resources (Sprint 14.5): all map to NPCInventory keys for cap checks
+  if (id === RESOURCE.CLAY)     return 'clay';
+  if (id === RESOURCE.COCONUT)  return 'coconut';
+  if (id === RESOURCE.FLINT)    return 'flint';
+  if (id === RESOURCE.MUSHROOM) return 'mushroom';
   return null;
 }
 
@@ -89,7 +99,7 @@ function nearestResource(
     : null;
   const role = targetNpc ? computeRole(targetNpc, equippedItem) : null;
   const roleFilter = role ? intentFilter(role) : {};
-
+  
   for (const r of resources) {
     if (r.quantity <= 0 || !acceptable(r.id)) continue;
 
@@ -139,7 +149,8 @@ const VOCATION_RESOURCES: Record<string, ResourceId[]> = {
   [VOCATION.SABIO]:      [RESOURCE.OBSIDIAN, RESOURCE.FLINT, RESOURCE.MUSHROOM, RESOURCE.WATER],
   [VOCATION.GUERRERO]:   [RESOURCE.GAME, RESOURCE.WOOD],
   [VOCATION.SIMPLEZAS]:  [RESOURCE.BERRY, RESOURCE.WOOD, RESOURCE.STONE, RESOURCE.CLAY, RESOURCE.FISH, RESOURCE.COCONUT, RESOURCE.SHELL],
-  [VOCATION.AMBICIOSO]:  [RESOURCE.GOLD ?? RESOURCE.STONE, RESOURCE.OBSIDIAN],
+  // GOLD not in RESOURCE (see world-state); use STONE as ambition proxy for build targets (deterministic)
+  [VOCATION.AMBICIOSO]:  [RESOURCE.STONE, RESOURCE.OBSIDIAN],
   [VOCATION.CIUDADANO]:  [RESOURCE.BERRY, RESOURCE.FISH, RESOURCE.GAME, RESOURCE.WOOD],
 };
 
@@ -149,7 +160,7 @@ export interface DestinationContext {
   nextBuildPriority?: CraftableId; buildSitePosition?: { x: number; y: number };
   isBuilder?: boolean; firePosition?: { x: number; y: number };
   isReachable?: (from: Position, to: Position) => boolean; claimedTiles?: ReadonlySet<string>;
-  moodModifier?: number; prng: PRNGState; synergies: Synergy[];
+  moodModifier?: number; prng: PRNGState; synergies: ActiveSynergy[];
   fog?: FogState;
   fogBuffer?: Uint8Array;
   climate?: ClimateState;
@@ -184,7 +195,7 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
 
   // 1. URGENCIA: Agua
   if (supervivencia < NEED_THRESHOLDS.supervivenciaCritical) {
-    const water = nearestResource(npc.position, ctx.world.resources, rid => rid === RESOURCE.WATER, ctx, undefined, id);
+    const water = nearestResource(npc.position, ctx.world.resources, rid => isWaterResource(rid), ctx, undefined, id);
     if (water) return { position: water, next: currentPrng };
   }
 
@@ -216,7 +227,7 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
       return { position: pantry.position, next: currentPrng };
     }
 
-    const food = nearestResource(npc.position, ctx.world.resources, rid => [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH].includes(rid), ctx, undefined, id);
+    const food = nearestResource(npc.position, ctx.world.resources, rid => isFoodResource(rid), ctx, undefined, id);
     if (food) return { position: food, next: currentPrng };
 
     // Si no hay comida visible y está hambriento, explorar activamente para encontrarla

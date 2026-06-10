@@ -17,7 +17,7 @@ import {
   applyScenario,
   type ScenarioId,
 } from '@/lib/scenarios';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '../helpers/npc-fixtures';
 
 describe('Catálogo de escenarios', () => {
   it('existen los escenarios canónicos naufragos y exodo', () => {
@@ -84,7 +84,7 @@ describe('applyScenario — pureza', () => {
 
 describe('applyScenario — diferencias entre escenarios', () => {
   it('naufragos penaliza la supervivencia respecto a exodo', () => {
-    const npc = makeTestNPC({ id: 'sc-4', stats: { supervivencia: 80, socializacion: 70 } });
+    const npc = makeTestNPC({ id: 'sc-4', stats: { supervivencia: 80, socializacion: 70, proposito: 70, miedo: 20 } });
     const enNaufragos = applyScenario(npc, SCENARIO.NAUFRAGOS);
     const enExodo = applyScenario(npc, SCENARIO.EXODO);
     // Náufragos es más duro — supervivencia menor o igual

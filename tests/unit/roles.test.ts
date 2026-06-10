@@ -19,7 +19,7 @@ import {
   roleColor,
   type Role,
 } from '@/lib/roles';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC, CASTA } from '../helpers/npc-fixtures';
 import { createItem, ITEM_KIND } from '@/lib/items';
 import { RESOURCE } from '@/lib/world-state';
 describe('ROLE catálogo', () => {
@@ -70,7 +70,7 @@ describe('computeRole — derivación pura', () => {
     const item = createItem(ITEM_KIND.RELIC_CHARM, 'n1', 0);
     const npc = makeTestNPC({
       id: 'n1',
-      casta: 'elegido',
+      casta: CASTA.ELEGIDO,
       skills: { hunting: 10, gathering: 10, crafting: 10, fishing: 10, healing: 70 },
       equippedItemId: item.id,
     });

@@ -42,7 +42,8 @@ export interface Recipe {
 }
 
 /** Decisión #20 — 4 estructuras umbral (HERRAMIENTA_SILEX migrado a
- *  lib/item-crafting.ts en Sprint 9). Costes B medios. */
+ *  lib/item-crafting.ts en Sprint 9). Costes B medios.
+ * Updated for new CraftableId (Sprint 14.5+): SHAMAN_HUT, MUELLE, HUERTO fully initialized. */
 export const RECIPES: Record<CraftableId, Recipe> = {
   [CRAFTABLE.REFUGIO]: {
     id: CRAFTABLE.REFUGIO,
@@ -80,6 +81,7 @@ export const RECIPES: Record<CraftableId, Recipe> = {
     daysWork: 2,
     minSkill: 5,
   },
+  // New craftables (post base set) - SHAMAN_HUT etc for Cluster 4 / model-audit
   [CRAFTABLE.SHAMAN_HUT]: {
     id: CRAFTABLE.SHAMAN_HUT,
     inputs: { wood: 20, stone: 10, obsidian: 5 },
@@ -100,28 +102,47 @@ export const RECIPES: Record<CraftableId, Recipe> = {
   },
 };
 
-/** Suma del inventario de todos los NPCs vivos Y de todas las estructuras. */
+/** Suma del inventario de todos los NPCs vivos Y de todas las estructuras.
+ * Pure per §A4: state -> new_state, sin mutación (uses reduce + spreads for immutable accum).
+ * Uses full 11-field init (no 7-field drift for clay/coconut/flint/mushroom).
+ * Deterministic (addition is commutative; input arrays readonly -> stable result).
+ */
 export function clanInventoryTotal(
   npcs: readonly NPC[],
   structures: readonly Structure[] = [],
 ): NPCInventory {
-  const total: NPCInventory = {
-    wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0,
+  const base: NPCInventory = {
+    wood: 0,
+    stone: 0,
+    berry: 0,
+    game: 0,
+    fish: 0,
+    obsidian: 0,
+    shell: 0,
+    clay: 0,
+    coconut: 0,
+    flint: 0,
+    mushroom: 0,
   };
-  // 1. Mochilas de los NPCs
-  for (const n of npcs) {
-    if (!n.alive) continue;
-    for (const [key, val] of Object.entries(n.inventory) as Array<[keyof NPCInventory, number]>) {
-      total[key] += val;
-    }
-  }
-  // 2. Almacenes (Sprint 15)
-  for (const s of structures) {
-    if (!s.inventory) continue;
-    for (const [key, val] of Object.entries(s.inventory) as Array<[keyof NPCInventory, number]>) {
-      total[key] += (val || 0);
-    }
-  }
+  // 1. Mochilas de los NPCs (pure reduce)
+  const fromNpcs = npcs.reduce((acc, n) => {
+    if (!n.alive) return acc;
+    return (Object.entries(n.inventory) as Array<[keyof NPCInventory, number]>).reduce(
+      (acc2, [key, val]) => ({ ...acc2, [key]: acc2[key] + val }),
+      acc,
+    );
+  }, base);
+  // 2. Almacenes (Sprint 15) (pure reduce)
+  const total = structures.reduce((acc, s) => {
+    if (!s.inventory) return acc;
+    return (Object.entries(s.inventory) as Array<[keyof NPCInventory, number]>).reduce(
+      (acc2, [key, val]) => {
+        const v = (val || 0);
+        return { ...acc2, [key]: acc2[key] + v };
+      },
+      acc,
+    );
+  }, fromNpcs);
   return total;
 }
 
@@ -136,6 +157,7 @@ export const STORAGE_SPECIALTY: Record<CraftableId, Array<keyof NPCInventory>> =
   [CRAFTABLE.REFUGIO]: [],
   [CRAFTABLE.FOGATA_PERMANENTE]: [],
   [CRAFTABLE.PIEL_ROPA]: [],
+  // New craftables (SHAMAN_HUT, MUELLE, HUERTO) added to CRAFTABLE/RECIPES/STORAGE for full Record coverage (no HUD/ CraftableId drift)
   [CRAFTABLE.MUELLE]: [],
   [CRAFTABLE.HUERTO]: [],
   [CRAFTABLE.SHAMAN_HUT]: [],

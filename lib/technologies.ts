@@ -263,7 +263,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       has(ctx.builtStructures, 'fogata_permanente') &&
       traditionsMin(ctx.traditions, 'cazador', 20),
-    effects: { unlocks: ['ahumadero'], bonus: { food_nutrition: 0.1 } },
+    effects: { unlocks: ['ahumadero' as CraftableId], bonus: { food_nutrition: 0.1 } },
   },
   [TECH_ID.ESTOFADO]: {
     id: TECH_ID.ESTOFADO, pole: 'cuerpo', cultureWeight: 40, tier: 2,
@@ -273,7 +273,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
     unlockCondition: ctx =>
       has(ctx.unlockedTechs, TECH_ID.AHUMAR) &&
       ctx.resourcesPresent.includes('clay'),
-    effects: { unlocks: ['olla_barro'], bonus: { food_nutrition: 0.15 } },
+    effects: { unlocks: ['olla_barro' as CraftableId], bonus: { food_nutrition: 0.15 } },
   },
   [TECH_ID.SALAR]: {
     id: TECH_ID.SALAR, pole: 'cuerpo', cultureWeight: 40, tier: 2,
@@ -284,7 +284,7 @@ export const TECH_DEFS: Record<TechId, Technology> = {
       has(ctx.unlockedTechs, TECH_ID.AHUMAR) &&
       traditionsMin(ctx.traditions, 'recolector', 40) &&
       ctx.resourcesPresent.includes('shell'),
-    effects: { unlocks: ['mesa_salazon'], bonus: { decay_reduction: 0.2 } },
+    effects: { unlocks: ['mesa_salazon' as CraftableId], bonus: { decay_reduction: 0.2 } },
   },
   [TECH_ID.REFUGIO_ROBUSTO]: {
     id: TECH_ID.REFUGIO_ROBUSTO, pole: 'cuerpo', cultureWeight: 35, tier: 2,

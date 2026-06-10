@@ -47,6 +47,16 @@ export interface VillageState {
   /** NPCs que han escapado de hambre crítica hoy (reset al amanecer).
    *  Usado para el pulso B `day_saciated`. */
   dailyHungerEscapes: number;
+  /** Contadores de rachas para Fricción Divina (fracturas al amanecer).
+   *  Actualizados en tickFractures (puro). Backfill ??0 en uso. */
+  consecutiveHungerDays: number;
+  consecutiveLowSocialDays: number;
+  consecutiveColdDays: number;
+  consecutiveFearDays: number;
+  consecutiveLowPropositoDays: number;
+  consecutiveDepletedDays: number;
+  /** Derrota espiritual si último Elegido cae sin heredero (pírrico). */
+  spiritualDefeat?: boolean;
   faith: number;
   silenceGraceDaysRemaining: number;
   activeMessage: MessageChoice | null;
@@ -62,6 +72,13 @@ export function initialVillageState(): VillageState {
     gratitudeEventKeys: [],
     dailyDeaths: 0,
     dailyHungerEscapes: 0,
+    consecutiveHungerDays: 0,
+    consecutiveLowSocialDays: 0,
+    consecutiveColdDays: 0,
+    consecutiveFearDays: 0,
+    consecutiveLowPropositoDays: 0,
+    consecutiveDepletedDays: 0,
+    spiritualDefeat: false,
     faith: FAITH_INITIAL,
     silenceGraceDaysRemaining: SILENCE_GRACE_DAYS,
     activeMessage: null,

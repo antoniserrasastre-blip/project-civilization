@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import { interpretIntent, type NPCBehaviorBias } from '@/lib/interpret';
 import { MESSAGE_INTENTS, SILENCE } from '@/lib/messages';
-import { makeTestNPC, LINAJE } from '@/lib/npcs';
+import { makeTestNPC, LINAJE } from '../helpers/npc-fixtures';
 
 function dist(a: NPCBehaviorBias, b: NPCBehaviorBias): number {
   return (
@@ -21,11 +21,11 @@ describe('interpretIntent — Pilar 1: mismo intent, perfiles distintos → bias
   it('supervivencia-alta vs supervivencia-baja divergen con AUXILIO', () => {
     const strong = makeTestNPC({
       id: 'strong',
-      stats: { supervivencia: 90, socializacion: 50 },
+      stats: { supervivencia: 90, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const weak = makeTestNPC({
       id: 'weak',
-      stats: { supervivencia: 10, socializacion: 50 },
+      stats: { supervivencia: 10, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const a = interpretIntent(MESSAGE_INTENTS.AUXILIO, strong);
     const b = interpretIntent(MESSAGE_INTENTS.AUXILIO, weak);
@@ -63,11 +63,11 @@ describe('interpretIntent — rango [0, 1] en todas las dimensiones', () => {
   it('clamp en ambos extremos', () => {
     const xFull = makeTestNPC({
       id: 'x',
-      stats: { supervivencia: 100, socializacion: 100 },
+      stats: { supervivencia: 100, socializacion: 100, proposito: 70, miedo: 20 },
     });
     const xEmpty = makeTestNPC({
       id: 'y',
-      stats: { supervivencia: 0, socializacion: 0 },
+      stats: { supervivencia: 0, socializacion: 0, proposito: 70, miedo: 20 },
     });
     for (const intent of [
       MESSAGE_INTENTS.AUXILIO,

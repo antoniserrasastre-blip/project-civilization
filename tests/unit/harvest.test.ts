@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tickHarvests, INVENTORY_CAP_PER_TYPE } from '@/lib/harvest';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC, makeFullInventory } from '../helpers/npc-fixtures';
 import { RESOURCE, type ResourceSpawn } from '@/lib/world-state';
 
 function spawn(over: Partial<ResourceSpawn> & { id: ResourceSpawn['id'] }): ResourceSpawn {
@@ -66,13 +66,7 @@ describe('tickHarvests — cap de inventario', () => {
     const npc = makeTestNPC({
       id: 'a',
       position: { x: 5, y: 5 },
-      inventory: {
-        wood: 0,
-        stone: 0,
-        berry: INVENTORY_CAP_PER_TYPE,
-        game: 0,
-        fish: 0, obsidian: 0, shell: 0,
-      },
+      inventory: makeFullInventory({ berry: INVENTORY_CAP_PER_TYPE }),
     });
     const s = spawn({ id: RESOURCE.BERRY, x: 5, y: 5, quantity: 10 });
     const r = tickHarvests([npc], [s], 0);

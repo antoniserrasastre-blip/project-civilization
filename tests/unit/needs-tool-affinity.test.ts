@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { decideDestination } from '../../lib/needs';
-import { makeTestNPC } from '../../lib/npcs';
+import { makeTestNPC, makeTestDestinationContext } from '../helpers/npc-fixtures';
 import { RESOURCE, type ResourceSpawn } from '../../lib/world-state';
 import { ITEM_KIND, createItem } from '../../lib/items';
 
@@ -54,7 +54,7 @@ describe('decideDestination — filtrado por herramienta', () => {
     const npc = makeTestNPC({
       id: 'a',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 },
       equippedItemId: 'spear-1',
     });
     const item = { ...spear(), id: 'spear-1', ownerNpcId: 'a' };
@@ -62,11 +62,11 @@ describe('decideDestination — filtrado por herramienta', () => {
       { id: RESOURCE.GAME, x: 3, y: 0 },
       { id: RESOURCE.BERRY, x: 4, y: 0 },
     ]);
-    const ctx = {
+    const ctx = makeTestDestinationContext({
       world,
       npcs: [npc],
       items: [item],
-    };
+    });
     const result = decideDestination(npc, ctx);
     const dest = 'position' in result ? result.position : result;
     // Debe elegir la posición de caza, no la de bayas
@@ -78,7 +78,7 @@ describe('decideDestination — filtrado por herramienta', () => {
     const npc = makeTestNPC({
       id: 'b',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 },
       equippedItemId: 'basket-1',
     });
     const item = { ...basket(), id: 'basket-1', ownerNpcId: 'b' };
@@ -86,11 +86,11 @@ describe('decideDestination — filtrado por herramienta', () => {
       { id: RESOURCE.GAME, x: 3, y: 0 },
       { id: RESOURCE.BERRY, x: 3, y: 1 },
     ]);
-    const ctx = {
+    const ctx = makeTestDestinationContext({
       world,
       npcs: [npc],
       items: [item],
-    };
+    });
     const result = decideDestination(npc, ctx);
     const dest = 'position' in result ? result.position : result;
     const berrySpawn = world.resources.find((r) => r.id === RESOURCE.BERRY)!;
@@ -101,7 +101,7 @@ describe('decideDestination — filtrado por herramienta', () => {
     const npc = makeTestNPC({
       id: 'c',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 10, socializacion: 80 }, // crítica
+      stats: { supervivencia: 10, socializacion: 80, proposito: 70, miedo: 20 }, // crítica
       equippedItemId: 'spear-2',
     });
     const item = { ...spear(2), id: 'spear-2', ownerNpcId: 'c' };
@@ -109,11 +109,11 @@ describe('decideDestination — filtrado por herramienta', () => {
       { id: RESOURCE.GAME, x: 3, y: 0 },
       { id: RESOURCE.WATER, x: 1, y: 0, regime: 'continuous' as const },
     ]);
-    const ctx = {
+    const ctx = makeTestDestinationContext({
       world,
       npcs: [npc],
       items: [item],
-    };
+    });
     const result = decideDestination(npc, ctx);
     const dest = 'position' in result ? result.position : result;
     // Supervivencia crítica → agua, no caza
@@ -125,12 +125,12 @@ describe('decideDestination — filtrado por herramienta', () => {
     const npc = makeTestNPC({
       id: 'd',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 },
       equippedItemId: null,
     });
     const world = makeWorld([{ id: RESOURCE.BERRY, x: 3, y: 0 }]);
-    const ctxWithItems = { world, npcs: [npc], items: [] };
-    const ctxLegacy = { world, npcs: [npc] };
+    const ctxWithItems = makeTestDestinationContext({ world, npcs: [npc], items: [] });
+    const ctxLegacy = makeTestDestinationContext({ world, npcs: [npc] });
     const destWithItems = decideDestination(npc, ctxWithItems);
     const destLegacy = decideDestination(npc, ctxLegacy);
     expect(destWithItems).toEqual(destLegacy);

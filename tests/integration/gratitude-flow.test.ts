@@ -18,7 +18,7 @@ import { describe, it, expect } from 'vitest';
 import { tick } from '@/lib/simulation';
 import type { GameState } from '@/lib/game-state';
 import { initialGameState } from '@/lib/game-state';
-import { makeTestNPC, CASTA } from '@/lib/npcs';
+import { makeTestNPC, CASTA } from '@/tests/helpers/npc-fixtures';
 import { MESSAGE_INTENTS, SILENCE } from '@/lib/messages';
 import { emptyWorldMap, TILE, type WorldMap } from '@/lib/world-state';
 import { initialVillageState } from '@/lib/village';
@@ -54,7 +54,7 @@ describe('hunger_escape detectado por diff pre/post tick', () => {
   it('NPC cruza de sv<20 a sv≥40 en un tick → suma con susurro AUXILIO', () => {
     const npc = makeTestNPC({
       id: 'hambriento',
-      stats: { supervivencia: 15, socializacion: 60 },
+      stats: { supervivencia: 15, socializacion: 60, proposito: 70, miedo: 20 },
       position: { x: 2, y: 2 },
     });
     const g0 = initialGameState(1, [npc], tinyWorld());
@@ -87,7 +87,7 @@ describe('Muerte de Elegido → penalty −20 (ruta cruda, no cuenta cap)', () =
       id: 'luz',
       casta: CASTA.ELEGIDO,
       // sv baja para que tickNeeds lo mate en 1-2 ticks.
-      stats: { supervivencia: 1, socializacion: 60 },
+      stats: { supervivencia: 1, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const g0 = initialGameState(1, [elegido], tinyWorld());
     const start = {
@@ -118,7 +118,7 @@ describe('Pulso B al amanecer — day_without_deaths', () => {
   it('día sin muertes con PACIENCIA → +M*1.5 = 8 al pool', () => {
     const npc = makeTestNPC({
       id: 'sano',
-      stats: { supervivencia: 80, socializacion: 60 },
+      stats: { supervivencia: 80, socializacion: 60, proposito: 70, miedo: 20 },
     });
     const g0 = initialGameState(1, [npc], tinyWorld());
     const start: GameState = {

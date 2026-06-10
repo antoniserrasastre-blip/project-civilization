@@ -14,8 +14,7 @@ import {
   EUREKA_NEED_THRESHOLD,
   type EurekaContext,
 } from '../../lib/eureka';
-import { makeTestNPC } from '../../lib/npcs';
-import { CASTA, SEX } from '../../lib/npcs';
+import { makeTestNPC, CASTA, SEX, makeEmptyInventory } from '../helpers/npc-fixtures';
 import { ITEM_KIND, ITEM_DEFS } from '../../lib/items';
 import { seedState } from '../../lib/prng';
 
@@ -23,7 +22,7 @@ const prng0 = seedState(99);
 
 function ctxWith(overrides: Partial<EurekaContext>): EurekaContext {
   return {
-    clanInventory: { wood: 10, stone: 10, berry: 0, game: 5, fish: 0, obsidian: 5, shell: 5 },
+    clanInventory: { ...makeEmptyInventory(), wood: 10, stone: 10, game: 5, obsidian: 5, shell: 5 },
     existingItemKinds: new Set(),
     currentTick: 100,
     ...overrides,
@@ -36,7 +35,7 @@ describe('checkEureka', () => {
   it('devuelve null si supervivencia > EUREKA_NEED_THRESHOLD', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: EUREKA_NEED_THRESHOLD + 5, socializacion: 50 },
+      stats: { supervivencia: EUREKA_NEED_THRESHOLD + 5, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const { discovered } = checkEureka(npc, ctxWith({}), prng0);
     expect(discovered).toBeNull();
@@ -45,7 +44,7 @@ describe('checkEureka', () => {
   it('puede descubrir si supervivencia <= EUREKA_NEED_THRESHOLD', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: EUREKA_NEED_THRESHOLD - 1, socializacion: 50 },
+      stats: { supervivencia: EUREKA_NEED_THRESHOLD - 1, socializacion: 50, proposito: 70, miedo: 20 },
     });
     // Corremos muchas veces para confirmar que al menos una vez descubre
     let found = false;
@@ -61,10 +60,10 @@ describe('checkEureka', () => {
   it('devuelve null si el inventario no tiene materiales para ningún item', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: 5, socializacion: 50 },
+      stats: { supervivencia: 5, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const ctx = ctxWith({
-      clanInventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      clanInventory: makeEmptyInventory(),
     });
     const { discovered } = checkEureka(npc, ctx, prng0);
     expect(discovered).toBeNull();
@@ -73,7 +72,7 @@ describe('checkEureka', () => {
   it('no descubre items ya conocidos por el clan', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: 5, socializacion: 50 },
+      stats: { supervivencia: 5, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const allKinds = new Set(Object.values(ITEM_KIND));
     const ctx = ctxWith({ existingItemKinds: allKinds });
@@ -85,7 +84,7 @@ describe('checkEureka', () => {
     const npc = makeTestNPC({
       id: 'e',
       casta: CASTA.ESCLAVO,
-      stats: { supervivencia: 5, socializacion: 50 },
+      stats: { supervivencia: 5, socializacion: 50, proposito: 70, miedo: 20 },
     });
     let prng = seedState(7);
     const discovered: string[] = [];
@@ -103,7 +102,7 @@ describe('checkEureka', () => {
   it('es determinista: mismo NPC + PRNG → mismo resultado', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: 5, socializacion: 50 },
+      stats: { supervivencia: 5, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const r1 = checkEureka(npc, ctxWith({}), prng0);
     const r2 = checkEureka(npc, ctxWith({}), prng0);
@@ -113,7 +112,7 @@ describe('checkEureka', () => {
   it('avanza el cursor PRNG aunque no descubra', () => {
     const npc = makeTestNPC({
       id: 'a',
-      stats: { supervivencia: EUREKA_NEED_THRESHOLD + 10, socializacion: 50 },
+      stats: { supervivencia: EUREKA_NEED_THRESHOLD + 10, socializacion: 50, proposito: 70, miedo: 20 },
     });
     const r = checkEureka(npc, ctxWith({}), prng0);
     // Si no activa el trigger, no consume PRNG (optimización válida)

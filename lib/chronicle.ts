@@ -8,6 +8,8 @@
 import type { Position } from './needs';
 import type { ResourceId } from './world-state';
 import { TICKS_PER_DAY } from './resources';
+import type { NPCSkills } from './npcs';
+import type { ChronicleEntry } from './game-state';
 
 export type ChronicleEvent =
   | {
@@ -105,4 +107,59 @@ export function narrateDetailed(ev: ChronicleEvent): ChronicleResult {
 
   // suppress 'day' unused warning
   void day;
+}
+
+/**
+ * Calcula el modificador colectivo de memoria a partir de crónicas activas (no expiradas).
+ * Puro, determinista, solo enteros. Reutilizado por Memoria Mecánica para skills.
+ */
+export function calculateCollectiveMemoryModifier(
+  chronicle: readonly ChronicleEntry[],
+  currentTick: number
+): number {
+  return chronicle
+    .filter((entry) => entry.expiresAtTick > currentTick)
+    .reduce((total, entry) => total + entry.impact, 0);
+}
+
+/**
+ * Computa bonuses enteros pequeños a skills derivados del impacto activo de la crónica.
+ * Puro (§A4), determinista (mismo chron+tick -> mismo), ints only, JSON-safe.
+ * Minimal viable: global bonus (mismo valor para todas las skills).
+ * Escala: floor(activeImpact / 5), clamp a [-3, +3].
+ * Leverage existing modifier logic.
+ */
+export function computeMemorySkillBonuses(
+  chronicle: readonly ChronicleEntry[],
+  currentTick: number
+): Partial<Record<keyof NPCSkills, number>> {
+  const activeImpact = calculateCollectiveMemoryModifier(chronicle, currentTick);
+  if (activeImpact === 0) return {};
+  const scaled = Math.floor(activeImpact / 5);
+  const bonus = Math.max(-3, Math.min(3, scaled));
+  if (bonus === 0) return {};
+  // Global: mismo para todas (starters; per-skill differentiation puede venir luego)
+  return {
+    hunting: bonus,
+    gathering: bonus,
+    crafting: bonus,
+    fishing: bonus,
+    healing: bonus,
+  };
+}
+
+/**
+ * Memoria Mecánica v2: skill EFECTIVA en el punto de uso.
+ * El bonus de memoria es TRANSITORIO — jamás se escribe en `npc.skills`.
+ * Puro (§A4), determinista, entero, clamp [0, 100]. Identidad si no hay
+ * memoria activa (crónica vacía o expirada).
+ */
+export function effectiveSkill(
+  base: number,
+  skill: keyof NPCSkills,
+  chronicle: readonly ChronicleEntry[],
+  currentTick: number,
+): number {
+  const bonus = computeMemorySkillBonuses(chronicle, currentTick)[skill] ?? 0;
+  return Math.max(0, Math.min(100, Math.round(base + bonus)));
 }

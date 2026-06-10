@@ -113,7 +113,7 @@ export function ChronicleFeed(props: ChronicleFeedProps) {
                   className="p-3 bg-gradient-to-br from-wb-blood/5 to-black/60 border border-wb-gold/10 rounded shadow-inner"
                 >
                   <div className="text-[8px] text-wb-gold/60 uppercase font-black tracking-tighter mb-1.5 italic">Saga del Día {thread.day}</div>
-                  <div className="text-[11px] text-wb-parchment/90 italic leading-relaxed font-serif">"{thread.saga}"</div>
+                  <div className="text-[11px] text-wb-parchment/90 italic leading-relaxed font-serif">&ldquo;{thread.saga}&rdquo;</div>
                 </div>
               ))
             )}

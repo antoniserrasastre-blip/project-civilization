@@ -104,6 +104,9 @@ export interface ActiveSynergy {
   npcIds: string[];
 }
 
+/** Alias para compatibilidad con DestinationContext y consumidores (Cluster 6). */
+export type Synergy = ActiveSynergy;
+
 /** Devuelve las sinergias activas para la composición actual del clan.
  *  Solo cuenta NPCs vivos. Pura y determinista. */
 export function computeActiveSynergies(npcs: readonly NPC[]): ActiveSynergy[] {

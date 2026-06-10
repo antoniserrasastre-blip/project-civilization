@@ -418,9 +418,9 @@ function renderNPCs(
     } else {
       // Simplificado: círculo/diamante sin animación
       if (npc.casta === 'elegido') {
-        drawDiamond(ctx, cx, cy, spriteSize * 0.8, marker.colors.fill, marker.colors.stroke, 1);
+        drawDiamond(ctx, cx, cy, spriteSize * 0.8, marker.colors.fill, marker.colors.outline, 1);
       } else {
-        drawCircle(ctx, cx, cy, spriteSize * 0.7, marker.colors.fill, marker.colors.stroke, 1);
+        drawCircle(ctx, cx, cy, spriteSize * 0.7, marker.colors.fill, marker.colors.outline, 1);
       }
     }
 
@@ -718,6 +718,7 @@ function renderBuildProject(
   project: BuildProject | null | undefined,
   dims: ViewportDims,
   state: ViewportState,
+  _sprites?: SpriteMap, // minimal guard: tolerate extra arg from call site (no behavior change)
 ) {
   if (!project) return;
   const tilePx = dims.tileSize * state.zoom;
@@ -1042,6 +1043,7 @@ function renderVFXLayer(
   viewport: ViewportState,
   resourceSprites: ResourceSpriteMap,
   sprites: SpriteMap,
+  _particles?: unknown, // minimal guard: tolerate extra arg from call site (particles TODO, no behavior change)
 ) {
   const tilePx = dims.tileSize * viewport.zoom;
   if (tilePx < 8) return;
@@ -1193,11 +1195,12 @@ function decodeFogBitmap(bitmap: string): Uint8Array | null {
 }
 
 function fogDiscovered(
-  bytes: Uint8Array,
+  bytes: Uint8Array | null,
   width: number,
   x: number,
   y: number,
 ): boolean {
+  if (!bytes) return false; // minimal guard for Uint8Array | null
   const idx = y * width + x;
   return (bytes[idx >> 3] & (1 << (idx & 7))) !== 0;
 }
@@ -1205,8 +1208,9 @@ function fogDiscovered(
 // Caché persistente para la textura de la niebla
 const _fogTextureCanvas = typeof document !== 'undefined' ? document.createElement('canvas') : null;
 
-function updateFogTexture(fog: FogState, bytes: Uint8Array) {
+function updateFogTexture(fog: FogState, bytes: Uint8Array | null) {
   if (!_fogTextureCanvas) return;
+  if (!bytes) return; // minimal guard for Uint8Array | null (decode can return null)
   const { width: W, height: H } = fog;
   if (_fogTextureCanvas.width !== W || _fogTextureCanvas.height !== H) {
     _fogTextureCanvas.width = W;

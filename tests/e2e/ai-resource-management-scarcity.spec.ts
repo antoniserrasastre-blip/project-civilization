@@ -114,10 +114,15 @@ test.describe('AI Resource Management - Scarcity', () => {
     const targetDay = initialDay + daysToAdvance;
 
     // Wait until the target day is reached.
-    await expect(async () => {
-        const day = await readDay(page);
-        return day >= targetDay;
-    }, { timeout: 120_000, message: `Game did not reach target day ${targetDay}` }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const day = await readDay(page);
+          return day >= targetDay;
+        },
+        { timeout: 120_000, message: `Game did not reach target day ${targetDay}` },
+      )
+      .toBe(true);
 
     // Capture final state
     const finalInventory = await readCommunalInventory(page);
@@ -139,7 +144,7 @@ test.describe('AI Resource Management - Scarcity', () => {
     // 2. NPC Task Observation: A significant proportion of NPCs should be assigned to Gathering/Hunting.
     // This part requires capturing NPC assignments. We'll rely on console logs for now.
     // Clear console messages before running the game advancement phase to capture relevant logs.
-    page.off('console'); // Remove previous listeners if any
+    // page.off('console'); // previous listener cleanup (Playwright off requires handler ref; skipped for type)
     const npcAssignments: Array<{ id: string, task: string }> = [];
     page.on('console', msg => {
         const text = msg.text();
@@ -160,10 +165,15 @@ test.describe('AI Resource Management - Scarcity', () => {
     await page.keyboard.press('Space'); // Ensure playing
     currentDay = await readDay(page);
     const targetDayForLogs = currentDay + 2; // Run for a few days to capture logs
-    await expect(async () => {
-        const day = await readDay(page);
-        return day >= targetDayForLogs;
-    }, { timeout: 60_000, message: `Game did not reach target day ${targetDayForLogs} for log capture` }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const day = await readDay(page);
+          return day >= targetDayForLogs;
+        },
+        { timeout: 60_000, message: `Game did not reach target day ${targetDayForLogs} for log capture` },
+      )
+      .toBe(true);
 
     const gatheringHuntingCount = npcAssignments.filter(assignment =>
         assignment.task.toLowerCase().includes('gather') ||

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import type { GameState } from '@/lib/game-state';
-import { VOCATION } from '@/lib/npcs';
+import { VOCATION, CASTA } from '@/lib/npcs';
 import {
   TECH_DEFS,
   TRAIT_DEFS,
@@ -59,7 +59,7 @@ export function CivilizationCodex({ state, onClose }: CivilizationCodexProps) {
       [VOCATION.SIMPLEZAS]:  alive.filter(n => n.vocation === VOCATION.SIMPLEZAS).length,
       [VOCATION.AMBICIOSO]:  alive.filter(n => n.vocation === VOCATION.AMBICIOSO).length,
     };
-    const elegidos = alive.filter(n => n.casta === 'Elegido').length;
+    const elegidos = alive.filter(n => n.casta === CASTA.ELEGIDO).length;
     return { alive: alive.length, vocations, elegidos };
   }, [state.npcs]);
 

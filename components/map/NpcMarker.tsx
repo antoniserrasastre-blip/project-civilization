@@ -3,6 +3,7 @@ import { useUnitSprites } from '@/hooks/use-unit-sprites';
 import { useResourceSprites } from '@/hooks/use-resource-sprites';
 import type { NPC } from '@/lib/npcs';
 import type { EquippableItem } from '@/lib/items';
+import { spriteKeyFor } from '@/lib/npc-sprite';
 
 interface NpcMarkerProps {
   npc: NPC;
@@ -15,8 +16,18 @@ interface NpcMarkerProps {
  * Renderiza un NPC con efectos visuales dinámicos basados en el rango de su artefacto.
  */
 export const NpcMarker: React.FC<NpcMarkerProps> = ({ npc, item, selected, onClick }) => {
-  const baseSprite = useUnitSprites(npc.casta.toLowerCase());
-  const itemSprite = useResourceSprites(item?.kind || '');
+  // Fixed call sites: no-arg (hooks return Map<..., HTMLImageElement> now, not string/Blob)
+  const unitSprites = useUnitSprites();
+  const _resourceSprites = useResourceSprites(); // call site fixed (no-arg); unused here as unitSprites covers item keys too (bow/sling/club etc)
+
+  // Derive string URL from Map for <img src> — fixes Map vs string/Blob return type.
+  // Uses spriteKeyFor so NPC base reflects role/item (not just crude casta), fixes NPCMarker image issues for variety + new kinds.
+  const key = spriteKeyFor(npc, item ? [item] : []);
+  const baseImg = unitSprites.get(key);
+  const baseSprite = baseImg?.src ?? '';
+
+  const itemImg = item ? unitSprites.get(item.kind) : null;
+  const itemSprite = itemImg?.src ?? '';
 
   const opacity = npc.alive ? 1 : 0.4;
   

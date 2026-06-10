@@ -11,14 +11,12 @@ import {
   consumeForRecipe,
 } from '@/lib/crafting';
 import { makeTestNPC } from '@/lib/npcs';
+import { makeEmptyInventory } from '@/tests/helpers/npc-fixtures';
 
-function stocked(overrides: Partial<{ wood: number; stone: number; game: number; berry: number; fish: number; obsidian: number; shell: number }>) {
+function stocked(overrides: Partial<import('@/lib/npcs').NPCInventory> = {}) {
   return makeTestNPC({
     id: 'x',
-    inventory: {
-      wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0,
-      ...overrides,
-    } as import('@/lib/npcs').NPCInventory,
+    inventory: { ...makeEmptyInventory(), ...overrides },
   });
 }
 
@@ -62,7 +60,7 @@ describe('clanInventoryTotal', () => {
 
 describe('canBuild', () => {
   it('true si pooled >= inputs', () => {
-    const clan = { wood: 20, stone: 20, berry: 0, game: 5, fish: 0, obsidian: 0, shell: 0 };
+    const clan = { ...makeEmptyInventory(), wood: 20, stone: 20, game: 5 };
     expect(canBuild(RECIPES[CRAFTABLE.REFUGIO], clan)).toBe(true);
   });
 });
@@ -82,7 +80,7 @@ describe('consumeForRecipe', () => {
     } as any;
 
     const { npcs, structures } = consumeForRecipe([a], RECIPES[CRAFTABLE.FOGATA_PERMANENTE], [struct]);
-    expect(structures[0].inventory.wood).toBe(10 - woodNeeded);
+    expect((structures[0].inventory ?? {}).wood).toBe(10 - woodNeeded);
     expect(npcs[0].inventory.wood).toBe(2); // NPC no se toca, suficiente en struct
   });
 

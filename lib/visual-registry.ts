@@ -55,13 +55,14 @@ export const STRUCTURE_VISUALS: Record<CraftableId, VisualAsset> = {
       construction: '/structures/struct_huerto_growing.svg',
     }
   },
-  [CRAFTABLE.AHUMADERO]: {
+  // Completeness for future/new structure kinds unlocked via tech (not yet in CRAFTABLE const)
+  ['ahumadero' as CraftableId]: {
     default: '/structures/struct_ahumadero.svg',
   },
-  [CRAFTABLE.OLLA_BARRO]: {
+  ['olla_barro' as CraftableId]: {
     default: '/structures/struct_olla_barro.svg',
   },
-  [CRAFTABLE.MESA_SALAZON]: {
+  ['mesa_salazon' as CraftableId]: {
     default: '/structures/struct_mesa_salazon.svg',
   },
   [CRAFTABLE.PIEL_ROPA]: {
@@ -76,6 +77,10 @@ export const ITEM_VISUALS: Record<ItemKind, VisualAsset> = {
   [ITEM_KIND.BONE_NEEDLE]: { default: '/resources/resource_shell.svg' }, // Proxy
   [ITEM_KIND.RELIC_CHARM]: { default: '/resources/resource_obsidian.svg' }, // Proxy
   [ITEM_KIND.CANOE]: { default: '/units/unit_canoe.svg' },
+  // Completeness for new item kinds (bow/sling/club from ITEM_KIND)
+  [ITEM_KIND.BOW]: { default: '/resources/weapon_bow.svg' },
+  [ITEM_KIND.SLING]: { default: '/resources/weapon_sling.svg' },
+  [ITEM_KIND.CLUB]: { default: '/resources/weapon_club.svg' },
 };
 
 /**

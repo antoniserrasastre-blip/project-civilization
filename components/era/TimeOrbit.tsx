@@ -25,16 +25,16 @@ const SEASON_ICON = {
 
 export function TimeOrbit({ tick, climate }: TimeOrbitProps) {
   const dayProgress = (tick % TICKS_PER_DAY) / TICKS_PER_DAY;
-  
-  if (!climate) return null;
 
-  // Determinar fase del día
+  // Determinar fase del día (useMemo antes de cualquier return para cumplir reglas de hooks)
   const phase = useMemo(() => {
     if (dayProgress < 0.15) return { label: 'Amanecer', color: 'text-orange-300' };
     if (dayProgress < 0.60) return { label: 'Día', color: 'text-yellow-100' };
     if (dayProgress < 0.80) return { label: 'Ocaso', color: 'text-red-400' };
     return { label: 'Noche', color: 'text-blue-400' };
   }, [dayProgress]);
+
+  if (!climate) return null;
 
   const year = Math.floor(climate.dayOfYear / 60) + 1;
   const dayOfSeason = (climate.dayOfYear % 15) + 1;

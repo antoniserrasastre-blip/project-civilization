@@ -10,15 +10,17 @@ import {
   type ItemRecipe,
 } from '../../lib/item-crafting';
 import { ITEM_KIND } from '../../lib/items';
-import { makeTestNPC } from '../../lib/npcs';
+import { makeTestNPC, makeFullInventory } from '../helpers/npc-fixtures';
 import { initialGameState } from '../../lib/game-state';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function stockedNpc(id: string, inv: Partial<Record<string, number>> = {}) {
+  // Use shared makeFullInventory (which completes the shape from SSOT) to dedup
+  // the 7-11 key literal that was repeated.
   return makeTestNPC({
     id,
-    inventory: { wood: 0, stone: 0, berry: 0, game: 0, fish: 0, obsidian: 0, shell: 0, ...inv },
+    inventory: makeFullInventory(inv as any),
   });
 }
 
@@ -74,13 +76,13 @@ describe('craftItem', () => {
     } as any];
     
     const { item, npcs: afterNpcs, structures: afterStructs } = craftItem(
-      ITEM_KIND.HAND_AXE, npcs, 100, 'a', structs
+      ITEM_KIND.HAND_AXE, npcs, 100, npcs[0], structs
     );
     
     expect(item.kind).toBe(ITEM_KIND.HAND_AXE);
     // HAND_AXE usa stone:3, no wood — verificar stone se redujo
-    expect(afterStructs[0].inventory.stone).toBe(20 - 3);
-    expect(afterStructs[0].inventory.wood).toBe(20); // Wood intacto
+    expect((afterStructs[0] as any).inventory.stone).toBe(20 - 3);
+    expect((afterStructs[0] as any).inventory.wood).toBe(20); // Wood intacto
     });
 });
 

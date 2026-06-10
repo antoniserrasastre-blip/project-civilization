@@ -15,7 +15,7 @@ import {
   type DestinationContext,
 } from '@/lib/needs';
 import { CRAFTABLE } from '@/lib/crafting';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC, makeTestDestinationContext, makeFullInventory } from '../helpers/npc-fixtures';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 
 function mkWorld(width: number, height: number): WorldMap {
@@ -30,15 +30,11 @@ function mkWorld(width: number, height: number): WorldMap {
   };
 }
 
+// Delegated to shared make* helper (tests/helpers/npc-fixtures) for hygiene.
+// This dedups the required DestinationContext fields (was source of partial
+// ctx literals in disjoint tests).
 function mkCtx(world: WorldMap, npcs: any[] = []) : DestinationContext {
-  return {
-    world,
-    npcs,
-    prng: { seed: 1, cursor: 0 },
-    currentTick: 0,
-    ticksPerDay: 100,
-    synergies: [],
-  };
+  return makeTestDestinationContext({ world, npcs });
 }
 
 describe('Constantes NEED_THRESHOLDS', () => {
@@ -73,7 +69,7 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 10, socializacion: 80 }, // crítica
+      stats: { supervivencia: 10, socializacion: 80, proposito: 70, miedo: 20 }, // crítica
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r.position).toEqual({ x: 5, y: 5 }); // agua
@@ -102,7 +98,7 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 35, socializacion: 80 },
+      stats: { supervivencia: 35, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r.position).toEqual({ x: 3, y: 3 }); // berry más cercana
@@ -118,7 +114,7 @@ describe('decideDestination — prioridades', () => {
     const lonely = makeTestNPC({
       id: 'd',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 80, socializacion: 20 },
+      stats: { supervivencia: 80, socializacion: 20, proposito: 70, miedo: 20 },
     });
     const r = decideDestination(lonely, mkCtx(world, [...clan, lonely]));
     // El comportamiento actual de socialización baja es buscar al NPC más cercano
@@ -131,7 +127,7 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 7, y: 7 },
-      stats: { supervivencia: 80, socializacion: 80 },
+      stats: { supervivencia: 80, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r.position).toEqual({ x: 7, y: 7 });
@@ -151,8 +147,8 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 35, socializacion: 90 },
-      inventory: { wood: 0, stone: 0, berry: 3, game: 0, fish: 0, obsidian: 0, shell: 0 },
+      stats: { supervivencia: 35, socializacion: 90, proposito: 70, miedo: 20 },
+      inventory: makeFullInventory({ berry: 3 }),
     });
     const ctx = mkCtx(world, [npc]);
     ctx.nextBuildPriority = CRAFTABLE.FOGATA_PERMANENTE;
@@ -183,7 +179,7 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 3, y: 3 },
-      stats: { supervivencia: 21, socializacion: 80 },
+      stats: { supervivencia: 21, socializacion: 80, proposito: 70, miedo: 20 },
     });
 
     expect(decideDestination(npc, mkCtx(world, [npc])).position).toEqual({
@@ -215,7 +211,7 @@ describe('decideDestination — prioridades', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 2, y: 2 },
-      stats: { supervivencia: 45, socializacion: 90 },
+      stats: { supervivencia: 45, socializacion: 90, proposito: 70, miedo: 20 },
     });
     const ctx = mkCtx(world, [npc]);
     ctx.nextBuildPriority = CRAFTABLE.FOGATA_PERMANENTE;
@@ -248,7 +244,7 @@ describe('decideDestination — tie-break determinista', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 4 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     // Ambas Manhattan 3+1 = 4. Tie → menor (x,y) lex = (3,3).
@@ -281,7 +277,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
       skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
       equippedItemId: 'item-cazador',
     });
@@ -291,11 +287,18 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
       {
         id: 'item-cazador',
         kind: 'spear',
+        material: 'wood',
+        name: 'test spear',
         ownerNpcId: 'n',
+        makerId: 'n',
         durability: 80,
         maxDurability: 80,
-        prestige: 0,
         createdAtTick: 0,
+        xp: 0,
+        level: 1,
+        rank: 'common',
+        deeds: [],
+        history: [],
       },
     ];
     const r = decideDestination(npc, ctx);
@@ -327,7 +330,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
       skills: { hunting: 10, gathering: 15, crafting: 10, fishing: 70, healing: 10 },
       equippedItemId: null,
     });
@@ -358,7 +361,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 10, socializacion: 80 }, // crítica
+      stats: { supervivencia: 10, socializacion: 80, proposito: 70, miedo: 20 }, // crítica
       skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
@@ -390,7 +393,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 30, socializacion: 80 },
+      stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
       skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
@@ -413,7 +416,7 @@ describe('decideDestination — pureza', () => {
     const npc = makeTestNPC({
       id: 'n',
       position: { x: 0, y: 0 },
-      stats: { supervivencia: 10, socializacion: 80 },
+      stats: { supervivencia: 10, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const snapNpc = JSON.stringify(npc);
     const ctx = mkCtx(world, [npc]);

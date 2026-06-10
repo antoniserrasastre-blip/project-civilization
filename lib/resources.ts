@@ -36,6 +36,38 @@ export function regenTicksFor(id: ResourceId): number | null {
   return days * TICKS_PER_DAY;
 }
 
+/**
+ * Pure deterministic type-guard helpers for ResourceId filters.
+ * Used to avoid literal union narrowing in .includes() and callback filters.
+ * Keep all ResourceId exhaustive checks here; no floats, no mutation.
+ */
+export function isFoodResource(id: ResourceId): boolean {
+  return id === RESOURCE.BERRY || id === RESOURCE.GAME || id === RESOURCE.FISH;
+}
+
+export function isWaterResource(id: ResourceId): boolean {
+  return id === RESOURCE.WATER;
+}
+
+export function isRecoveryResource(id: ResourceId): boolean {
+  return isFoodResource(id) || isWaterResource(id);
+}
+
+export function isBioticResource(id: ResourceId): boolean {
+  return (
+    id === RESOURCE.WOOD ||
+    id === RESOURCE.BERRY ||
+    id === RESOURCE.FISH ||
+    id === RESOURCE.GAME ||
+    id === RESOURCE.COCONUT ||
+    id === RESOURCE.MUSHROOM
+  );
+}
+
+export function isStoneResource(id: ResourceId): boolean {
+  return id === RESOURCE.STONE;
+}
+
 export interface ResourceTickResult {
   resources: ResourceSpawn[];
   reserves: number[];
@@ -49,9 +81,31 @@ export interface ResourceTickResult {
  *   con influencia territorial opcional. Retorna `ResourceSpawn[]` directamente.
  * - Sistema nuevo: usa `regenerationRate` con lógica de amanecer y reservas.
  *
- * Cuando se incluyen todos los parámetros (6 args), retorna `ResourceTickResult`.
- * En cualquier otro caso (2-4 args), retorna `ResourceSpawn[]`.
+ * Overloads ensure callers get precise return type (no union) based on args:
+ * - 2 or (4-arg legacy influence) → ResourceSpawn[]
+ * - 5/6-arg with reserves → ResourceTickResult
  */
+export function tickResources(
+  spawns: readonly ResourceSpawn[],
+  currentTick: number,
+): ResourceSpawn[];
+
+export function tickResources(
+  spawns: readonly ResourceSpawn[],
+  currentTick: number,
+  influenceGrid: readonly number[],
+  worldWidth: number,
+): ResourceSpawn[];
+
+export function tickResources(
+  spawns: readonly ResourceSpawn[],
+  currentTick: number,
+  influenceGrid: readonly number[],
+  worldWidth: number,
+  reserves: readonly number[],
+  climate?: ClimateState,
+): ResourceTickResult;
+
 export function tickResources(
   spawns: readonly ResourceSpawn[],
   currentTick: number,

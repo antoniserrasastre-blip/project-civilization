@@ -32,7 +32,7 @@ export const LINAJE_COLORS: Record<string, string> = {
 export interface MarkerColors {
   /** Relleno principal del cuerpo del marcador. */
   fill: string;
-  /** Outline duro alrededor del cuerpo — contraste sobre tiles. */
+  /** Outline duro alrededor del cuerpo — contraste sobre tiles. (MarkerColors uses .outline, never .stroke) */
   outline: string;
   /** Detalle interior (halo del Elegido, reflejo del Ciudadano). */
   highlight: string;

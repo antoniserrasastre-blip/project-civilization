@@ -16,7 +16,7 @@ import {
 } from '@/lib/monument';
 import { addStructure } from '@/lib/structures';
 import { CRAFTABLE } from '@/lib/crafting';
-import { makeTestNPC, LINAJE } from '@/lib/npcs';
+import { makeTestNPC, LINAJE, makeFullInventory } from '../helpers/npc-fixtures';
 import { initialVillageState } from '@/lib/village';
 
 function stockedNpcs(n: number, opts: Partial<{ stone: number; wood: number }> = {}) {
@@ -24,13 +24,12 @@ function stockedNpcs(n: number, opts: Partial<{ stone: number; wood: number }> =
     makeTestNPC({
       id: `n${i}`,
       linaje: i < 2 ? LINAJE.TRAMUNTANA : LINAJE.MIGJORN,
-      inventory: {
+      // makeFullInventory completes + adds any new resource keys (clay etc) from SSOT
+      // without having to maintain the literal list here.
+      inventory: makeFullInventory({
         wood: opts.wood ?? 10,
         stone: opts.stone ?? 30,
-        berry: 0,
-        game: 0,
-        fish: 0, obsidian: 0, shell: 0,
-      },
+      }),
     }),
   );
 }

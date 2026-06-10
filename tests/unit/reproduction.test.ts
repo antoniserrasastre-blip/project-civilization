@@ -20,8 +20,7 @@ import {
   REPRODUCTION_COOLDOWN_TICKS,
   MAX_POPULATION,
 } from '../../lib/reproduction';
-import { makeTestNPC } from '../../lib/npcs';
-import { CASTA, SEX, LINAJE } from '../../lib/npcs';
+import { makeTestNPC, CASTA, SEX, LINAJE } from '../helpers/npc-fixtures';
 import { seedState } from '../../lib/prng';
 import {
   elegidoFaithBonusPerTick,
@@ -37,7 +36,7 @@ function makeM(id: string, overrides = {}) {
   return makeTestNPC({
     id,
     sex: SEX.M,
-    stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE + 10, socializacion: 60 },
+    stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE + 10, socializacion: 60, proposito: 70, miedo: 20 },
     lastReproducedTick: null,
     ...overrides,
   });
@@ -47,7 +46,7 @@ function makeF(id: string, overrides = {}) {
   return makeTestNPC({
     id,
     sex: SEX.F,
-    stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE + 10, socializacion: 60 },
+    stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE + 10, socializacion: 60, proposito: 70, miedo: 20 },
     lastReproducedTick: null,
     ...overrides,
   });
@@ -64,14 +63,14 @@ describe('findEligiblePairs', () => {
   it('devuelve vacío si la hembra tiene supervivencia < mínima', () => {
     const npcs = [
       makeM('m1'),
-      makeF('f1', { stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE - 1, socializacion: 60 } }),
+      makeF('f1', { stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE - 1, socializacion: 60, proposito: 70, miedo: 20 } }),
     ];
     expect(findEligiblePairs(npcs, 100)).toHaveLength(0);
   });
 
   it('devuelve vacío si el macho tiene supervivencia < mínima', () => {
     const npcs = [
-      makeM('m1', { stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE - 1, socializacion: 60 } }),
+      makeM('m1', { stats: { supervivencia: MIN_SURVIV_TO_REPRODUCE - 1, socializacion: 60, proposito: 70, miedo: 20 } }),
       makeF('f1'),
     ];
     expect(findEligiblePairs(npcs, 100)).toHaveLength(0);

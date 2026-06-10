@@ -2,22 +2,21 @@
  * Simulación — tick puro del mundo primigenia.
  */
 
-import { decideDestination, tickNeeds, NEED_THRESHOLDS, carriedFood } from './needs';
+import { decideDestination, tickNeeds, NEED_THRESHOLDS, carriedFood, type DestinationContext } from './needs';
 import { findBuildSite, cohesionMultiplier } from './village-siting';
 import { findPath } from './pathfinding';
 import type { GameState, ChronicleEntry } from './game-state';
 import { CHRONICLE_MAX } from './game-state';
-import type { NPC } from './npcs';
+import type { NPC, NPCInventory } from './npcs';
 import { CASTA, updateNpcStats, VOCATION } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
-import { computeActiveSynergies, applySynergyModifiers } from './synergies';
+import { computeActiveSynergies } from './synergies';
 import { markDiscovered, decodeFogBitmap } from './fog';
 import { tickAnimals } from './animals';
 import type { FogState } from './fog';
-import { evaluateNight, isNightCheckTick } from './nights';
-import { isDawn } from './messages';
+import { evaluateNight } from './nights';
 import { applyFaithDelta, faithPerTick } from './faith';
 import {
   applyGratitudeDelta,
@@ -27,7 +26,7 @@ import {
   penalizeElegidoDeath,
   resetGratitudeDailyTracking,
 } from './gratitude';
-import type { VillageState } from './village';
+import { tickFractures } from './events';
 import { firstStructureOfKind, addStructure, type Structure } from './structures';
 import {
   canBuild,
@@ -41,17 +40,23 @@ import {
 } from './crafting';
 import { TILE, type TileId } from './world-state';
 import { tickReproduction } from './reproduction';
-import { applyEsclavoDrain, elegidoFaithBonusPerTick } from './casta-effects';
-import { narrateDetailed as narrate } from './chronicle';
+import {
+  narrateDetailed as narrate,
+  type ChronicleResult,
+  calculateCollectiveMemoryModifier,
+  effectiveSkill,
+} from './chronicle';
 import type { EquippableItem } from './items';
-import { recordItemDeed, ITEM_KIND, itemForNpc } from './items';
+import { recordItemDeed, ITEM_KIND, type ItemKind } from './items';
 import { transferLegacyItem } from './legacy';
 import { computeRole } from './roles';
 import { nextInt } from './prng';
-import { craftItem, canCraftItem, ITEM_RECIPES } from './item-crafting';
+import { craftItem, canCraftItem } from './item-crafting';
 import {
   TECH_DEFS,
+  TRAIT_ID,
   type TechUnlockCtx,
+  type TechId,
   computeCultureAxis,
   computeActiveTraits,
   aggregateBonuses,
@@ -137,9 +142,18 @@ export function tick(state: GameState): GameState {
     // NOCHES EN FOGATA: evaluar si la noche contó para el monumento
     const newNightsCount = evaluateNight(nextState.structures, nextState.npcs, v.consecutiveNightsAtFire);
     v = { ...v, consecutiveNightsAtFire: newNightsCount };
-    // Reset contadores diarios
-    v = resetGratitudeDailyTracking(v);
+    // Fricción Divina (Crisis) at dawn — ANTES del reset diario:
+    // tickFractures lee los contadores del día que cierra (events.ts
+    // asume datos pre-reset) y sus grants de gratitud deben contar
+    // contra el cap del día que cierra, no contra el día nuevo.
     nextState = { ...nextState, village: v };
+    const crisisRes = tickFractures(nextState);
+    nextState = crisisRes.state;
+    // Reset contadores diarios (tras el pulso de crisis)
+    nextState = {
+      ...nextState,
+      village: resetGratitudeDailyTracking(nextState.village),
+    };
   }
 
   // Actualización diaria del clima (al final del día)
@@ -168,7 +182,7 @@ export function tick(state: GameState): GameState {
 function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
   const fire = firstStructureOfKind(state.structures, CRAFTABLE.FOGATA_PERMANENTE);
   const buildPrio = nextBuildPriority(state);
-  const activeBuilderIds = new Set(selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady).map(n => n.id));
+  const activeBuilderIds = new Set(selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady, state.chronicle, state.tick).map(n => n.id));
 
   let currentPrng = state.prng;
   const nextTraffic = (state.world.traffic || new Array<number>(state.world.width * state.world.height).fill(0)).map(v => Math.floor(v * 0.99));
@@ -179,11 +193,10 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
 
   for (const npc of state.npcs) {
     if (!npc.alive) continue;
-    const ctx = {
+    const ctx: DestinationContext = {
       world: state.world, npcs: state.npcs, firePosition: fire?.position,
       currentTick: state.tick, ticksPerDay: TICKS_PER_DAY,
       isReachable: makeNpcReachabilityChecker(state), items: state.items ?? [],
-      faith: state.village.faith, gratitude: state.village.gratitude,
       synergies: computeActiveSynergies(state.npcs), buildSitePosition: state.buildProject?.position,
       nextBuildPriority: buildPrio, prng: currentPrng,
       fog: state.fog,
@@ -267,11 +280,11 @@ function tickWorldSystems(state: GameState): GameState {
 }
 
 function tickInfrastructureDecay(state: GameState): { structures: Structure[], chronicle: ChronicleEntry[] } {
-  let structures = state.structures.map(s => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} }));
+  let structures = state.structures.map(s => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} as Partial<NPCInventory> })) as (Structure & { inventory?: Partial<NPCInventory> })[];
   let chronicle = [...state.chronicle];
   let currentPrng = state.prng;
 
-  const nextStructures = [];
+  const nextStructures: Structure[] = [];
   for (const s of structures) {
     const age = state.tick - s.builtAtTick;
     if (age < STRUCTURE_LIFESPAN) {
@@ -285,7 +298,8 @@ function tickInfrastructureDecay(state: GameState): { structures: Structure[], c
       if (roll < 5) { 
         const foods: (keyof NPCInventory)[] = ['berry', 'fish', 'game'];
         const food = foods[roll % 3];
-        if (s.inventory[food] && s.inventory[food]! > 0) s.inventory[food]!--;
+        const inv = s.inventory;
+        if (inv && inv[food] && inv[food]! > 0) inv[food]!--;
       }
     }
 
@@ -309,7 +323,18 @@ function tickClanSystems(state: GameState, fogBuffer: Uint8Array): GameState {
   // Calcular bonuses de rasgos culturales activos (§A4: se computan del estado, no mutados)
   const techBonuses = aggregateBonuses(state.tech.activeTraits ?? []);
 
-  const harvested = tickHarvests(state.npcs, state.world.resources, state.tick, state.world.reserves || [], state.world.width, state.structures, state.items, state.climate, state.prng, techBonuses);
+  const harvested = tickHarvests(
+    state.npcs,
+    state.world.resources,
+    state.tick,
+    state.world.reserves || [],
+    state.world.width,
+    state.structures,
+    state.items,
+    state.climate,
+    state.prng,
+    techBonuses
+  );
   const logistics = tickLogistics(harvested.npcs, state.structures);
   const traditions = { ...(state.world.traditions || {}) };
   for (const npc of state.npcs) { if (npc.alive) { const role = computeRole(npc, null); traditions[role] = (traditions[role] || 0) + 1; } }
@@ -318,13 +343,16 @@ function tickClanSystems(state: GameState, fogBuffer: Uint8Array): GameState {
   const moodModifier = calculateCollectiveMemoryModifier(nextChronicle, state.tick);
 
   const npcsBeforeNeeds = logistics.npcs;
-  const npcsWithNeeds = tickNeeds(npcsBeforeNeeds, {
+  const needsCtx: DestinationContext = {
     world: state.world, npcs: npcsBeforeNeeds,
     moodModifier, prng: harvested.prng, currentTick: state.tick, ticksPerDay: TICKS_PER_DAY, synergies: [],
     fog: state.fog, fogBuffer,
     climate: state.climate,
     techBonuses,
-  });
+  };
+  // Memoria Mecánica v2: el bonus de memoria es transitorio (effectiveSkill
+  // en el punto de uso) — las skills almacenadas nunca lo incluyen.
+  const npcsWithNeeds = tickNeeds(npcsBeforeNeeds, needsCtx);
 
   // GRATITUD: contabilizar escapes de hambre (sv subió desde zona crítica)
   let village = state.village;
@@ -415,9 +443,12 @@ function tickTech(state: GameState): GameState {
   for (const traitId of nextTraits) {
     if (!prevTraits.includes(traitId)) {
       const TRAIT_NAMES: Record<string, string> = {
-        resiliente: 'Pueblo Resiliente', guerrero: 'Pueblo Guerrero',
-        granjero: 'Pueblo Granjero', marinero: 'Pueblo Marinero',
-        artesano: 'Pueblo Artesano', comerciante: 'Pueblo Comerciante',
+        [TRAIT_ID.RESILIENTE]: 'Pueblo Resiliente',
+        [TRAIT_ID.GUERRERO]: 'Pueblo Guerrero',
+        [TRAIT_ID.GRANJERO]: 'Pueblo Granjero',
+        [TRAIT_ID.MARINERO]: 'Pueblo Marinero',
+        [TRAIT_ID.ARTESANO]: 'Pueblo Artesano',
+        [TRAIT_ID.COMERCIANTE]: 'Pueblo Comerciante',
       };
       chronicle = addChronicleEntry(chronicle, {
         text: `¡IDENTIDAD! El clan ha forjado su carácter: ${TRAIT_NAMES[traitId] ?? traitId}.`,
@@ -431,10 +462,10 @@ function tickTech(state: GameState): GameState {
   // Sincronizar items y recetas desbloqueadas por techs
   const nextUnlockedItems = [...state.unlockedItemKinds];
   for (const tid of nextUnlocked) {
-    const tdef = TECH_DEFS[tid as TechId];
+    const tdef = TECH_DEFS[tid];
     if (tdef?.effects.unlocks) {
       for (const uid of tdef.effects.unlocks) {
-        if (!nextUnlockedItems.includes(uid as string)) nextUnlockedItems.push(uid as string);
+        if (!nextUnlockedItems.includes(uid)) nextUnlockedItems.push(uid);
       }
     }
   }
@@ -463,22 +494,24 @@ function tryAutoCraftItems(state: GameState): GameState {
   if (!crafter) return state;
 
   // Intentar fabricar la herramienta más útil según la vocación del desarmado
-  let kindToCraft = ITEM_KIND.HAND_AXE;
+  let kindToCraft: ItemKind = ITEM_KIND.HAND_AXE;
   if (unarmedNpc.vocation === VOCATION.GUERRERO) kindToCraft = ITEM_KIND.SPEAR;
   if (unarmedNpc.vocation === VOCATION.SIMPLEZAS) kindToCraft = ITEM_KIND.BASKET;
 
   if (canCraftItem(kindToCraft, state.npcs, state.structures)) {
     const { item, npcs, structures, next: nextPrng } = craftItem(kindToCraft, state.npcs, state.tick, crafter, state.structures, state.prng);
 
-    // Asignar inmediatamente al necesitado
-    const nextNpcs = npcs.map(n => n.id === unarmedNpc.id ? { ...n, equippedItemId: item.id } : n);
+    // Asignar inmediatamente al necesitado (corrige owner para spear/hand_axe/etc cuando crafter != receptor)
+    const recipientId = unarmedNpc.id;
+    const assignedItem: EquippableItem = { ...item, ownerNpcId: recipientId };
+    const nextNpcs = npcs.map(n => n.id === recipientId ? { ...n, equippedItemId: assignedItem.id } : n);
 
     return {
       ...state,
       prng: nextPrng,
       npcs: nextNpcs,
       structures,
-      items: [...state.items, item],
+      items: [...state.items, assignedItem],
       chronicle: addChronicleEntry(state.chronicle, {
         text: `${crafter.name} ha forjado una nueva ${kindToCraft} para ${unarmedNpc.name}.`,
         type: 'system', impact: 5, duration: TICKS_PER_DAY
@@ -503,15 +536,16 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
       nextTags[posKey].push('maldita');
       if (prev.equippedItemId) {
         const item = items.find(i => i.id === prev.equippedItemId);
-        if (item && item.prestige > 0) {
-          const result = transferLegacyItem(cur, item, items, npcs);
+        const prestige = (item as any)?.prestige ?? 0;
+        if (prestige > 0) {
+          const result = transferLegacyItem(cur, item!, items, npcs);
           items = result.items; npcs = result.npcs;
         }
       }
 
       // GRATITUD: contabilizar muerte + penalizar si era Elegido
       village = { ...village, dailyDeaths: village.dailyDeaths + 1 };
-      if (prev.casta === 'Elegido') village = penalizeElegidoDeath(village);
+      if (prev.casta === CASTA.ELEGIDO) village = penalizeElegidoDeath(village);
 
       // LEYENDA: Muerte de un miembro
       const ent = { id: cur.id, name: cur.name, type: 'npc' as const, description: 'Miembro del clan' };
@@ -581,21 +615,25 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
   return { ...state, npcs, items, chronicle, village, prng, legends, world: { ...world, terrainTags: nextTags } };
 }
 
-function addChronicleEntry(chronicle: ChronicleEntry[], result: any, tick: number): ChronicleEntry[] {
+function addChronicleEntry(chronicle: ChronicleEntry[], result: ChronicleResult | { text: string; type: string; impact: number; duration: number }, tick: number): ChronicleEntry[] {
   const entry: ChronicleEntry = {
     day: Math.floor(tick / TICKS_PER_DAY), tick, text: result.text,
-    type: result.type, impact: result.impact, expiresAtTick: tick + result.duration
+    type: result.type as ChronicleEntry['type'], impact: result.impact, expiresAtTick: tick + result.duration
   };
   return [...chronicle.slice(-(CHRONICLE_MAX - 1)), entry];
 }
 
-function selectBuilders(npcs: readonly NPC[], minSurvival: number): NPC[] {
-  return [...npcs].filter(n => n.alive && n.stats.supervivencia >= minSurvival).sort((a, b) => b.skills.crafting - a.skills.crafting).slice(0, 3);
+function selectBuilders(npcs: readonly NPC[], minSurvival: number, chronicle: readonly ChronicleEntry[], tick: number): NPC[] {
+  // Memoria Mecánica v2: el crafting decide la selección con bonus transitorio
+  return [...npcs]
+    .filter(n => n.alive && n.stats.supervivencia >= minSurvival)
+    .sort((a, b) => effectiveSkill(b.skills.crafting, 'crafting', chronicle, tick) - effectiveSkill(a.skills.crafting, 'crafting', chronicle, tick))
+    .slice(0, 3);
 }
 
-function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs: NPC[], structures: any[] } {
-  const outNpcs = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
-  const outStructures = [...structures].map((s) => ({ ...s, inventory: s.inventory ? { ...s.inventory } : {} }));
+function tickLogistics(npcs: readonly NPC[], structures: readonly Structure[]): { npcs: NPC[], structures: Structure[] } {
+  const outNpcs: NPC[] = npcs.map((n) => ({ ...n, inventory: { ...n.inventory } }));
+  const outStructures: Structure[] = [...structures].map((s) => ({ ...s, inventory: (s.inventory ? { ...s.inventory } : {}) as Partial<NPCInventory> }));
   for (const n of outNpcs) {
     if (!n.alive) continue;
     const s = outStructures.find((s) => s.position.x === n.position.x && s.position.y === n.position.y);
@@ -615,10 +653,10 @@ function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs
     if (s.kind === CRAFTABLE.DESPENSA) {
       const foods: Array<keyof NPCInventory> = ['berry', 'game', 'fish'];
       for (const food of foods) {
-        if (n.inventory[food] === 0 && (s.inventory[food] || 0) > 0) {
-          const take = Math.min(s.inventory[food]!, 5); // Coge una ración de 5
+        if (n.inventory[food] === 0 &&  (s.inventory?.[food] || 0)  > 0) {
+          const take = Math.min( (s.inventory || {})[food]! , 5); // Coge una ración de 5
           n.inventory[food] += take;
-          s.inventory[food]! -= take;
+           (s.inventory || {})[food]!  -= take;
           break; // Con una ración basta
         }
       }
@@ -651,11 +689,12 @@ function tickLogistics(npcs: readonly NPC[], structures: readonly any[]): { npcs
 
 function tryAutoBuild(state: GameState): GameState {
   if (state.buildProject) {
-    const activeBuilders = selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady);
+    const activeBuilders = selectBuilders(state.npcs, NEED_THRESHOLDS.supervivenciaBuildReady, state.chronicle, state.tick);
     const mult = cohesionMultiplier(state.buildProject.position, state.structures);
-    
+
     // El progreso ahora depende también de la maestría en crafting de los constructores
-    const totalCraftingSkill = activeBuilders.reduce((sum, b) => sum + (b.skills.crafting / 50), 0);
+    // (Memoria Mecánica v2: bonus de memoria transitorio en el punto de uso)
+    const totalCraftingSkill = activeBuilders.reduce((sum, b) => sum + (effectiveSkill(b.skills.crafting, 'crafting', state.chronicle, state.tick) / 50), 0);
     const progress = state.buildProject.progress + Math.round((activeBuilders.length + totalCraftingSkill) * mult);
     
     const builderIds = new Set(activeBuilders.map((b) => b.id));
@@ -665,7 +704,7 @@ function tryAutoBuild(state: GameState): GameState {
         let learningMult = 1 + ((n.attributes.strength + n.attributes.wisdom) / 200) * 0.5;
         
         // Bonus por Vocación: El Sabio (ingenio) y el Simplezas (práctica) aprenden más rápido
-        if (n.vocation === 'sabio' || n.vocation === 'simplezas') learningMult += 0.3;
+        if (n.vocation === VOCATION.SABIO || n.vocation === VOCATION.SIMPLEZAS) learningMult += 0.3;
 
         const xpGain = 0.05 * learningMult;
         const updated = updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 });
@@ -695,8 +734,12 @@ function tryAutoBuild(state: GameState): GameState {
   const decaying = state.structures.find(s => (state.tick - s.builtAtTick) > STRUCTURE_LIFESPAN);
   if (decaying) {
     const recipe = RECIPES[decaying.kind];
-    const repairInputs: any = {};
-    for (const [k, v] of Object.entries(recipe.inputs)) repairInputs[k] = Math.ceil((v as number) * 0.5);
+    const repairInputs: Partial<Record<keyof NPCInventory, number>> = {};
+    for (const [k, v] of Object.entries(recipe.inputs)) {
+      if (typeof v === 'number') {
+        repairInputs[k as keyof NPCInventory] = Math.ceil(v * 0.5);
+      }
+    }
     const repairRecipe = { ...recipe, inputs: repairInputs, daysWork: Math.ceil(recipe.daysWork * 0.5) };
 
     const inv = clanInventoryTotal(state.npcs, state.structures);
@@ -721,8 +764,4 @@ function tryAutoBuild(state: GameState): GameState {
   const anchorNpc = state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
   const buildPos = findBuildSite(state.world, structures, kind, anchorNpc.position);
   return { ...state, npcs, structures, buildProject: { id: `bp-${kind}-${state.tick}`, kind, position: { ...buildPos }, startedAtTick: state.tick, progress: 0, required: recipe.daysWork * TICKS_PER_DAY } };
-}
-
-function calculateCollectiveMemoryModifier(chronicle: ChronicleEntry[], currentTick: number): number {
-  return chronicle.filter(entry => entry.expiresAtTick > currentTick).reduce((total, entry) => total + entry.impact, 0);
 }

@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { initialGameState } from '@/lib/game-state';
 import { tick } from '@/lib/simulation';
-import { makeTestNPC, CASTA, LINAJE, SEX } from '@/lib/npcs';
+import { makeTestNPC, CASTA, LINAJE, SEX } from '@/tests/helpers/npc-fixtures';
 import { CRAFTABLE, RECIPES } from '@/lib/crafting';
 import { TILE, RESOURCE, type WorldMap } from '@/lib/world-state';
 
@@ -103,7 +103,7 @@ function buildDraftedClan() {
         casta: i < 4 ? CASTA.ELEGIDO : CASTA.CIUDADANO,
         linaje: LINAJE.TRAMUNTANA,
         position: { x: 16 + (i % 4), y: 16 + Math.floor(i / 4) },
-        stats: { supervivencia: 90, socializacion: 80 },
+        stats: { supervivencia: 90, socializacion: 80, proposito: 70, miedo: 20 },
         skills: {
           hunting: 30,
           gathering: 30,

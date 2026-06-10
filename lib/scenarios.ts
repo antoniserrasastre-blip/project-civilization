@@ -78,6 +78,11 @@ export function applyScenario(npc: NPC, scenarioId: ScenarioId): NPC {
   );
   return {
     ...npc,
-    stats: { supervivencia: sv, socializacion: so },
+    stats: {
+      supervivencia: sv,
+      socializacion: so,
+      proposito: npc.stats.proposito,
+      miedo: npc.stats.miedo,
+    },
   };
 }

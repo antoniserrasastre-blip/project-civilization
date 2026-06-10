@@ -135,7 +135,10 @@ export function tickHarvests(
       if (npc.vocation === 'simplezas' && (skillToGain === 'gathering' || skillToGain === 'fishing')) learningMult += 0.5;
 
       const xpGain = 0.05 * learningMult;
-      npc.skills[skillToGain] = Math.min(100, npc.skills[skillToGain] + xpGain);
+      // Memoria Mecánica v2: las skills ALMACENADAS jamás incluyen bonos de
+      // memoria (el bonus es transitorio vía effectiveSkill en el punto de uso).
+      const newVal = npc.skills[skillToGain] + xpGain;
+      npc.skills[skillToGain] = Math.min(100, Math.max(0, Math.round(newVal)));
 
       // EVOLUCIÓN DE ARTEFACTO (XP por uso)
       if (npc.equippedItemId) {

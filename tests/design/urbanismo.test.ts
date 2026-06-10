@@ -11,7 +11,7 @@
 import { describe, it, expect } from 'vitest';
 import { cohesionMultiplier, COHESION_RADIUS, EXCLUSION_RADIUS } from '@/lib/village-siting';
 import { tickHarvests } from '@/lib/harvest';
-import { makeTestNPC } from '@/lib/npcs';
+import { makeTestNPC } from '@/tests/helpers/npc-fixtures';
 import { RESOURCE, emptyWorldMap, TILE, type ResourceSpawn } from '@/lib/world-state';
 import { CRAFTABLE } from '@/lib/crafting';
 import type { Structure } from '@/lib/structures';
@@ -64,7 +64,7 @@ describe('Despensa — bonus de capacidad de inventario en radio 5', () => {
     const npcNear = makeTestNPC({
       id: 'near',
       position: { x: 10, y: 13 },
-      stats: { supervivencia: 90, socializacion: 80 },
+      stats: { supervivencia: 90, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const spawn: ResourceSpawn = {
       id: RESOURCE.BERRY, x: 10, y: 13,
@@ -91,7 +91,7 @@ describe('Despensa — bonus de capacidad de inventario en radio 5', () => {
     const npcFar = makeTestNPC({
       id: 'far',
       position: { x: 10, y: 18 },
-      stats: { supervivencia: 90, socializacion: 80 },
+      stats: { supervivencia: 90, socializacion: 80, proposito: 70, miedo: 20 },
     });
     const spawn: ResourceSpawn = {
       id: RESOURCE.BERRY, x: 10, y: 18,

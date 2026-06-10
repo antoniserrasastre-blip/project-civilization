@@ -28,7 +28,7 @@ import { decideDestination, NEED_THRESHOLDS, carriedFood } from '@/lib/needs';
 import { firstStructureOfKind } from '@/lib/structures';
 import { clanInventoryTotal, CRAFTABLE, RECIPES } from '@/lib/crafting';
 import type { NPC, NPCInventory } from '@/lib/npcs';
-import { RESOURCE, TILE, RESOURCE_LABEL, type TileId } from '@/lib/world-state';
+import { RESOURCE, TILE, RESOURCE_LABEL, type TileId, type ResourceId } from '@/lib/world-state';
 import { buildNpcBiography } from '@/lib/biography';
 import { computeRole } from '@/lib/roles';
 import { itemForNpc, itemLabel } from '@/lib/items';
@@ -72,8 +72,8 @@ function actionForDestination(
   if (fire && destination.x === fire.position.x && destination.y === fire.position.y) return 'vuelve a la fogata';
   const resource = state.world.resources.find(r => r.quantity > 0 && r.x === destination.x && r.y === destination.y);
   if (resource?.id === RESOURCE.WATER) return 'busca agua';
-  if (resource?.id && [RESOURCE.BERRY, RESOURCE.GAME, RESOURCE.FISH].includes(resource.id)) return 'busca comida';
-  if (resource?.id && [RESOURCE.WOOD, RESOURCE.STONE].includes(resource.id)) return 'recolecta para construir';
+  if (resource?.id === RESOURCE.BERRY || resource?.id === RESOURCE.GAME || resource?.id === RESOURCE.FISH) return 'busca comida';
+  if (resource?.id === RESOURCE.WOOD || resource?.id === RESOURCE.STONE) return 'recolecta para construir';
   if (npc.stats.socializacion < NEED_THRESHOLDS.socializacionLow) return 'busca al clan';
   return 'se desplaza';
 }
@@ -379,7 +379,7 @@ export function GameShell({ seed }: GameShellProps) {
                 .filter(([_, amount]) => amount > 0)
                 .map(([id, amount]) => ({
                   id,
-                  name: (RESOURCE_LABEL as Record<string, string>)[id] || id,
+                  name: (RESOURCE_LABEL as Record<ResourceId, string>)[id as ResourceId] || id,
                   amount,
                   icon: `/resources/${id}.svg`,
                   trend: 'stable'
