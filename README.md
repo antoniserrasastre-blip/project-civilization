@@ -4,13 +4,11 @@ Motor determinista de simulación de civilizaciones. El jugador es un dios obser
 
 ## Documentación del Proyecto
 
-- **`vision-primigenia.md`**: Anexo editorial que define la identidad, sistemas base y fases de la era actual.
-- **`ROADMAP.md`**: Fuente de verdad estratégica. Define las fases de desarrollo y criterios de cierre globales.
-- **`SPRINTS.md`**: Cola táctica de ejecución. Contiene los sprints activos y el historial de trabajo.
-- **`DECISIONS-PENDING.md`**: Bandeja de decisiones de diseño pendientes de firma por el Director Creativo.
-- **`CONVENTIONS.md`**: Convenciones técnicas específicas para la arquitectura determinista del proyecto.
-- **`CLAUDE.md`**: Instrucciones maestras para los agentes (Ingeniería, Diseño, Edición, Director).
-- **`CLAUDEDIRECTOR.md`**: Instrucciones específicas para el rol de Director Creativo.
+- **`ROADMAP.md`**: Estado vivo + fuente de verdad estratégica. Qué está hecho y qué falta.
+- **`vision-primigenia.md`**: Anexo editorial que define la identidad, sistemas base y fases de la era actual (durable).
+- **`CLAUDE.md`**: Instrucciones de trabajo para el agente (contratos deterministas §A4, reglas técnicas).
+
+> Tras la "Poda Burocrática" (ver ROADMAP) este proyecto es deliberadamente ligero: tres documentos, sin sprints ni bandejas de decisiones. Si lo lees y no existe, es que se podó a propósito.
 
 ## Metodología
 
