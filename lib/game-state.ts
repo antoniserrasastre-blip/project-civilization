@@ -1,5 +1,5 @@
 import { createFog, markDiscovered, type FogState } from './fog';
-import type { NPC } from './npcs';
+import type { NPC, AssignmentDomain } from './npcs';
 import type { PRNGState } from './prng';
 import { seedState } from './prng';
 import type { BuildProject, Structure } from './structures';
@@ -59,6 +59,23 @@ export interface GameState {
   prng: PRNGState;
   tech: TechState; // Nuevo estado para tecnologías
   climate: ClimateState; // Sistema de Clima y Estaciones
+  /** Máquina de fases línea C (Sprint 02): 'day' = simulación corriendo;
+   *  'preparation' = pausa al anochecer, el jugador asigna designios. */
+  phase: GamePhase;
+  /** false (default) = modo continuo clásico, el anochecer no pausa.
+   *  true = la sim pausa en preparation; el día arranca con applyAssignments. */
+  phasedMode: boolean;
+  /** Historial de designios por día. Partida = seed + este historial. */
+  assignmentsHistory: AssignmentRecord[];
+}
+
+/** Fase del loop línea C. */
+export type GamePhase = 'day' | 'preparation';
+
+/** Registro de un anochecer: qué designios se dieron para el día `day`. */
+export interface AssignmentRecord {
+  day: number;
+  assignments: Record<string, AssignmentDomain>;
 }
 
 /** Construye una partida nueva. Los NPCs llegan drafteados (Sprint
@@ -144,6 +161,9 @@ export function initialGameState(
     prng: seedState(seed),
     tech: initialTechState(), // Inicializar el estado de tecnología
     climate: initialClimateState(),
+    phase: 'day',
+    phasedMode: false,
+    assignmentsHistory: [],
   };
 }
 

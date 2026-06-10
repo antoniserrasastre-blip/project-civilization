@@ -56,6 +56,11 @@ export const ARCHETYPE = {
 
 export type Archetype = (typeof ARCHETYPE)[keyof typeof ARCHETYPE];
 
+/** Dominios de designio del PoC línea C (Sprint 02). Los once dominios de la
+ *  visión quedan como taxonomía aspiracional; aquí solo los 3 validados. */
+export const ASSIGNMENT_DOMAINS = ['recoleccion', 'exploracion', 'construccion'] as const;
+export type AssignmentDomain = (typeof ASSIGNMENT_DOMAINS)[number];
+
 /** Stats individuales 0-100 — §3.3 vision-primigenia. La economía
  *  relacional (tercera dimensión) vive fuera del NPC, en el grafo
  *  `state.relations` (Sprint 4.4). */
@@ -196,6 +201,10 @@ export interface NPC {
   inventory: NPCInventory;
   /** Cultura material — herramienta/reliquia equipada. */
   equippedItemId: string | null;
+  /** Designio divino asignado en la fase de preparación (Sprint 02, línea C).
+   *  Opcional por compatibilidad con saves previos. La modulación de
+   *  comportamiento llega en el sprint 03; aquí solo se almacena/persiste. */
+  designio?: AssignmentDomain | null;
   /** Tick en que se reprodujo por última vez. null = nunca. Cooldown
    *  de reproducción calculado en `lib/reproduction.ts`. */
   lastReproducedTick: number | null;

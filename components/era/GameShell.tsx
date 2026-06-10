@@ -16,6 +16,7 @@ import { DivineLogPanel, type DivineLogEntry } from '@/components/era/DivineLogP
 import { ResourceMonitor } from '@/components/ui/ResourceMonitor';
 import { EurekaToast } from '@/components/ui/EurekaToast';
 import type { GameState } from '@/lib/game-state';
+import { applyAssignments } from '@/lib/dawn';
 import { applyPlayerIntent, type MessageChoice, WHISPER_ES } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import {
@@ -305,6 +306,31 @@ export function GameShell({ seed }: GameShellProps) {
         relations={state.relations} items={state.items} onNpcClick={(id) => setSelectedNpcId(id)}
         initialCenter={spawnCenter} tickIntervalMs={TICK_INTERVAL_MS}
       />
+
+      {/* MÁQUINA DE FASES (línea C, Sprint 02): indicador + toggle + Amanecer.
+          UI mínima de PoC — las cartas de designios llegan en el sprint 04. */}
+      <div className="fixed bottom-4 left-1/2 z-[120] -translate-x-1/2">
+        {state.phase === 'preparation' ? (
+          <div className="pointer-events-auto flex items-center gap-3 border border-amber-700 bg-[#0c0a09]/95 px-4 py-2 shadow-2xl shadow-black/80">
+            <span className="text-amber-400">Anochecer — preparación</span>
+            <button
+              data-testid="dawn-button"
+              className="border border-amber-500 px-3 py-1 text-amber-300 hover:bg-amber-900/40"
+              onClick={() => updateState((s) => applyAssignments(s, {}))}
+            >
+              Amanecer
+            </button>
+          </div>
+        ) : (
+          <button
+            data-testid="phased-mode-toggle"
+            className="pointer-events-auto border border-stone-700 bg-[#0c0a09]/80 px-2 py-1 text-[10px] text-stone-400 hover:text-stone-200"
+            onClick={() => updateState((s) => ({ ...s, phasedMode: !s.phasedMode }))}
+          >
+            Fases: {state.phasedMode ? 'ON' : 'OFF'}
+          </button>
+        )}
+      </div>
 
       {/* CAPA 1: ZONA A (Top Bar) */}
       <HUD

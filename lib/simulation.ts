@@ -16,17 +16,9 @@ import { computeActiveSynergies } from './synergies';
 import { markDiscovered, decodeFogBitmap } from './fog';
 import { tickAnimals } from './animals';
 import type { FogState } from './fog';
-import { evaluateNight } from './nights';
 import { applyFaithDelta, faithPerTick } from './faith';
-import {
-  applyGratitudeDelta,
-  applyGratitudeFromEvent,
-  computeSilenceDrainPerDay,
-  evaluateDawnGratitude,
-  penalizeElegidoDeath,
-  resetGratitudeDailyTracking,
-} from './gratitude';
-import { tickFractures } from './events';
+import { applyGratitudeFromEvent, penalizeElegidoDeath } from './gratitude';
+import { dawn } from './dawn';
 import { firstStructureOfKind, addStructure, type Structure } from './structures';
 import {
   canBuild,
@@ -61,7 +53,6 @@ import {
   computeActiveTraits,
   aggregateBonuses,
 } from './technologies';
-import { tickClimate } from './climate';
 import { recordLegend } from './legends';
 
 const SWIM_TICK_INTERVAL = 3;
@@ -124,42 +115,22 @@ export function makeNpcReachabilityChecker(state: GameState): (from: { x: number
 }
 
 export function tick(state: GameState): GameState {
+  // MÁQUINA DE FASES (línea C, Sprint 02): en preparación la sim está
+  // congelada — el día siguiente arranca SOLO vía applyAssignments (lib/dawn).
+  if (state.phase === 'preparation') return state;
+
   let nextState = state;
 
-  // AMANECER: evaluar gratitud del día anterior, drenar silencio, resetear contadores
-  // Fires at the LAST tick of each day (so loop of TICKS_PER_DAY ticks completes 1 full day)
+  // ANOCHECER: el día se cierra en su último tick. El amanecer completo vive
+  // en lib/dawn.ts (DAWN_PIPELINE — orden blindado como dato, nunca implícito).
   if ((state.tick + 1) % TICKS_PER_DAY === 0 && state.tick > 0) {
-    let v = nextState.village;
-    // Pulso de amanecer: day_without_deaths + day_saciated
-    v = evaluateDawnGratitude(v, v.activeMessage);
-    // Drain por silencio activo (solo si no hay susurro y se agotó la gracia)
-    const drain = computeSilenceDrainPerDay(v);
-    if (drain > 0) v = applyGratitudeDelta(v, -drain);
-    // Decrementar gracia de silencio SOLO si no hay susurro activo
-    if (v.silenceGraceDaysRemaining > 0 && v.activeMessage === null) {
-      v = { ...v, silenceGraceDaysRemaining: v.silenceGraceDaysRemaining - 1 };
+    if (state.phasedMode) {
+      // Pausa al anochecer: el jugador asigna designios en preparación.
+      // El tick NO avanza; applyAssignments correrá dawn y cruzará el límite.
+      return { ...state, phase: 'preparation' };
     }
-    // NOCHES EN FOGATA: evaluar si la noche contó para el monumento
-    const newNightsCount = evaluateNight(nextState.structures, nextState.npcs, v.consecutiveNightsAtFire);
-    v = { ...v, consecutiveNightsAtFire: newNightsCount };
-    // Fricción Divina (Crisis) at dawn — ANTES del reset diario:
-    // tickFractures lee los contadores del día que cierra (events.ts
-    // asume datos pre-reset) y sus grants de gratitud deben contar
-    // contra el cap del día que cierra, no contra el día nuevo.
-    nextState = { ...nextState, village: v };
-    const crisisRes = tickFractures(nextState);
-    nextState = crisisRes.state;
-    // Reset contadores diarios (tras el pulso de crisis)
-    nextState = {
-      ...nextState,
-      village: resetGratitudeDailyTracking(nextState.village),
-    };
-  }
-
-  // Actualización diaria del clima (al final del día)
-  if ((state.tick + 1) % TICKS_PER_DAY === 0) {
-    const { state: nextClimate, next: nextPrng } = tickClimate(state.climate, state.prng);
-    nextState = { ...nextState, climate: nextClimate, prng: nextPrng };
+    // Modo continuo (clásico): el amanecer corre inline y el día cruza solo.
+    nextState = dawn(nextState);
   }
 
   // ACUMULACIÓN DE FE: El clan genera fe según sus seguidores vivos
