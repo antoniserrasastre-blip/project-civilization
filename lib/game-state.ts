@@ -109,11 +109,21 @@ export type GamePhase = 'day' | 'preparation';
  *  Es ESTADO (determinista, serializable) — la UI solo lo pinta. */
 export interface DawnReport {
   day: number;
-  clan: { harvested: number; built: number; discovered: number; deaths: number };
+  clan: {
+    harvested: number;
+    built: number;
+    discovered: number;
+    deaths: number;
+    /** Conexión (Sprint 05): designios cumplidos / dados en el día que cierra. */
+    designiosCumplidos: number;
+    designiosDados: number;
+  };
   npcs: {
     id: string;
     name: string;
     designio: AssignmentDomain | null;
+    /** null ⟺ sin designio ese día; 'cumplido' ⟺ actividad > 0 en su dominio. */
+    cumplido: 'cumplido' | 'fallido' | null;
     harvested: number;
     built: number;
     discovered: number;

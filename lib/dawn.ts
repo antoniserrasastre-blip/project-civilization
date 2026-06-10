@@ -19,7 +19,7 @@
  *   7. clima             — transición climática del nuevo día (consume PRNG)
  */
 
-import type { FeatureFlags, GameState } from './game-state';
+import type { DawnReport, FeatureFlags, GameState } from './game-state';
 import { isFeatureOn } from './game-state';
 import type { NPC, AssignmentDomain } from './npcs';
 import { ASSIGNMENT_DOMAINS } from './npcs';
@@ -38,6 +38,58 @@ import { CRAFTABLE } from './crafting';
 
 /** Designios de un anochecer: npcId → dominio. */
 export type Assignments = Readonly<Record<string, AssignmentDomain>>;
+
+/** Conexión (Sprint 05): dominio del designio → actividad diaria que lo cumple. */
+const DOMINIO_ACTIVIDAD: Record<AssignmentDomain, 'harvested' | 'built' | 'discovered'> = {
+  recoleccion: 'harvested',
+  construccion: 'built',
+  exploracion: 'discovered',
+};
+
+/** Informe del día que cierra (clan + por-NPC + cumplimiento de designios).
+ *  Puro; lee dailyActivity, así que debe correr ANTES de reset-diario. Lo usan
+ *  el paso 'informe-amanecer' y el boundary del anochecer en tick() (phasedMode):
+ *  la pantalla de preparación habla del día que ACABA de cerrar, no del anterior. */
+export function computeDawnReport(state: GameState): DawnReport {
+  const day = Math.floor(state.tick / TICKS_PER_DAY);
+  const alive = state.npcs.filter((n) => n.alive);
+  const npcs = alive.map((n) => {
+    const designio = n.designio ?? null;
+    const hecho = {
+      harvested: n.dailyActivity?.harvested ?? 0,
+      built: n.dailyActivity?.built ?? 0,
+      discovered: n.dailyActivity?.discovered ?? 0,
+    };
+    // Conexión (Sprint 05): ¿cumplió el designio? Solo cuenta la
+    // actividad en SU dominio; sin designio → null (no 'fallido').
+    const cumplido =
+      designio === null
+        ? null
+        : hecho[DOMINIO_ACTIVIDAD[designio]] > 0
+          ? ('cumplido' as const)
+          : ('fallido' as const);
+    return { id: n.id, name: n.name, designio, cumplido, ...hecho };
+  });
+  const clan = npcs.reduce(
+    (acc, n) => ({
+      harvested: acc.harvested + n.harvested,
+      built: acc.built + n.built,
+      discovered: acc.discovered + n.discovered,
+      deaths: acc.deaths,
+      designiosCumplidos: acc.designiosCumplidos + (n.cumplido === 'cumplido' ? 1 : 0),
+      designiosDados: acc.designiosDados + (n.designio !== null ? 1 : 0),
+    }),
+    {
+      harvested: 0,
+      built: 0,
+      discovered: 0,
+      deaths: state.village.dailyDeaths || 0,
+      designiosCumplidos: 0,
+      designiosDados: 0,
+    },
+  );
+  return { day, clan, npcs };
+}
 
 export interface DawnStep {
   name: string;
@@ -105,26 +157,7 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
     // cierra (clan + por-NPC: designio asignado vs hecho). Es ESTADO — la UI
     // (04b) solo lo pinta. Corre ANTES de reset-diario (lee dailyActivity).
     run(state) {
-      const day = Math.floor(state.tick / TICKS_PER_DAY);
-      const alive = state.npcs.filter((n) => n.alive);
-      const npcs = alive.map((n) => ({
-        id: n.id,
-        name: n.name,
-        designio: n.designio ?? null,
-        harvested: n.dailyActivity?.harvested ?? 0,
-        built: n.dailyActivity?.built ?? 0,
-        discovered: n.dailyActivity?.discovered ?? 0,
-      }));
-      const clan = npcs.reduce(
-        (acc, n) => ({
-          harvested: acc.harvested + n.harvested,
-          built: acc.built + n.built,
-          discovered: acc.discovered + n.discovered,
-          deaths: acc.deaths,
-        }),
-        { harvested: 0, built: 0, discovered: 0, deaths: state.village.dailyDeaths || 0 },
-      );
-      return { ...state, dawnReport: { day, clan, npcs } };
+      return { ...state, dawnReport: computeDawnReport(state) };
     },
   },
   {
@@ -181,21 +214,23 @@ export function applyAssignments(state: GameState, assignments: Assignments): Ga
     valid[npcId] = domain;
   }
 
-  const npcs: NPC[] = state.npcs.map((n) =>
+  // El amanecer corre ANTES de sobreescribir designios: el informe del día
+  // que cierra lee los designios que estuvieron ACTIVOS ese día, no los de
+  // mañana (Conexión, Sprint 05). Consume el tick del anochecer.
+  const dawned = dawn(state);
+
+  const npcs: NPC[] = dawned.npcs.map((n) =>
     valid[n.id] !== undefined ? { ...n, designio: valid[n.id] } : n,
   );
 
   const day = Math.floor((state.tick + 1) / TICKS_PER_DAY);
-  const withAssignments: GameState = {
-    ...state,
+  return {
+    ...dawned,
     npcs,
     // `?? []`: saves anteriores al Sprint 02 no traen historial (compat).
-    assignmentsHistory: [...(state.assignmentsHistory ?? []), { day, assignments: valid }],
+    assignmentsHistory: [...(dawned.assignmentsHistory ?? []), { day, assignments: valid }],
+    tick: state.tick + 1,
   };
-
-  // El amanecer consume el tick del anochecer: el nuevo día arranca limpio.
-  const dawned = dawn(withAssignments);
-  return { ...dawned, tick: state.tick + 1 };
 }
 
 /**

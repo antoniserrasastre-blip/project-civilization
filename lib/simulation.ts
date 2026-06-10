@@ -18,7 +18,7 @@ import { tickAnimals } from './animals';
 import type { FogState } from './fog';
 import { applyFaithDelta, faithPerTick } from './faith';
 import { applyGratitudeFromEvent, penalizeElegidoDeath } from './gratitude';
-import { dawn } from './dawn';
+import { dawn, computeDawnReport } from './dawn';
 import { firstStructureOfKind, addStructure, type Structure } from './structures';
 import {
   canBuild,
@@ -127,7 +127,10 @@ export function tick(state: GameState): GameState {
     if (state.phasedMode) {
       // Pausa al anochecer: el jugador asigna designios en preparación.
       // El tick NO avanza; applyAssignments correrá dawn y cruzará el límite.
-      return { ...state, phase: 'preparation' };
+      // CONEXIÓN (Sprint 05): el informe del día que ACABA de cerrar se computa
+      // aquí — la pantalla de preparación responde al designio de HOY, no al de
+      // ayer (dailyActivity sigue intacto; el reset llega con el dawn real).
+      return { ...state, dawnReport: computeDawnReport(state), phase: 'preparation' };
     }
     // Modo continuo (clásico): el amanecer corre inline y el día cruza solo.
     nextState = dawn(nextState);

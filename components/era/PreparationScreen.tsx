@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import type { GameState } from '@/lib/game-state';
+import type { DawnReport, GameState } from '@/lib/game-state';
 import type { NPC, AssignmentDomain } from '@/lib/npcs';
 import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
 import { TICKS_PER_DAY } from '@/lib/resources';
@@ -42,6 +42,20 @@ function dominantSkill(npc: NPC): string {
 
 function ageDays(npc: NPC, tick: number): number {
   return Math.max(0, Math.floor((tick - npc.birthTick) / TICKS_PER_DAY));
+}
+
+/** La voz del clan (CONEXIÓN, sprint 05): el informe le habla AL dios en 2ª
+ *  persona sobre SUS designios. Plantillas deterministas sobre el estado —
+ *  el LLM no pinta nada aquí. */
+function vozDelClan(report: DawnReport): { frase: string; fallos: string[] } {
+  const { designiosCumplidos: c, designiosDados: d } = report.clan;
+  const fallos = report.npcs
+    .filter((n) => n.cumplido === 'fallido')
+    .map((n) => `${n.name} no pudo con ${DOMAIN_LABEL[n.designio!].toLowerCase()}`);
+  if (d === 0) return { frase: 'No nos diste designio. El clan siguió su instinto.', fallos };
+  if (c === d) return { frase: 'Hicimos lo que pediste. Todos tus designios se cumplieron.', fallos };
+  if (c === 0) return { frase: 'Te fallamos: ninguno de tus designios se cumplió.', fallos };
+  return { frase: `Cumplimos ${c} de tus ${d} designios. Te fallamos en el resto.`, fallos };
 }
 
 export function PreparationScreen({
@@ -82,19 +96,34 @@ export function PreparationScreen({
             <p className="text-stone-500">Primera noche: aún no hay día que contar.</p>
           ) : (
             <>
+              {(() => {
+                const voz = vozDelClan(report);
+                return (
+                  <blockquote data-testid="voz-del-clan" className="mb-4 border-l-2 border-amber-700 pl-3 text-sm italic text-amber-200">
+                    «{voz.frase}»
+                    {voz.fallos.map((f) => (
+                      <span key={f} className="block text-xs not-italic text-red-400">— {f}</span>
+                    ))}
+                  </blockquote>
+                );
+              })()}
               <ul className="mb-4 space-y-1 text-sm">
                 <li>Día {report.day}: recolectado {report.clan.harvested} · obra {report.clan.built} · descubierto {report.clan.discovered} tiles</li>
                 {report.clan.deaths > 0 && <li className="text-red-400">Muertes: {report.clan.deaths}</li>}
               </ul>
               <table className="w-full text-left text-xs">
                 <thead className="text-stone-500">
-                  <tr><th>Quién</th><th>Designio</th><th>Hecho</th></tr>
+                  <tr><th>Quién</th><th>Tu designio</th><th>Hecho</th></tr>
                 </thead>
                 <tbody>
                   {report.npcs.map((n) => (
                     <tr key={n.id} className="border-t border-stone-800/60">
                       <td className="py-1">{n.name}</td>
-                      <td>{n.designio ? DOMAIN_LABEL[n.designio] : '—'}</td>
+                      <td>
+                        {n.designio ? DOMAIN_LABEL[n.designio] : '—'}
+                        {n.cumplido === 'cumplido' && <span className="text-emerald-400"> ✓</span>}
+                        {n.cumplido === 'fallido' && <span className="text-red-400"> ✗</span>}
+                      </td>
                       <td>{n.harvested > 0 && `rec ${n.harvested} `}{n.built > 0 && `obra ${n.built} `}{n.discovered > 0 && `expl ${n.discovered}`}{n.harvested + n.built + n.discovered === 0 && '·'}</td>
                     </tr>
                   ))}
