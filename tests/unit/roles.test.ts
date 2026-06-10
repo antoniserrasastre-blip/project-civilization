@@ -71,7 +71,7 @@ describe('computeRole — derivación pura', () => {
     const npc = makeTestNPC({
       id: 'n1',
       casta: CASTA.ELEGIDO,
-      skills: { hunting: 10, gathering: 10, crafting: 10, fishing: 10, healing: 70 },
+      skills: { hunting: 10, gathering: 10, crafting: 10, fishing: 10, healing: 70 , exploration: 10 },
       equippedItemId: item.id,
     });
     expect(computeRole(npc, item)).toBe(ROLE.CURANDERO);
@@ -81,7 +81,7 @@ describe('computeRole — derivación pura', () => {
     const item = createItem(ITEM_KIND.SPEAR, 'n1', 0);
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 , exploration: 10 },
       equippedItemId: item.id,
     });
     expect(computeRole(npc, item)).toBe(ROLE.CAZADOR);
@@ -90,7 +90,7 @@ describe('computeRole — derivación pura', () => {
   it('RASTREADOR cuando hunting alto pero sin lanza', () => {
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 55, gathering: 10, crafting: 10, fishing: 20, healing: 10 },
+      skills: { hunting: 55, gathering: 10, crafting: 10, fishing: 20, healing: 10 , exploration: 10 },
       equippedItemId: null,
     });
     expect(computeRole(npc, null)).toBe(ROLE.RASTREADOR);
@@ -100,7 +100,7 @@ describe('computeRole — derivación pura', () => {
     const item = createItem(ITEM_KIND.HAND_AXE, 'n1', 0);
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 10, gathering: 30, crafting: 70, fishing: 10, healing: 10 },
+      skills: { hunting: 10, gathering: 30, crafting: 70, fishing: 10, healing: 10 , exploration: 10 },
       equippedItemId: item.id,
     });
     expect(computeRole(npc, item)).toBe(ROLE.TALLADOR);
@@ -110,7 +110,7 @@ describe('computeRole — derivación pura', () => {
     const item = createItem(ITEM_KIND.BONE_NEEDLE, 'n1', 0);
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 10, gathering: 20, crafting: 65, fishing: 10, healing: 10 },
+      skills: { hunting: 10, gathering: 20, crafting: 65, fishing: 10, healing: 10 , exploration: 10 },
       equippedItemId: item.id,
     });
     expect(computeRole(npc, item)).toBe(ROLE.TEJEDOR);
@@ -119,7 +119,7 @@ describe('computeRole — derivación pura', () => {
   it('PESCADOR cuando fishing domina', () => {
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 20, gathering: 20, crafting: 10, fishing: 65, healing: 10 },
+      skills: { hunting: 20, gathering: 20, crafting: 10, fishing: 65, healing: 10 , exploration: 10 },
       equippedItemId: null,
     });
     expect(computeRole(npc, null)).toBe(ROLE.PESCADOR);
@@ -128,7 +128,7 @@ describe('computeRole — derivación pura', () => {
   it('RECOLECTOR como fallback (skills planos)', () => {
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 20, gathering: 20, crafting: 20, fishing: 20, healing: 20 },
+      skills: { hunting: 20, gathering: 20, crafting: 20, fishing: 20, healing: 20 , exploration: 10 },
       equippedItemId: null,
     });
     expect(computeRole(npc, null)).toBe(ROLE.RECOLECTOR);
@@ -137,7 +137,7 @@ describe('computeRole — derivación pura', () => {
   it('RECOLECTOR cuando gathering es el skill más alto', () => {
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 15, gathering: 60, crafting: 15, fishing: 15, healing: 10 },
+      skills: { hunting: 15, gathering: 60, crafting: 15, fishing: 15, healing: 10 , exploration: 10 },
       equippedItemId: null,
     });
     expect(computeRole(npc, null)).toBe(ROLE.RECOLECTOR);
@@ -148,7 +148,7 @@ describe('computeRole — derivación pura', () => {
     const item = createItem(ITEM_KIND.HAND_AXE, 'n1', 0);
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 50, gathering: 10, crafting: 30, fishing: 10, healing: 10 },
+      skills: { hunting: 50, gathering: 10, crafting: 30, fishing: 10, healing: 10 , exploration: 10 },
       equippedItemId: item.id,
     });
     expect(computeRole(npc, item)).toBe(ROLE.TALLADOR);
@@ -157,7 +157,7 @@ describe('computeRole — derivación pura', () => {
   it('determinista: misma entrada → mismo rol', () => {
     const npc = makeTestNPC({
       id: 'n1',
-      skills: { hunting: 40, gathering: 30, crafting: 20, fishing: 25, healing: 10 },
+      skills: { hunting: 40, gathering: 30, crafting: 20, fishing: 25, healing: 10 , exploration: 10 },
     });
     const a = computeRole(npc, null);
     const b = computeRole(npc, null);
@@ -168,7 +168,7 @@ describe('computeRole — derivación pura', () => {
     const npc = makeTestNPC({
       id: 'n1',
       alive: false,
-      skills: { hunting: 80, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      skills: { hunting: 80, gathering: 10, crafting: 10, fishing: 10, healing: 10 , exploration: 10 },
     });
     const r = computeRole(npc, null);
     // No se asume cuál — solo que devuelve uno de los 7.

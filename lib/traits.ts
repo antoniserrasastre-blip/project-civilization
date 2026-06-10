@@ -199,6 +199,7 @@ export function applyTraits(npc: NPC, traitIds: TraitId[]): NPC {
   return {
     ...updated,
     skills: {
+      ...updated.skills,
       hunting: Math.max(0, hunting),
       gathering: Math.max(0, gathering),
       crafting: Math.max(0, crafting),

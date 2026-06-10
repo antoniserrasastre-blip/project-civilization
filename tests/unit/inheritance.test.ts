@@ -19,6 +19,7 @@ describe('inheritSkills', () => {
       crafting: 50,
       fishing: 30,
       healing: 10,
+      exploration: 10,
     };
     const p2: NPCSkills = {
       hunting: 40,
@@ -26,6 +27,7 @@ describe('inheritSkills', () => {
       crafting: 30,
       fishing: 10,
       healing: 90,
+      exploration: 10,
     };
     const { skills } = inheritSkills(p1, p2, seedState(42));
     // Media: 50, 50, 40, 20, 50. Jitter ±5 (arriba, aunque redondeo
@@ -43,6 +45,7 @@ describe('inheritSkills', () => {
       crafting: 50,
       fishing: 30,
       healing: 10,
+      exploration: 10,
     };
     const p2: NPCSkills = {
       hunting: 40,
@@ -50,6 +53,7 @@ describe('inheritSkills', () => {
       crafting: 30,
       fishing: 10,
       healing: 90,
+      exploration: 10,
     };
     const a = inheritSkills(p1, p2, seedState(1));
     const b = inheritSkills(p1, p2, seedState(1));
@@ -64,6 +68,7 @@ describe('inheritSkills', () => {
       crafting: 50,
       fishing: 30,
       healing: 80,
+      exploration: 10,
     };
     const p2: NPCSkills = {
       hunting: 30,
@@ -71,6 +76,7 @@ describe('inheritSkills', () => {
       crafting: 10,
       fishing: 90,
       healing: 40,
+      exploration: 10,
     };
     const means = [50, 40, 30, 60, 60];
     const keys: Array<keyof NPCSkills> = [

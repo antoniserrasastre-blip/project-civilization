@@ -8,12 +8,12 @@ import { findPath } from './pathfinding';
 import type { GameState, ChronicleEntry } from './game-state';
 import { CHRONICLE_MAX } from './game-state';
 import type { NPC, NPCInventory } from './npcs';
-import { CASTA, updateNpcStats, VOCATION, accrueSkillXP } from './npcs';
+import { CASTA, updateNpcStats, VOCATION, accrueSkillXP, bumpDailyActivity } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
 import { computeActiveSynergies } from './synergies';
-import { markDiscovered, decodeFogBitmap } from './fog';
+import { markDiscovered, markDiscoveredCount, decodeFogBitmap } from './fog';
 import { tickAnimals } from './animals';
 import type { FogState } from './fog';
 import { applyFaithDelta, faithPerTick } from './faith';
@@ -233,11 +233,17 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
       continue;
     }
 
-    const moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
-    newNPCs.push(moved);
+    let moved: NPC = { ...npc, position: { ...nextStep }, destination: dest };
     const nextIdx = nextStep.y * state.world.width + nextStep.x;
     nextTraffic[nextIdx] = Math.min(1000, (nextTraffic[nextIdx] || 0) + 10);
-    fog = markDiscovered(fog, moved.position.x, moved.position.y, moved.visionRadius);
+    // Sprint 04a: el descubrimiento se atribuye al NPC que lo causa —
+    // alimenta exploration XP y dailyActivity.discovered (informe).
+    const disc = markDiscoveredCount(fog, moved.position.x, moved.position.y, moved.visionRadius);
+    fog = disc.fog;
+    if (disc.newly > 0) {
+      moved = accrueSkillXP(bumpDailyActivity(moved, 'discovered', disc.newly), 'exploration', disc.newly);
+    }
+    newNPCs.push(moved);
   }
 
   return { ...state, npcs: newNPCs, fog, prng: currentPrng, world: { ...state.world, traffic: nextTraffic } };
@@ -680,7 +686,7 @@ function tryAutoBuild(state: GameState): GameState {
         // XP por actividad (Sprint 03): centésimas enteras al acumulador
         // (consolidación al amanecer). Mata el float `crafting + 0.05` (§A4).
         const updated = updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 });
-        return accrueSkillXP(updated, 'crafting', Math.round(5 * learningMult));
+        return bumpDailyActivity(accrueSkillXP(updated, 'crafting', Math.round(5 * learningMult)), 'built', 1);
       }
       return n;
     });

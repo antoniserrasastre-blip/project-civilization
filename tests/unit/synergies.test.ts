@@ -26,28 +26,28 @@ const pescador = (id: string) =>
   makeTestNPC({
     id,
     archetype: ARCHETYPE.PESCADOR,
-    skills: { hunting: 5, gathering: 5, crafting: 5, fishing: 50, healing: 5 },
+    skills: { hunting: 5, gathering: 5, crafting: 5, fishing: 50, healing: 5 , exploration: 10 },
   });
 
 const cazador = (id: string) =>
   makeTestNPC({
     id,
     archetype: ARCHETYPE.CAZADOR,
-    skills: { hunting: 50, gathering: 5, crafting: 5, fishing: 5, healing: 5 },
+    skills: { hunting: 50, gathering: 5, crafting: 5, fishing: 5, healing: 5 , exploration: 10 },
   });
 
 const curandero = (id: string) =>
   makeTestNPC({
     id,
     archetype: ARCHETYPE.CURANDERO,
-    skills: { hunting: 5, gathering: 5, crafting: 5, fishing: 5, healing: 50 },
+    skills: { hunting: 5, gathering: 5, crafting: 5, fishing: 5, healing: 50 , exploration: 10 },
   });
 
 const artesano = (id: string) =>
   makeTestNPC({
     id,
     archetype: ARCHETYPE.ARTESANO,
-    skills: { hunting: 5, gathering: 5, crafting: 50, fishing: 5, healing: 5 },
+    skills: { hunting: 5, gathering: 5, crafting: 50, fishing: 5, healing: 5 , exploration: 10 },
   });
 
 // ── Catálogo ────────────────────────────────────────────────────────────

@@ -159,6 +159,7 @@ export function applySynergyModifiers(npc: NPC, synergies: readonly ActiveSynerg
   return {
     ...updated,
     skills: {
+      ...updated.skills,
       hunting:  Math.max(0, Math.min(200, hunting)),
       gathering: Math.max(0, Math.min(200, gathering)),
       crafting:  Math.max(0, Math.min(200, crafting)),

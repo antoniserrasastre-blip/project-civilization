@@ -72,6 +72,17 @@ export function markDiscovered(
   cy: number,
   radius: number,
 ): FogState {
+  return markDiscoveredCount(fog, cx, cy, radius).fog;
+}
+
+/** Como markDiscovered, pero devuelve además cuántos tiles eran NUEVOS —
+ *  alimenta exploration XP y dailyActivity.discovered (Sprint 04a). */
+export function markDiscoveredCount(
+  fog: FogState,
+  cx: number,
+  cy: number,
+  radius: number,
+): { fog: FogState; newly: number } {
   const bytes = decodeBase64(fog.bitmap);
   // Mutamos una copia del Uint8Array; la serializamos al final.
   const r2 = radius * radius;
@@ -79,14 +90,19 @@ export function markDiscovered(
   const y1 = Math.min(fog.height - 1, cy + radius);
   const x0 = Math.max(0, cx - radius);
   const x1 = Math.min(fog.width - 1, cx + radius);
+  let newly = 0;
   for (let y = y0; y <= y1; y++) {
     const dy = y - cy;
     for (let x = x0; x <= x1; x++) {
       const dx = x - cx;
       if (dx * dx + dy * dy > r2) continue;
       const idx = bitIndex(fog.width, x, y);
-      bytes[idx >> 3] |= 1 << (idx & 7);
+      const mask = 1 << (idx & 7);
+      if ((bytes[idx >> 3] & mask) === 0) {
+        newly++;
+        bytes[idx >> 3] |= mask;
+      }
     }
   }
-  return { width: fog.width, height: fog.height, bitmap: encodeBase64(bytes) };
+  return { fog: { width: fog.width, height: fog.height, bitmap: encodeBase64(bytes) }, newly };
 }

@@ -67,10 +67,27 @@ export interface GameState {
   phasedMode: boolean;
   /** Historial de designios por día. Partida = seed + este historial. */
   assignmentsHistory: AssignmentRecord[];
+  /** Informe del último amanecer (null antes del primero). Opcional (compat). */
+  dawnReport?: DawnReport | null;
 }
 
 /** Fase del loop línea C. */
 export type GamePhase = 'day' | 'preparation';
+
+/** Informe del amanecer (Sprint 04a): qué pasó en el día que cierra.
+ *  Es ESTADO (determinista, serializable) — la UI solo lo pinta. */
+export interface DawnReport {
+  day: number;
+  clan: { harvested: number; built: number; discovered: number; deaths: number };
+  npcs: {
+    id: string;
+    name: string;
+    designio: AssignmentDomain | null;
+    harvested: number;
+    built: number;
+    discovered: number;
+  }[];
+}
 
 /** Registro de un anochecer: qué designios se dieron para el día `day`. */
 export interface AssignmentRecord {
@@ -164,6 +181,7 @@ export function initialGameState(
     phase: 'day',
     phasedMode: false,
     assignmentsHistory: [],
+    dawnReport: null,
   };
 }
 

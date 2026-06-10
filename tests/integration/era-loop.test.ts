@@ -117,8 +117,7 @@ function buildDraftedClan() {
           gathering: 35,
           crafting: 35,
           fishing: 10,
-          healing: 10,
-        },
+          healing: 10, exploration: 10 },
       }),
     );
   }

@@ -278,7 +278,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
-      skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      skills: { hunting: 60, gathering: 10, crafting: 10, fishing: 10, healing: 10 , exploration: 10 },
       equippedItemId: 'item-cazador',
     });
     // Con el item pasado vía ctx.items, la lanza orienta a GAME.
@@ -331,7 +331,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
-      skills: { hunting: 10, gathering: 15, crafting: 10, fishing: 70, healing: 10 },
+      skills: { hunting: 10, gathering: 15, crafting: 10, fishing: 70, healing: 10 , exploration: 10 },
       equippedItemId: null,
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
@@ -362,7 +362,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 10, socializacion: 80, proposito: 70, miedo: 20 }, // crítica
-      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 , exploration: 10 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r.position).toEqual({ x: 8, y: 0 }); // agua, aunque el cazador "quiere" game
@@ -394,7 +394,7 @@ describe('decideDestination — filtro de intención (Sprint 10)', () => {
       id: 'n',
       position: { x: 0, y: 0 },
       stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
-      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 },
+      skills: { hunting: 70, gathering: 10, crafting: 10, fishing: 10, healing: 10 , exploration: 10 },
     });
     const r = decideDestination(npc, mkCtx(world, [npc]));
     expect(r.position).toEqual({ x: 2, y: 0 });

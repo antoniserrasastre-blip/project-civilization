@@ -22,8 +22,7 @@ test.describe('Sabiduría — Generación y Consumo', () => {
           hunting: 10,
           gathering: 10,
           crafting: 10,
-          fishing: 10,
-        },
+          fishing: 10, exploration: 10 },
         stats: { supervivencia: 80, socializacion: 60, proposito: 100, miedo: 0 },
         casta: CASTA.ELEGIDO,
         // inventory will be the default from makeTestNPC (no need for {})
@@ -90,7 +89,7 @@ test.describe('Sabiduría — Generación y Consumo', () => {
     const npcsNoCurandero = [
       makeTestNPC({
         ...baseCurandero,
-        skills: { ...baseCurandero.skills, healing: 20 },
+        skills: { ...baseCurandero.skills, healing: 20, exploration: 10 },
         archetype: ARCHETYPE.RECOLECTOR,
       }),
     ];

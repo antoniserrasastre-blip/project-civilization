@@ -100,7 +100,7 @@ function triggerMigration(state: GameState, prng: PRNGState): GameState {
         genes: makePurifiedGenes(migrantAttributes, migrantLinaje),
         archetype: null,
         stats: { supervivencia: 80, socializacion: 50, proposito: 80, miedo: 20 },
-        skills: { hunting: 15, gathering: 15, crafting: 10, fishing: 10, healing: 5 },
+        skills: { hunting: 15, gathering: 15, crafting: 10, fishing: 10, healing: 5, exploration: 10 },
         visionRadius: 6,
         parents: null,
         traits: [],

@@ -61,13 +61,24 @@ export type Archetype = (typeof ARCHETYPE)[keyof typeof ARCHETYPE];
 export const ASSIGNMENT_DOMAINS = ['recoleccion', 'exploracion', 'construccion'] as const;
 export type AssignmentDomain = (typeof ASSIGNMENT_DOMAINS)[number];
 
-/** Skills que cada designio enfoca (×1.5 XP — Sprint 03). `exploracion →
- *  hunting` es aproximación PoC (rastreo/caza) hasta que exista skill propia. */
+/** Skills que cada designio enfoca (×1.5 XP — Sprint 03; exploration propia
+ *  desde el Sprint 04a). */
 export const DESIGNIO_SKILLS: Record<AssignmentDomain, readonly (keyof NPCSkills)[]> = {
   recoleccion: ['gathering', 'fishing'],
-  exploracion: ['hunting'],
+  exploracion: ['exploration'],
   construccion: ['crafting'],
 };
+
+/** Suma actividad diaria (enteros) en copia del NPC. Puro. */
+export function bumpDailyActivity(
+  npc: NPC,
+  key: 'harvested' | 'built' | 'discovered',
+  n: number,
+): NPC {
+  if (n <= 0) return npc;
+  const d = npc.dailyActivity ?? { harvested: 0, built: 0, discovered: 0 };
+  return { ...npc, dailyActivity: { ...d, [key]: d[key] + n } };
+}
 
 /** Acumula XP de práctica (centésimas enteras) en la copia del NPC, aplicando
  *  el foco del designio. Puro: devuelve NPC nuevo, no muta. */
@@ -97,6 +108,7 @@ export interface NPCStats {
 
 /** Skills individuales (decisión #11: herencia 50%). */
 export interface NPCSkills {
+  exploration: number;
   hunting: number;
   gathering: number;
   crafting: number;
@@ -226,6 +238,9 @@ export interface NPC {
    *  Opcional por compatibilidad con saves previos. Desde el Sprint 03 actúa
    *  como FOCO de aprendizaje (×1.5 XP en las skills de su dominio). */
   designio?: AssignmentDomain | null;
+  /** Actividad del día (Sprint 04a): contadores enteros para el informe del
+   *  amanecer. Reset en el paso 'reset-diario'. Opcional (compat). */
+  dailyActivity?: { harvested: number; built: number; discovered: number };
   /** XP por actividad (Sprint 03): centésimas ENTERAS de skill acumuladas
    *  durante el día. Se consolidan al amanecer (paso 'consolidar-xp' del
    *  DAWN_PIPELINE): skills += floor(xp/100), el resto se conserva.
@@ -283,6 +298,7 @@ export function makeTestNPC(overrides: Partial<NPC> & { id: string }): NPC {
       crafting: 20,
       fishing: 20,
       healing: 20,
+      exploration: 20,
     },
     position: { x: 0, y: 0 },
     visionRadius: 6,

@@ -6,6 +6,7 @@ import type { NPC, NPCInventory, Vocation } from './npcs';
 import { updateNpcStats, VOCATION } from './npcs';
 import {
   RESOURCE,
+  TILE,
   type ResourceId,
   type ResourceSpawn,
   type WorldMap,
@@ -170,6 +171,38 @@ export interface DestinationContext {
 export interface Position { x: number; y: number; }
 export interface DecisionResult { position: Position; next: PRNGState; }
 
+/** Tile NO descubierto más cercano (frontera del fog) — búsqueda por anillos
+ *  crecientes, determinista (orden x→y dentro del anillo), acotada a radio 24.
+ *  Solo tiles transitables y alcanzables. fogBuffer es el bitmap bit-packed. */
+function nearestUndiscoveredTile(
+  from: { x: number; y: number },
+  ctx: DestinationContext,
+): { x: number; y: number } | null {
+  const { width, height, tiles } = ctx.world;
+  const buf = ctx.fogBuffer!;
+  const isDiscovered = (x: number, y: number) => {
+    const idx = y * width + x;
+    return (buf[idx >> 3] & (1 << (idx & 7))) !== 0;
+  };
+  const MAX_R = 24;
+  for (let r = 1; r <= MAX_R; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      const y = from.y + dy;
+      if (y < 0 || y >= height) continue;
+      for (let dx = -r; dx <= r; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; // solo el anillo
+        const x = from.x + dx;
+        if (x < 0 || x >= width) continue;
+        if (isDiscovered(x, y)) continue;
+        if (tiles[y * width + x] === TILE.WATER) continue;
+        if (ctx.isReachable && !ctx.isReachable(from, { x, y })) continue;
+        return { x, y };
+      }
+    }
+  }
+  return null;
+}
+
 export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionResult {
   // SEGURIDAD: Fallback si el PRNG falta (típico en renderizado de UI)
   let currentPrng = ctx.prng || { seed: 1, cursor: (npc.id.length + ctx.currentTick) };
@@ -281,6 +314,27 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
     }
     // Si ya estamos cerca, nos quedamos a escuchar
     return { position: npc.position, next: currentPrng };
+  }
+
+  // DESIGNIO (Sprint 04a, línea C): bias del TIEMPO LIBRE. Las urgencias de
+  // arriba mandan siempre; con las necesidades cubiertas, el designio dirige
+  // a dónde va el NPC. Sin designio → comportamiento idéntico al clásico.
+  if (npc.designio && supervivencia >= NEED_THRESHOLDS.supervivenciaHungry) {
+    if (npc.designio === 'construccion' && ctx.buildSitePosition) {
+      return { position: ctx.buildSitePosition, next: currentPrng };
+    }
+    if (npc.designio === 'recoleccion') {
+      const res = nearestResource(
+        npc.position, ctx.world.resources,
+        rid => isFoodResource(rid) || rid === RESOURCE.WOOD || rid === RESOURCE.STONE,
+        ctx, undefined, id,
+      );
+      if (res) return { position: res, next: currentPrng };
+    }
+    if (npc.designio === 'exploracion' && ctx.fogBuffer) {
+      const frontier = nearestUndiscoveredTile(npc.position, ctx);
+      if (frontier) return { position: frontier, next: currentPrng };
+    }
   }
 
   // 3. PRIORIDAD POR VOCACIÓN (Identidad de IA)

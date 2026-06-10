@@ -136,6 +136,7 @@ function archetypeBaseSkills(arch: Archetype): {
   crafting: number;
   fishing: number;
   healing: number;
+  exploration: number;
 } {
   const base = {
     hunting: 10,
@@ -143,6 +144,7 @@ function archetypeBaseSkills(arch: Archetype): {
     crafting: 10,
     fishing: 10,
     healing: 10,
+    exploration: 10,
   };
   switch (arch) {
     case ARCHETYPE.CAZADOR:
@@ -397,6 +399,7 @@ export interface FollowerCandidate {
     crafting: number;
     fishing: number;
     healing: number;
+    exploration: number;
   };
   tier: FollowerTierLabel;
 }
@@ -484,6 +487,7 @@ export function generateCandidates(
         crafting: sk3.value,
         fishing: sk4.value,
         healing: sk5.value,
+        exploration: 10,
       },
       tier,
     });

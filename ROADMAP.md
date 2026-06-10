@@ -27,8 +27,12 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
   intra-día (harvest + construcción — muertos el redondeo y el float §A4); consolidación al
   amanecer (paso `consolidar-xp`); designio = foco ×1.5 en su dominio. Muerte social ya no es
   instantánea (3 amaneceres de tensión). Modelo completo: skill_efectiva = base(+xp) ± memoria.
-- [ ] **Sprint 04 — UI de preparación**: cartas de NPC + informe del amanecer (plan vs
-  resultado) + movimiento modulado por designio (visible en mapa) + e2e wisdom real.
+- [x] **Sprint 04a — Informe + designios en el mapa (sim-side)**: skill `exploration` propia,
+  `dailyActivity` por NPC, `DawnReport` como estado (paso `informe-amanecer` real), movimiento
+  por designio = bias del tiempo libre (las urgencias mandan; sin designio → byte-idéntico).
+- [ ] **Sprint 04b — UI de preparación**: pantalla de preparación (informe + grid de cartas +
+  selector de designio + Amanecer), e2e wisdom real + e2e del ciclo completo. Tras cerrar:
+  validación de los 10 días ("¿el día 11 te apetece?").
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual

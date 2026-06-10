@@ -3,7 +3,7 @@
  */
 
 import type { NPC } from './npcs';
-import { accrueSkillXP } from './npcs';
+import { accrueSkillXP, bumpDailyActivity } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
@@ -139,8 +139,9 @@ export function tickHarvests(
       // skills almacenadas no cambian intra-día (consolidación al amanecer).
       // 5 = 0.05 skill/práctica en centésimas; designio = foco ×1.5.
       const xpCentesimas = Math.round(5 * learningMult);
-      const accrued = accrueSkillXP(npc, skillToGain, xpCentesimas);
+      const accrued = bumpDailyActivity(accrueSkillXP(npc, skillToGain, xpCentesimas), 'harvested', amountToHarvest);
       npc.skillXP = accrued.skillXP;
+      npc.dailyActivity = accrued.dailyActivity;
 
       // EVOLUCIÓN DE ARTEFACTO (XP por uso)
       if (npc.equippedItemId) {

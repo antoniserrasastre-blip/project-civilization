@@ -96,16 +96,43 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
   },
   {
     name: 'informe-amanecer',
-    // Stub — Sprint 04: genera el informe plan-vs-resultado que la UI de
-    // preparación muestra al jugador (el espejo del hook "ver que se cumple").
+    // Sprint 04a: el espejo del hook "ver que se cumple". Informe del día que
+    // cierra (clan + por-NPC: designio asignado vs hecho). Es ESTADO — la UI
+    // (04b) solo lo pinta. Corre ANTES de reset-diario (lee dailyActivity).
     run(state) {
-      return state;
+      const day = Math.floor(state.tick / TICKS_PER_DAY);
+      const alive = state.npcs.filter((n) => n.alive);
+      const npcs = alive.map((n) => ({
+        id: n.id,
+        name: n.name,
+        designio: n.designio ?? null,
+        harvested: n.dailyActivity?.harvested ?? 0,
+        built: n.dailyActivity?.built ?? 0,
+        discovered: n.dailyActivity?.discovered ?? 0,
+      }));
+      const clan = npcs.reduce(
+        (acc, n) => ({
+          harvested: acc.harvested + n.harvested,
+          built: acc.built + n.built,
+          discovered: acc.discovered + n.discovered,
+          deaths: acc.deaths,
+        }),
+        { harvested: 0, built: 0, discovered: 0, deaths: state.village.dailyDeaths || 0 },
+      );
+      return { ...state, dawnReport: { day, clan, npcs } };
     },
   },
   {
     name: 'reset-diario',
     run(state) {
-      return { ...state, village: resetGratitudeDailyTracking(state.village) };
+      // Limpia contadores diarios de aldea y de NPCs (dailyActivity se borra
+      // como clave — round-trip JSON limpio, no undefined almacenado).
+      const npcs = state.npcs.map((n) => {
+        if (!n.dailyActivity) return n;
+        const { dailyActivity: _drop, ...rest } = n;
+        return rest;
+      });
+      return { ...state, npcs, village: resetGratitudeDailyTracking(state.village) };
     },
   },
   {
