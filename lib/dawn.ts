@@ -19,7 +19,8 @@
  *   7. clima             — transición climática del nuevo día (consume PRNG)
  */
 
-import type { GameState } from './game-state';
+import type { FeatureFlags, GameState } from './game-state';
+import { isFeatureOn } from './game-state';
 import type { NPC, AssignmentDomain } from './npcs';
 import { ASSIGNMENT_DOMAINS } from './npcs';
 import { TICKS_PER_DAY } from './resources';
@@ -40,6 +41,9 @@ export type Assignments = Readonly<Record<string, AssignmentDomain>>;
 
 export interface DawnStep {
   name: string;
+  /** Flag que gobierna el paso (Sprint 05). OFF → el paso NO corre (se salta
+   *  entero, ni avanza prng). Sin flag = paso núcleo, corre siempre. */
+  feature?: keyof FeatureFlags;
   run(state: GameState): GameState;
 }
 
@@ -65,6 +69,7 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
   },
   {
     name: 'friccion-divina',
+    feature: 'fractures',
     run(state) {
       return tickFractures(state).state;
     },
@@ -137,6 +142,7 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
   },
   {
     name: 'clima',
+    feature: 'climate',
     run(state) {
       const { state: climate, next: prng } = tickClimate(state.climate, state.prng);
       return { ...state, climate, prng };
@@ -149,6 +155,7 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
 export function dawn(state: GameState): GameState {
   let s = state;
   for (const step of DAWN_PIPELINE) {
+    if (step.feature && !isFeatureOn(s, step.feature)) continue;
     s = step.run(s);
   }
   return { ...s, phase: 'day' };

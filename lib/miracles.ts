@@ -9,7 +9,7 @@
 
 import { spendGratitude } from './gratitude';
 import type { GameState } from './game-state';
-import type { NPC } from './npcs';
+import { isFeatureOn } from './game-state';
 
 export const MIRACLE = {
   HAMBRE_SAGRADA: 'hambre_sagrada',
@@ -80,6 +80,8 @@ export function grantMiracle(
   npcId: string,
   miracleId: MiracleId,
 ): GameState {
+  // Flag apagado no es input inválido: no-op puro, jamás throw (Sprint 05).
+  if (!isFeatureOn(state, 'miracles')) return state;
   const miracle = MIRACLES_CATALOG[miracleId];
   if (!miracle) throw new Error(`milagro inválido: ${miracleId}`);
   const npcIdx = state.npcs.findIndex((n) => n.id === npcId);
@@ -108,6 +110,7 @@ export function canGrantMiracle(
   npcId: string,
   miracleId: MiracleId,
 ): boolean {
+  if (!isFeatureOn(state, 'miracles')) return false;
   const miracle = MIRACLES_CATALOG[miracleId];
   if (!miracle) return false;
   const npc = state.npcs.find((n) => n.id === npcId);

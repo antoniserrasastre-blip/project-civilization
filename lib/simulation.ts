@@ -6,7 +6,7 @@ import { decideDestination, tickNeeds, NEED_THRESHOLDS, carriedFood, type Destin
 import { findBuildSite, cohesionMultiplier } from './village-siting';
 import { findPath } from './pathfinding';
 import type { GameState, ChronicleEntry } from './game-state';
-import { CHRONICLE_MAX } from './game-state';
+import { CHRONICLE_MAX, isFeatureOn } from './game-state';
 import type { NPC, NPCInventory } from './npcs';
 import { CASTA, updateNpcStats, VOCATION, accrueSkillXP, bumpDailyActivity } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
@@ -143,7 +143,7 @@ export function tick(state: GameState): GameState {
   const fogBuffer = decodeFogBitmap(state.fog.bitmap);
   nextState = tickMovement(nextState, fogBuffer);
   nextState = tickWorldSystems(nextState);
-  nextState = tickAnimals(nextState);
+  if (isFeatureOn(nextState, 'animals')) nextState = tickAnimals(nextState);
   nextState = tickClanSystems(nextState, fogBuffer);
   nextState = tickDevelopment(nextState);
   nextState = tickCultureAndSocial(nextState, state);
@@ -250,8 +250,12 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
 }
 
 function tickWorldSystems(state: GameState): GameState {
+  // influence OFF solo apaga el recálculo de influencia; los recursos
+  // (núcleo) siguen corriendo con el mapa de influencia que ya había.
   const influenceSources = state.structures.map(s => ({ position: s.position, kind: s.kind }));
-  const nextInfluence = tickInfluence(state.world.influence || [], state.npcs, state.world.width, state.world.height, influenceSources);
+  const nextInfluence = isFeatureOn(state, 'influence')
+    ? tickInfluence(state.world.influence || [], state.npcs, state.world.width, state.world.height, influenceSources)
+    : (state.world.influence || []);
   const nextResources = tickResources(state.world.resources, state.tick, nextInfluence, state.world.width, state.world.reserves || [], state.climate);
   return { ...state, world: { ...state.world, influence: nextInfluence, resources: nextResources.resources, reserves: nextResources.reserves } };
 }
@@ -364,7 +368,7 @@ function tickClanSystems(state: GameState, fogBuffer: Uint8Array): GameState {
 
 function tickDevelopment(state: GameState): GameState {
   let nextState = tryAutoBuild(state);
-  nextState = tryAutoCraftItems(nextState);
+  if (isFeatureOn(nextState, 'items')) nextState = tryAutoCraftItems(nextState);
   nextState = tickTech(nextState); // Activar investigación
   return nextState;
 }
@@ -501,6 +505,8 @@ function tryAutoCraftItems(state: GameState): GameState {
 
 function tickCultureAndSocial(state: GameState, prevState: GameState): GameState {
   let { npcs, items, chronicle, village, prng, world, legends } = state;
+  // legends OFF → no se registran leyendas nuevas (y no se consume su prng).
+  const legendsOn = isFeatureOn(state, 'legends');
   const nextTags = { ...(world.terrainTags || {}) };
   for (const prev of prevState.npcs) {
     if (!prev.alive) continue;
@@ -525,10 +531,12 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
       if (prev.casta === CASTA.ELEGIDO) village = penalizeElegidoDeath(village);
 
       // LEYENDA: Muerte de un miembro
-      const ent = { id: cur.id, name: cur.name, type: 'npc' as const, description: 'Miembro del clan' };
-      const legendResult = recordLegend(legends, [ent], 'partió hacia el descanso eterno', state.tick, prng);
-      legends = legendResult.state;
-      prng = legendResult.next;
+      if (legendsOn) {
+        const ent = { id: cur.id, name: cur.name, type: 'npc' as const, description: 'Miembro del clan' };
+        const legendResult = recordLegend(legends, [ent], 'partió hacia el descanso eterno', state.tick, prng);
+        legends = legendResult.state;
+        prng = legendResult.next;
+      }
     }
   }
 
@@ -560,7 +568,7 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
   }
 
   // LEYENDA: Nuevas herramientas maestras
-  for (const item of items) {
+  for (const item of legendsOn ? items : []) {
     const prevItem = prevState.items.find(i => i.id === item.id);
     if (item.rank === 'masterwork' && (!prevItem || prevItem.rank !== 'masterwork')) {
       const maker = npcs.find(n => n.id === item.makerId);
@@ -574,20 +582,23 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
     }
   }
 
-  const repro = tickReproduction(npcs, state.tick, prng, new Set(npcs.map(n => n.name)), world.traditions);
-  npcs = repro.npcs; prng = repro.prng;
-  for (const born of repro.newBorns) {
-    const entry = narrate({ type: 'birth', childName: born.name, parents: born.parents as [string, string], tick: state.tick });
-    chronicle = addChronicleEntry(chronicle, entry, state.tick);
+  if (isFeatureOn(state, 'reproduction')) {
+    const repro = tickReproduction(npcs, state.tick, prng, new Set(npcs.map(n => n.name)), world.traditions);
+    npcs = repro.npcs; prng = repro.prng;
+    for (const born of repro.newBorns) {
+      const entry = narrate({ type: 'birth', childName: born.name, parents: born.parents as [string, string], tick: state.tick });
+      chronicle = addChronicleEntry(chronicle, entry, state.tick);
 
-    // LEYENDA: Nacimiento
-    const entities = [
-      { id: born.id, name: born.name, type: 'npc' as const, description: 'Recién nacido' },
-      { id: 'clan', name: 'el Clan', type: 'npc' as const, description: 'Nuestra estirpe' }
-    ];
-    const legendResult = recordLegend(legends, entities, 'trajo nueva esperanza al', state.tick, prng);
-    legends = legendResult.state;
-    prng = legendResult.next;
+      // LEYENDA: Nacimiento
+      if (!legendsOn) continue;
+      const entities = [
+        { id: born.id, name: born.name, type: 'npc' as const, description: 'Recién nacido' },
+        { id: 'clan', name: 'el Clan', type: 'npc' as const, description: 'Nuestra estirpe' }
+      ];
+      const legendResult = recordLegend(legends, entities, 'trajo nueva esperanza al', state.tick, prng);
+      legends = legendResult.state;
+      prng = legendResult.next;
+    }
   }
   return { ...state, npcs, items, chronicle, village, prng, legends, world: { ...world, terrainTags: nextTags } };
 }

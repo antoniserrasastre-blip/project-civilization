@@ -20,6 +20,35 @@ export type { TechState };
 
 export type Era = 'primigenia' | 'tribal';
 
+/** Flags por subsistema — Sprint 05 "El Laboratorio". Cada flag OFF apaga
+ *  SU subsistema y nada más. Ausente ≡ todo ON (compat saves viejos). */
+export interface FeatureFlags {
+  climate: boolean;
+  animals: boolean;
+  reproduction: boolean;
+  items: boolean;
+  legends: boolean;
+  miracles: boolean;
+  influence: boolean;
+  fractures: boolean;
+}
+
+export const DEFAULT_FEATURES: FeatureFlags = {
+  climate: true,
+  animals: true,
+  reproduction: true,
+  items: true,
+  legends: true,
+  miracles: true,
+  influence: true,
+  fractures: true,
+};
+
+/** Accessor puro: true si `features` está ausente o la clave no está. */
+export function isFeatureOn(state: GameState, key: keyof FeatureFlags): boolean {
+  return state.features?.[key] ?? true;
+}
+
 /** Entrada persistida de crónica — Memoria Colectiva del clan.
  *  No solo narra, sino que afecta mecánicamente al clan. */
 export interface ChronicleEntry {
@@ -69,6 +98,8 @@ export interface GameState {
   assignmentsHistory: AssignmentRecord[];
   /** Informe del último amanecer (null antes del primero). Opcional (compat). */
   dawnReport?: DawnReport | null;
+  /** Flags por subsistema (Sprint 05). Ausente ≡ DEFAULT_FEATURES (compat). */
+  features?: FeatureFlags;
 }
 
 /** Fase del loop línea C. */
