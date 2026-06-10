@@ -19,8 +19,10 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
 - [x] **Memoria Mecánica v2**: la crónica modula skills de forma TRANSITORIA — `effectiveSkill`
   puro en el punto de uso (harvest/build/decisiones); las skills almacenadas jamás incluyen el
   bonus (`computeMemorySkillBonuses` intacto; `applyMemoryBonusesToSkills` eliminado). §A4.
-- [ ] **Sprint 02 — Máquina de fases**: `phase: day|preparation`, `applyAssignments` puro
-  (3 dominios), pipeline del amanecer explícito de orden fijo. Spec aprobada en el nodo ICM.
+- [x] **Sprint 02 — Máquina de fases**: `phase: day|preparation` (+`phasedMode` compat),
+  `applyAssignments` puro (3 dominios), pipeline del amanecer explícito (`DAWN_PIPELINE`,
+  orden como dato), historial de designios (partida = seed + historial), UI mínima
+  (toggle Fases + botón Amanecer). 16 tests de diseño; ciclo de 5 días byte-idéntico.
 - [ ] **Sprint 03 — XP por actividad**: progresión ganada consolidada al amanecer
   (`skill_efectiva = base + xp ± memoria`). Incluye arreglar el XP de práctica muerto por
   redondeo en harvest, la semántica de muerte social instantánea y el e2e de wisdom tautológico.
