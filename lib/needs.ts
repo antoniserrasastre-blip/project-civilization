@@ -52,6 +52,11 @@ export const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
 const COOKED_FOOD_MULTIPLIER = 1.5;
 const COOKED_FOOD_SOCIAL_BONUS = 5;
 
+/** Segunda mitad del día = noche. Mismo criterio en destino, miedo y sagas. */
+function isNight(ctx: { currentTick: number; ticksPerDay: number }): boolean {
+  return (ctx.currentTick % ctx.ticksPerDay) > (ctx.ticksPerDay / 2);
+}
+
 function manhattan(ax: number, ay: number, bx: number, by: number): number {
   return Math.abs(ax - bx) + Math.abs(ay - by);
 }
@@ -264,8 +269,13 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
     if (food) return { position: food, next: currentPrng };
 
     // Si no hay comida visible y está hambriento, explorar activamente para encontrarla
+    // — solo de DÍA: de noche nadie busca comida en la oscuridad; se cae a las
+    // ramas de abajo (tradición oral → volver al fuego), que es lo que mantiene
+    // al clan junto en la fogata y el contador de noches acumulando.
+    // Sin fogata aún (días 1-2) no hay fuego al que volver: se sigue forrajeando
+    // también de noche — si no, el hambriento se queda congelado sin ninguna rama.
     // Solo explorar si hay tiles de tierra accesibles fuera de la zona actual
-    if (ctx.world.width > 5 && ctx.world.height > 5) {
+    if ((!isNight(ctx) || !ctx.firePosition) && ctx.world.width > 5 && ctx.world.height > 5) {
       const angle = ((roll * 13) % 100 / 100) * Math.PI * 2;
       const dist = 5;
       const target = {
@@ -306,8 +316,7 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
 
   // TRADICIÓN ORAL (NOCHE): Si es noche y el miedo es bajo, escuchar sagas cerca del fuego
   // La supervivencia (agua, refugio, comida) es lo primero, por eso va después.
-  const isNight = (ctx.currentTick % ctx.ticksPerDay) > (ctx.ticksPerDay / 2);
-  if (isNight && miedo < NEED_THRESHOLDS.miedoHigh && ctx.firePosition) {
+  if (isNight(ctx) && miedo < NEED_THRESHOLDS.miedoHigh && ctx.firePosition) {
     const distToFire = manhattan(npc.position.x, npc.position.y, ctx.firePosition.x, ctx.firePosition.y);
     if (distToFire > 2) {
       return { position: ctx.firePosition, next: currentPrng };
@@ -324,11 +333,28 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
       return { position: ctx.buildSitePosition, next: currentPrng };
     }
     if (npc.designio === 'recoleccion') {
-      const res = nearestResource(
-        npc.position, ctx.world.resources,
-        rid => isFoodResource(rid) || rid === RESOURCE.WOOD || rid === RESOURCE.STONE,
-        ctx, undefined, id,
-      );
+      const isGatherable = (rid: ResourceId) =>
+        isFoodResource(rid) || rid === RESOURCE.WOOD || rid === RESOURCE.STONE;
+      // HISTÉRESIS (fix "sillas musicales", playtest 10-06-2026): si el destino
+      // comprometido sigue siendo un recurso válido con stock, se mantiene.
+      // Sin esto, las reclamaciones de tiles re-repartían los recursos cada
+      // tick y los recolectores oscilaban entre dos objetivos sin llegar a ninguno.
+      // El compromiso se suelta si ya estamos encima con el inventario de ese
+      // tipo lleno (misma salvaguarda que nearestResource): si no, el recolector
+      // queda clavado en el tile cosechando cero en vez de cambiar de recurso.
+      const prev = npc.destination;
+      if (prev) {
+        const stillValid = ctx.world.resources.some((r) => {
+          if (r.x !== prev.x || r.y !== prev.y || r.quantity <= 0 || !isGatherable(r.id)) return false;
+          if (r.x === npc.position.x && r.y === npc.position.y) {
+            const key = resourceInventoryKey(r.id);
+            if (key && npc.inventory[key] >= INVENTORY_CAP_PER_TYPE - 1) return false;
+          }
+          return true;
+        });
+        if (stillValid) return { position: { x: prev.x, y: prev.y }, next: currentPrng };
+      }
+      const res = nearestResource(npc.position, ctx.world.resources, isGatherable, ctx, undefined, id);
       if (res) return { position: res, next: currentPrng };
     }
     if (npc.designio === 'exploracion' && ctx.fogBuffer) {
@@ -527,16 +553,26 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
     
     so = Math.max(0, Math.min(100, so));
 
-    // 4. Miedo (Fear)
+    // 4. Miedo (Fear) — Sprint 05: el miedo tiene ciclo día/noche.
+    // ANTES era un bucle absorbente: sin fogata (dist=50) sumaba +0.15/tick
+    // SIEMPRE → saturaba a 100 el día 1 y la "urgencia suprema" clavaba al
+    // clan en la fogata para siempre (playtest 10-06-2026). AHORA: la noche
+    // lejos del fuego lo alimenta; la LUZ DEL DÍA lo disipa (el sol es
+    // seguridad aunque no haya hogar); el fuego disipa más rápido.
     let fear = n.stats.miedo;
-    const distToFire = ctx.firePosition ? manhattan(npc.position.x, npc.position.y, ctx.firePosition.x, ctx.firePosition.y) : 50;
-    
-    if (distToFire > 12) {
-      fear += 0.15; // Lejos del calor del hogar
+    const distToFire = ctx.firePosition ? manhattan(npc.position.x, npc.position.y, ctx.firePosition.x, ctx.firePosition.y) : Infinity;
+    const isNightForFear = isNight(ctx);
+
+    if (isNightForFear) {
+      if (distToFire > 12) {
+        fear += 0.15; // La oscuridad lejos del hogar alimenta los terrores
+      } else {
+        fear -= 0.4;  // Cerca del fuego hay seguridad
+      }
     } else {
-      fear -= 0.4;  // Cerca del fuego hay seguridad
+      fear -= distToFire <= 12 ? 0.5 : 0.25; // El día disipa; el hogar, más
     }
-    
+
     if (near > 2) fear -= 0.1; // La multitud da valor
     
     // 5. Propósito y Ambición
