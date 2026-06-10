@@ -739,13 +739,15 @@ function tryAutoBuild(state: GameState): GameState {
     }
   }
 
-  // 2. Construcciones nuevas
+  // 2. Construcciones nuevas. El candidato es el primer kind ausente QUE SEA
+  // construible — si solo mirásemos el primero ausente, una fogata sin madera
+  // en el mundo taponaría la cola entera (deadlock de arranque: sin estructura
+  // no hay depósito, los inventarios se capan y la recolección muere).
   const existing = new Set(state.structures.map((s) => s.kind));
   const inv = clanInventoryTotal(state.npcs, state.structures);
-  const kind = BUILD_PRIORITY.find((k) => !existing.has(k));
+  const kind = BUILD_PRIORITY.find((k) => !existing.has(k) && canBuild(RECIPES[k], inv));
   if (!kind) return state;
   const recipe = RECIPES[kind];
-  if (!canBuild(recipe, inv)) return state;
   const { npcs, structures } = consumeForRecipe(state.npcs, recipe, state.structures);
   const anchorNpc = state.npcs.find((n) => n.alive) ?? { position: { x: 0, y: 0 } };
   const buildPos = findBuildSite(state.world, structures, kind, anchorNpc.position);
