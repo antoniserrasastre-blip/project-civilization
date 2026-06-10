@@ -47,6 +47,9 @@ export interface DraftResult {
 interface DraftScreenProps {
   seed: number;
   onStart: (result: DraftResult) => void;
+  /** Quickstart 🔬 Laboratorio: salta el draft entero; el estado lo monta
+   *  lib/laboratorio.ts (32×32, 4 NPCs, subsistemas OFF). */
+  onStartLab?: () => void;
 }
 
 type Phase = 'scenario' | 'geography' | 'blockA' | 'blockB' | 'confirm';
@@ -134,7 +137,7 @@ const BTN = (active: boolean, accent = '#6b5a1f') => ({
   border: `1px solid ${active ? accent : '#2f2f2f'}`,
 });
 
-export function DraftScreen({ seed, onStart }: DraftScreenProps) {
+export function DraftScreen({ seed, onStart, onStartLab }: DraftScreenProps) {
   const [phase, setPhase] = useState<Phase>('scenario');
   const [draft, setDraft] = useState<DraftState>(() => startDraft(seed));
   const [followerDraft, setFollowerDraft] = useState<FollowerDraftState>(() =>
@@ -283,6 +286,32 @@ export function DraftScreen({ seed, onStart }: DraftScreenProps) {
             — INICIO RÁPIDO —
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center', marginBottom: 16 }}>
+            {onStartLab && (
+              <button
+                type="button"
+                data-testid="quickstart-laboratorio"
+                onClick={onStartLab}
+                style={{
+                  background: '#101a14', color: '#f5f5dc',
+                  border: '1px solid #1f4a33', borderRadius: 8,
+                  padding: '10px 14px', cursor: 'pointer',
+                  fontFamily: 'inherit', textAlign: 'left',
+                  width: 200, display: 'flex', flexDirection: 'column', gap: 4,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ fontSize: '0.88rem' }}>🔬 Laboratorio</strong>
+                  <span style={{ fontSize: '0.7rem', color: '#a7f3d0' }}>dev</span>
+                </div>
+                <span style={{ fontSize: '0.72rem', opacity: 0.7, lineHeight: 1.4 }}>
+                  Mundo 32×32, 4 NPCs, solo el núcleo del loop: mover, recolectar,
+                  construir, explorar, designios, amanecer, informe. Lo demás OFF.
+                </span>
+                <span style={{ fontSize: '0.7rem', color: '#a7f3d0', marginTop: 2 }}>
+                  Fases ON · sin clima/animales/milagros
+                </span>
+              </button>
+            )}
             {QUICK_STARTS.map((qs) => (
               <button
                 key={qs.id}

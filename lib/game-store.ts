@@ -3,6 +3,7 @@ import type { GameState } from './game-state';
 import { initialGameState } from './game-state';
 import { makeDefaultClan } from './default-clan';
 import { generateWorld } from './world-gen';
+import { makeLaboratorioState } from './laboratorio';
 
 let simulationWorker: Worker | null = null;
 let isTicking = false;
@@ -32,6 +33,7 @@ interface GameStore {
   // Acciones
   bootstrap: (seed: number) => void;
   initializeFromDraft: (seed: number, mapType: any, npcs: any[]) => void;
+  initializeLaboratorio: (seed: number) => void;
   tick: () => void;
   setPaused: (paused: boolean) => void;
   setIsTabActive: (active: boolean) => void;
@@ -64,9 +66,13 @@ export const useGameStore = create<GameStore>((set, get) => {
 
     initializeFromDraft: (seed: number, mapType: any, npcs: any[]) => {
       const world = generateWorld(seed, { type: mapType });
-      set({ 
-        state: initialGameState(seed, npcs, world, 'stone', { skipSpawning: false }) 
+      set({
+        state: initialGameState(seed, npcs, world, 'stone', { skipSpawning: false })
       });
+    },
+
+    initializeLaboratorio: (seed: number) => {
+      set({ state: makeLaboratorioState(seed) });
     },
 
     tick: () => {

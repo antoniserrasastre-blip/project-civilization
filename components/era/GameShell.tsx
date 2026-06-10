@@ -87,7 +87,7 @@ export interface GameShellProps {
 }
 
 export function GameShell({ seed }: GameShellProps) {
-  const { state, paused, isTabActive, tick, setPaused, setIsTabActive, updateState, initializeFromDraft, bootstrap } = useGameStore();
+  const { state, paused, isTabActive, tick, setPaused, setIsTabActive, updateState, initializeFromDraft, initializeLaboratorio, bootstrap } = useGameStore();
   
   const [draftDone, setDraftDone] = useState(false);
   const [speed, setSpeed] = useState<1 | 2 | 5>(1);
@@ -141,6 +141,11 @@ export function GameShell({ seed }: GameShellProps) {
 
   const handleDraftStart = (result: DraftResult) => {
     initializeFromDraft(result.seed, result.mapType, result.npcs);
+    setDraftDone(true);
+  };
+
+  const handleLabStart = () => {
+    initializeLaboratorio(seed);
     setDraftDone(true);
   };
 
@@ -297,7 +302,7 @@ export function GameShell({ seed }: GameShellProps) {
   const selectedNpcRole = useMemo(() => selectedNpc ? computeRole(selectedNpc, itemForNpc(selectedNpc, state.items)) : undefined, [selectedNpc, state.items]);
   const selectedNpcToolLabel = useMemo(() => selectedNpc ? itemLabel(itemForNpc(selectedNpc, state.items)) : undefined, [selectedNpc, state.items]);
 
-  if (!draftDone) return <DraftScreen seed={seed} onStart={handleDraftStart} />;
+  if (!draftDone) return <DraftScreen seed={seed} onStart={handleDraftStart} onStartLab={handleLabStart} />;
   if (state.era === 'tribal') return <TribalPlaceholder />;
 
   return (
