@@ -21,10 +21,7 @@ pnpm test:e2e     # Playwright
 pnpm build        # Build check
 ```
 
-## Próximos Pasos (ROADMAP Simplificado)
-1. **Fricción Divina**: Introducir crisis aleatorias que requieran intervención.
-2. **LOD Visual**: Niveles de detalle en el mapa según el zoom.
-3. **Web Worker**: Mover el `tick` fuera del hilo principal.
-4. **Memoria Colectiva**: Que los eventos de la crónica afecten los stats del clan.
+## Próximos Pasos
+Qué está hecho y qué falta vive **solo** en `ROADMAP.md` (estado vivo). No dupliques la lista aquí.
 
 **Céntrate en el código. El resto es ruido.**

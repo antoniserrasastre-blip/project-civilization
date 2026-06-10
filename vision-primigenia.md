@@ -10,9 +10,8 @@
 > mecánicas primigenia**; los Pilares 1-5 y §A4 siguen siendo fuente
 > de verdad global y no se tocan aquí.
 >
-> **Estado**: borrador editorial. Ningún sprint arranca hasta que este
-> documento + `DECISIONS-PENDING.md` estén firmados por el
-> Director humano.
+> **Estado**: borrador editorial (mecánicas base). 
+> **Implementación (2026-06)**: Fricción Divina (Crisis) y Memoria Mecánica (v1: bonos globales de skills desde impacto activo de crónica) completadas por ROADMAP. Ver ROADMAP.md para estado vivo + detalles. Pilares y §A4 intactos.
 
 ---
 
@@ -510,6 +509,7 @@ estás moldeando el destino de tu clan.
   hambre/sed) y un **pool de gratitud** en la cabecera.
 - La **crónica** empieza a narrar en voz partisana: "los nuestros
   han encontrado una cueva con agua dulce al pie del Mestral".
+  (Implementado: impacto mecánico expandido en Memoria Mecánica — bonuses globales a skills derivados de entries activas con impact; ver ROADMAP para detalles de v2.)
 - Si el susurro activo sigue alineado con una necesidad real del
   clan ese día, la gratitud sube unos puntos. Si el clan ya está
   saciado o el susurro no encaja, nada — la gratitud es emergente,
