@@ -1,23 +1,44 @@
 # ROADMAP — Proyecto Civilización (Guerrilla Edition)
 
-> Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 2026-06 (Fricción Divina + Memoria Mecánica integradas; gates limpios; PoC básico Deriva LLM Director implementado: ritual diario + agente de dominio con widgets y railguard).
+> Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 10-06-2026
+> (consolidación: Fricción Divina + Memoria Mecánica v2 commiteadas tras review adversarial;
+> gates verdes 780/780; dirección C decidida)._
+
+## Dirección (decidida 10-06-2026): C — "El Loop primero"
+Dos fases: **día** (simulación determinista) ↔ **preparación** (pausa al anochecer; el jugador
+asigna designios/upgrades por NPC vía UI concreta = *susurro estructurado*). Sigue siendo
+god-game; el LLM queda solo para prosa narrativa. Hook = arquitecto de arquetipos: personalizar
+la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver CLAUDE.md).
 
 ## Hitos Técnicos Prioritarios
-
-- [x] **Fricción Divina (Crisis)**: Sistema de Fracturas/Eventos negativos implementado (tickFractures puro, 7 tipos, mitigación por susurros/milagros, dawn integration, TDD con 21 tests de diseño).
-- [x] **Rendimiento Visual (LOD)**: Implementar niveles de detalle en el MapView para permitir zoom out estratégico.
-- [x] **Motor en Web Worker**: Mover el pipeline de simulación fuera del hilo principal de UI.
-- [x] **Memoria Mecánica**: Expandido el impacto de la crónica en habilidades de NPCs (bonos globales puros ± de skills derivados de impacto activo de chronicle entries; computeMemorySkillBonuses + applyMemoryBonusesToSkills; integrados en tick/harvest/build con redondeo a enteros; §A4 puro/det; tests en chronicle/harvest/simulation).
-- [ ] **Dioses Rivales**: Introducir entidades competidoras en el mapa (Fase 7 original).
+- [x] **Fricción Divina (Crisis)**: tickFractures puro, 7 tipos, mitigación por susurros/milagros,
+  dawn integration. Endurecido tras review adversarial: cascada de hambre solo con hambre real,
+  terrainTags inmutable, colapso de obra mitigado conserva la obra. TDD: 21 tests de diseño + 6 de regresión.
+- [x] **Rendimiento Visual (LOD)**: niveles de detalle en MapView para zoom out estratégico.
+- [x] **Motor en Web Worker**: pipeline de simulación fuera del hilo principal de UI.
+- [x] **Memoria Mecánica v2**: la crónica modula skills de forma TRANSITORIA — `effectiveSkill`
+  puro en el punto de uso (harvest/build/decisiones); las skills almacenadas jamás incluyen el
+  bonus (`computeMemorySkillBonuses` intacto; `applyMemoryBonusesToSkills` eliminado). §A4.
+- [ ] **Sprint 02 — Máquina de fases**: `phase: day|preparation`, `applyAssignments` puro
+  (3 dominios), pipeline del amanecer explícito de orden fijo. Spec aprobada en el nodo ICM.
+- [ ] **Sprint 03 — XP por actividad**: progresión ganada consolidada al amanecer
+  (`skill_efectiva = base + xp ± memoria`). Incluye arreglar el XP de práctica muerto por
+  redondeo en harvest, la semántica de muerte social instantánea y el e2e de wisdom tautológico.
+- [ ] **Sprint 04 — UI de preparación**: cartas de NPC + informe del amanecer (plan vs resultado).
+- [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo
+- Motor Determinista (§A4): ✅ Operativo (suite 780/780, tsc=0, eslint=0 errores)
 - Sistema de Sabiduría/Tech: ✅ Operativo
-- Memoria Colectiva (Logs): ✅ Operativo (v2 - impacto mecánico expandido a skills vía Memoria Mecánica)
+- Memoria Colectiva (Logs): ✅ Operativo (v2 transitoria vía effectiveSkill)
 - Poda Burocrática: ✅ Completada
-- Deuda de tipos (NPCStats/NPCInventory literals): ✅ Resuelta (SSOT defaultStats/makeEmptyInventory + fixtures helper; tsc=0, eslint=0 errors)
+- Deuda de tipos (NPCStats/NPCInventory literals): ✅ Resuelta (SSOT defaultStats/makeEmptyInventory)
 
 **Meta: De protector de pantalla a juego de estrategia.**
 
-## Derivas activas (jun 2026)
-- **LLM como Director (PoC básico del flujo principal)**: Ritual diario al anochecer (chat + widget de enfoque) que se escribe en el Libro del Clan + badge para Agente de Dominio especializado (Exploración) con widgets interactivos. Mock agents + railguard puro + modulación de comportamiento visible en mapa. Implementado y pulido en GameShell + lib/divine-directives. Listo para prueba local y extensión. (No bloquea hitos principales; se mantiene aislado con comentarios PoC).
+## Derivas registradas (no activas)
+- **LLM como Director**: dirección documentada en su día; el PoC **nunca llegó a código**
+  (lib/divine-directives no existe). Absorbida por la decisión C: su "ritual del anochecer" ES
+  la fase de preparación, con UI concreta en vez de LLM. El LLM queda para prosa de crónica.
+- **Modelo espacial EU4** (regiones de recursos → administrativas → ciudad; mapa por overlays):
+  dirección aceptada, construcción post-validación del loop. Registro en el nodo ICM.

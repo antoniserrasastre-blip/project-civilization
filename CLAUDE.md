@@ -23,5 +23,7 @@ pnpm build        # Build check
 
 ## Próximos Pasos
 Qué está hecho y qué falta vive **solo** en `ROADMAP.md` (estado vivo). No dupliques la lista aquí.
+El *pensamiento* (specs de sprint, decisiones, contratos ICM) vive fuera del repo:
+`~/Escritorio/workspace/coding/projects/godgame/` (en La Bestia). Aquí solo código.
 
 **Céntrate en el código. El resto es ruido.**
