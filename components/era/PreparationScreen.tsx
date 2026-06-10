@@ -1,0 +1,154 @@
+'use client';
+
+/**
+ * Pantalla de PREPARACIÓN (Sprint 04b, línea C) — la fase, no un panel.
+ * Izquierda: informe del amanecer (state.dawnReport — generado por el sim,
+ * aquí solo se pinta). Derecha: grid de cartas con selector de designio.
+ * Abajo: Amanecer. Click en carta → NpcSheet existente (vía onNpcClick).
+ */
+
+import { useState } from 'react';
+import type { GameState } from '@/lib/game-state';
+import type { NPC, AssignmentDomain } from '@/lib/npcs';
+import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
+import { TICKS_PER_DAY } from '@/lib/resources';
+
+const DOMAIN_LABEL: Record<AssignmentDomain, string> = {
+  recoleccion: 'Recolección',
+  exploracion: 'Exploración',
+  construccion: 'Construcción',
+};
+
+const SKILL_LABEL: Record<keyof NPC['skills'], string> = {
+  exploration: 'Exploración',
+  hunting: 'Caza',
+  gathering: 'Recolección',
+  crafting: 'Artesanía',
+  fishing: 'Pesca',
+  healing: 'Sanación',
+};
+
+/** Color de retrato-placeholder por linaje (los 8 vientos). */
+const LINAJE_COLOR: Record<string, string> = {
+  tramuntana: '#7da2c1', llevant: '#c1a87d', migjorn: '#c17d7d', ponent: '#9b7dc1',
+  xaloc: '#c1947d', mestral: '#7dc1b4', gregal: '#8ec17d', garbi: '#c17da6',
+};
+
+function dominantSkill(npc: NPC): string {
+  const entries = Object.entries(npc.skills) as [keyof NPC['skills'], number][];
+  entries.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)); // estable
+  return `${SKILL_LABEL[entries[0][0]]} ${entries[0][1]}`;
+}
+
+function ageDays(npc: NPC, tick: number): number {
+  return Math.max(0, Math.floor((tick - npc.birthTick) / TICKS_PER_DAY));
+}
+
+export function PreparationScreen({
+  state,
+  onDawn,
+  onNpcClick,
+}: {
+  state: GameState;
+  onDawn: (assignments: Record<string, AssignmentDomain>) => void;
+  onNpcClick: (id: string) => void;
+}) {
+  const alive = state.npcs.filter((n) => n.alive);
+  const [pending, setPending] = useState<Record<string, AssignmentDomain | null>>(
+    () => Object.fromEntries(alive.map((n) => [n.id, n.designio ?? null])),
+  );
+  const report = state.dawnReport ?? null;
+
+  const confirm = () => {
+    const assignments: Record<string, AssignmentDomain> = {};
+    for (const [id, d] of Object.entries(pending)) if (d) assignments[id] = d;
+    onDawn(assignments);
+  };
+
+  return (
+    <div
+      data-testid="preparation-screen"
+      className="fixed inset-0 z-[100] flex flex-col bg-[#0c0a09]/95 text-stone-200"
+    >
+      <header className="border-b border-stone-800 px-6 py-3 text-amber-400">
+        Anochecer — preparación · el clan aguarda tus designios
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {/* INFORME DEL AMANECER */}
+        <section data-testid="dawn-report" className="w-[380px] overflow-y-auto border-r border-stone-800 p-5">
+          <h2 className="mb-3 text-amber-300">Informe del amanecer</h2>
+          {!report ? (
+            <p className="text-stone-500">Primera noche: aún no hay día que contar.</p>
+          ) : (
+            <>
+              <ul className="mb-4 space-y-1 text-sm">
+                <li>Día {report.day}: recolectado {report.clan.harvested} · obra {report.clan.built} · descubierto {report.clan.discovered} tiles</li>
+                {report.clan.deaths > 0 && <li className="text-red-400">Muertes: {report.clan.deaths}</li>}
+              </ul>
+              <table className="w-full text-left text-xs">
+                <thead className="text-stone-500">
+                  <tr><th>Quién</th><th>Designio</th><th>Hecho</th></tr>
+                </thead>
+                <tbody>
+                  {report.npcs.map((n) => (
+                    <tr key={n.id} className="border-t border-stone-800/60">
+                      <td className="py-1">{n.name}</td>
+                      <td>{n.designio ? DOMAIN_LABEL[n.designio] : '—'}</td>
+                      <td>{n.harvested > 0 && `rec ${n.harvested} `}{n.built > 0 && `obra ${n.built} `}{n.discovered > 0 && `expl ${n.discovered}`}{n.harvested + n.built + n.discovered === 0 && '·'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </section>
+
+        {/* CARTAS */}
+        <section className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 overflow-y-auto p-5">
+          {alive.map((n) => (
+            <div key={n.id} data-testid={`npc-card-${n.id}`} className="border border-stone-700 bg-stone-900/60 p-3">
+              <button className="flex w-full items-center gap-2 text-left" onClick={() => onNpcClick(n.id)}>
+                <span
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold text-stone-900"
+                  style={{ backgroundColor: LINAJE_COLOR[n.linaje] ?? '#999' }}
+                >
+                  {n.name.charAt(0)}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate">{n.name}</span>
+                  <span className="block text-[10px] text-stone-500">
+                    {ageDays(n, state.tick)} días · {dominantSkill(n)}
+                  </span>
+                </span>
+              </button>
+              <select
+                data-testid={`designio-select-${n.id}`}
+                className="mt-2 w-full border border-stone-700 bg-stone-950 px-1 py-1 text-xs"
+                value={pending[n.id] ?? ''}
+                onChange={(e) =>
+                  setPending((p) => ({ ...p, [n.id]: (e.target.value || null) as AssignmentDomain | null }))
+                }
+              >
+                <option value="">Libre</option>
+                {ASSIGNMENT_DOMAINS.map((d) => (
+                  <option key={d} value={d}>{DOMAIN_LABEL[d]}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </section>
+      </div>
+
+      <footer className="flex justify-center border-t border-stone-800 p-3">
+        <button
+          data-testid="dawn-button"
+          className="border border-amber-500 px-8 py-2 text-amber-300 hover:bg-amber-900/40"
+          onClick={confirm}
+        >
+          Amanecer
+        </button>
+      </footer>
+    </div>
+  );
+}

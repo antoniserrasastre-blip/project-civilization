@@ -4,6 +4,9 @@ import type { GameState } from './game-state';
 const LOG_INTERVAL = 96;      // resumen cada ~12s de juego
 const DETAIL_INTERVAL = 480;  // detalle completo cada día
 const LOOP_WINDOW = 10;        // ticks de historial para detectar bucle
+// Diagnóstico pesado (detección de bucles tick a tick): SOLO bajo demanda —
+// el spam de console.warn arrastra el dev-mode a velocidad glacial (e2e 04b).
+const SIM_DEBUG = false;
 
 // Historial de destinos por NPC para detectar oscilaciones
 const destHistory = new Map<string, Array<string>>();
@@ -120,7 +123,7 @@ self.onmessage = (e: MessageEvent) => {
 
     // ── DETECCIÓN DE BUCLES TICK A TICK ──────────────────────────────
     // Solo activo los primeros días para no saturar la consola
-    if (t < 960) {
+    if (SIM_DEBUG && t < 960) {
       alive.forEach((n: any) => {
         const dest = n.destination;
         const destKey = dest ? `${dest.x},${dest.y}` : 'null';

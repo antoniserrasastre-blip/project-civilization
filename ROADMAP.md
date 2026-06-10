@@ -30,14 +30,21 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
 - [x] **Sprint 04a — Informe + designios en el mapa (sim-side)**: skill `exploration` propia,
   `dailyActivity` por NPC, `DawnReport` como estado (paso `informe-amanecer` real), movimiento
   por designio = bias del tiempo libre (las urgencias mandan; sin designio → byte-idéntico).
-- [ ] **Sprint 04b — UI de preparación**: pantalla de preparación (informe + grid de cartas +
-  selector de designio + Amanecer), e2e wisdom real + e2e del ciclo completo. Tras cerrar:
-  validación de los 10 días ("¿el día 11 te apetece?").
+- [x] **Sprint 04b — UI de preparación**: pantalla de preparación a pantalla completa (informe
+  del amanecer + grid de cartas con retrato-linaje/edad/skill dominante + selector de designio +
+  Amanecer), pausa REAL en preparación (mata una carrera worker-vs-amanecer), e2e del ciclo
+  completo (4.3 min, lento a propósito) + test de tech-unlock real (sustituye al e2e tautológico).
+- [ ] **Sprint 05 — "El pulso del día"** (habilita la validación): TICK_BATCH en el worker
+  (hoy ~3 min/día en browser por clonado de estado por tick) + botón "correr hasta el anochecer"
+  (juego opcionalmente por turnos). Tras cerrar: **validación de los 10 días** ("¿el día 11 te
+  apetece?" + criterios prefijados en el nodo ICM).
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
 - Motor Determinista (§A4): ✅ Operativo (suite 780/780, tsc=0, eslint=0 errores)
-- Sistema de Sabiduría/Tech: ✅ Operativo
+- Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
+  (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
+  destapada al matar el e2e tautológico, candidata post-validación)
 - Memoria Colectiva (Logs): ✅ Operativo (v2 transitoria vía effectiveSkill)
 - Poda Burocrática: ✅ Completada
 - Deuda de tipos (NPCStats/NPCInventory literals): ✅ Resuelta (SSOT defaultStats/makeEmptyInventory)

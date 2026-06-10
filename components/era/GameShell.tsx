@@ -17,6 +17,7 @@ import { ResourceMonitor } from '@/components/ui/ResourceMonitor';
 import { EurekaToast } from '@/components/ui/EurekaToast';
 import type { GameState } from '@/lib/game-state';
 import { applyAssignments } from '@/lib/dawn';
+import { PreparationScreen } from '@/components/era/PreparationScreen';
 import { applyPlayerIntent, type MessageChoice, WHISPER_ES } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import {
@@ -127,14 +128,16 @@ export function GameShell({ seed }: GameShellProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [paused, setPaused]);
 
-  // Loop de simulación centralizado
+  // Loop de simulación centralizado. En PREPARACIÓN la pausa es real (sin
+  // ticks al worker): evita la carrera worker-vs-applyAssignments y ahorra CPU.
+  const inPreparation = state.phase === 'preparation';
   useEffect(() => {
-    if (!draftDone || paused) return;
+    if (!draftDone || paused || inPreparation) return;
     const base = isTabActive ? TICK_INTERVAL_MS : TICK_INTERVAL_MS * 4;
     const interval = Math.round(base / speed);
     const id = setInterval(tick, interval);
     return () => clearInterval(id);
-  }, [draftDone, paused, isTabActive, tick, speed]);
+  }, [draftDone, paused, inPreparation, isTabActive, tick, speed]);
 
   const handleDraftStart = (result: DraftResult) => {
     initializeFromDraft(result.seed, result.mapType, result.npcs);
@@ -307,21 +310,15 @@ export function GameShell({ seed }: GameShellProps) {
         initialCenter={spawnCenter} tickIntervalMs={TICK_INTERVAL_MS}
       />
 
-      {/* MÁQUINA DE FASES (línea C, Sprint 02): indicador + toggle + Amanecer.
-          UI mínima de PoC — las cartas de designios llegan en el sprint 04. */}
-      <div className="fixed bottom-4 left-1/2 z-[120] -translate-x-1/2">
-        {state.phase === 'preparation' ? (
-          <div className="pointer-events-auto flex items-center gap-3 border border-amber-700 bg-[#0c0a09]/95 px-4 py-2 shadow-2xl shadow-black/80">
-            <span className="text-amber-400">Anochecer — preparación</span>
-            <button
-              data-testid="dawn-button"
-              className="border border-amber-500 px-3 py-1 text-amber-300 hover:bg-amber-900/40"
-              onClick={() => updateState((s) => applyAssignments(s, {}))}
-            >
-              Amanecer
-            </button>
-          </div>
-        ) : (
+      {/* MÁQUINA DE FASES (línea C): pantalla de preparación (Sprint 04b) + toggle. */}
+      {state.phase === 'preparation' ? (
+        <PreparationScreen
+          state={state}
+          onDawn={(assignments) => updateState((s) => applyAssignments(s, assignments))}
+          onNpcClick={(id) => setSelectedNpcId(id)}
+        />
+      ) : (
+        <div className="fixed bottom-4 left-1/2 z-[120] -translate-x-1/2">
           <button
             data-testid="phased-mode-toggle"
             className="pointer-events-auto border border-stone-700 bg-[#0c0a09]/80 px-2 py-1 text-[10px] text-stone-400 hover:text-stone-200"
@@ -329,8 +326,8 @@ export function GameShell({ seed }: GameShellProps) {
           >
             Fases: {state.phasedMode ? 'ON' : 'OFF'}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* CAPA 1: ZONA A (Top Bar) */}
       <HUD
@@ -349,7 +346,7 @@ export function GameShell({ seed }: GameShellProps) {
       />
 
       {/* CAPA 2: ZONA B (Sidebar Izquierda - Gestión) */}
-      <aside className="pointer-events-none fixed inset-y-0 left-0 z-[90] flex w-[420px] flex-col p-4 pt-24">
+      <aside className="pointer-events-none fixed inset-y-0 left-0 z-[110] flex w-[420px] flex-col p-4 pt-24">
         {codexOpen && (
           <div className="pointer-events-auto h-full shadow-2xl shadow-black/80">
             <CivilizationCodex state={state} onClose={() => setCodexOpen(false)} />

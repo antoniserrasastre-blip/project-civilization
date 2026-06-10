@@ -292,6 +292,7 @@ export function HUD({
           {([1, 2, 5] as const).map(s => (
             <button
               key={s}
+              data-testid={`speed-${s}`}
               onClick={() => { onSetSpeed?.(s); if (paused) onTogglePause(); }}
               className={`pixel-box w-10 h-10 flex items-center justify-center text-[11px] font-black transition-colors border-white/10 ${
                 speed === s && !paused
