@@ -1,8 +1,8 @@
 # ROADMAP — Proyecto Civilización (Guerrilla Edition)
 
 > Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 10-06-2026
-> (consolidación: Fricción Divina + Memoria Mecánica v2 commiteadas tras review adversarial;
-> gates verdes 780/780; dirección C decidida)._
+> (sprint 05 redefinido como "El Laboratorio" tras el veredicto del playtest; features-flags +
+> quickstart 🔬 + fixes de needs commiteados; gates verdes 840/840)._
 
 ## Dirección (decidida 10-06-2026): C — "El Loop primero"
 Dos fases: **día** (simulación determinista) ↔ **preparación** (pausa al anochecer; el jugador
@@ -34,22 +34,39 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
   del amanecer + grid de cartas con retrato-linaje/edad/skill dominante + selector de designio +
   Amanecer), pausa REAL en preparación (mata una carrera worker-vs-amanecer), e2e del ciclo
   completo (4.3 min, lento a propósito) + test de tech-unlock real (sustituye al e2e tautológico).
-- [ ] **Sprint 05 — "El pulso del día"** (habilita la validación): TICK_BATCH en el worker
-  (hoy ~3 min/día en browser por clonado de estado por tick) + botón "correr hasta el anochecer"
-  (juego opcionalmente por turnos). Tras cerrar: **validación de los 10 días** ("¿el día 11 te
-  apetece?" + criterios prefijados en el nodo ICM).
+- [~] **Sprint 05 — "El Laboratorio"** (redefinido 10-06-2026 tras playtest: "no sientes conexión;
+  el MVP no es mínimo ni debuggeable"). Hecho:
+  - [x] `features` flags por subsistema (8 gates: climate/animals/reproduction/items/legends/
+    miracles/influence/fractures; default todo ON, compat byte a byte; DAWN_PIPELINE declarativo;
+    milagros OFF = no-op puro). 18 tests de diseño.
+  - [x] Quickstart **🔬 Laboratorio**: `makeLaboratorioState(seed)` — pangea 32×32, 4 elegidos
+    (2M/2F), phasedMode ON, los 8 flags OFF, solo núcleo del loop. Dos días en ~0.4s. Card en
+    el draft. 13 tests de diseño.
+  - [x] Fixes de needs auditados + revisión adversarial: miedo cíclico (se disipa de día),
+    histéresis recolector (se suelta con inventario lleno), forrajeo nocturno (de noche al fuego;
+    sin fogata se sigue forrajeando). Era-loop verde otra vez (la causa real: HEAD pasaba gracias
+    al bug del miedo; el fix liberó al clan y destapó la economía deficitaria del mundo de test).
+  - [ ] Deadlock económico de arranque (sin fogata → inventarios llenos → parálisis) en el laboratorio.
+  - [ ] Pathfinding: atascados en agua (reproducir en el laboratorio + auditoría).
+  - [ ] Conexión: informe en 2ª persona ("hicimos lo que pediste / te fallamos") + cumplimiento por NPC.
+  - Tras cerrar: **validación de los 10 días EN EL LABORATORIO** (criterios en el nodo ICM).
+  - Diferido: TICK_BATCH (solo si el modo clásico lo pide), telemetría dev, consola divina (06).
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo (suite 780/780, tsc=0, eslint=0 errores)
+- Motor Determinista (§A4): ✅ Operativo (suite 840/840, tsc=0, eslint=0 errores)
+- Features-flags por subsistema: ✅ Operativo (laboratorio = casi todo OFF; clásico intacto)
 - Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
   (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
   destapada al matar el e2e tautológico, candidata post-validación)
 - Memoria Colectiva (Logs): ✅ Operativo (v2 transitoria vía effectiveSkill)
 - Poda Burocrática: ✅ Completada
 - Deuda de tipos (NPCStats/NPCInventory literals): ✅ Resuelta (SSOT defaultStats/makeEmptyInventory)
+- Deuda registrada (review adversarial 10-06-2026): stats float en estado (miedo ±0.5/0.25,
+  supervivencia 0.15 — pre-existente, candidato a centésimas enteras como skillXP); test
+  reproduction-OFF depende del seed del fixture (hoy no-vacuo, verificado).
 
-**Meta: De protector de pantalla a juego de estrategia.**
+**Meta: De protector de pantalla a juego de estrategia. Primero que enganche lo pequeño.**
 
 ## Derivas registradas (no activas)
 - **LLM como Director**: dirección documentada en su día; el PoC **nunca llegó a código**
