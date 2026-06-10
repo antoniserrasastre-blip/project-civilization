@@ -201,8 +201,10 @@ describe('Fricción Divina — regresiones review adversarial (B1/B3/B4)', () =>
         makeTestNPC({ id: 'a1', position: { x: 1, y: 1 }, stats: { supervivencia: 90, socializacion: 10, proposito: 50, miedo: 10 } }),
         makeTestNPC({ id: 'a2', position: { x: 5, y: 5 }, stats: { supervivencia: 90, socializacion: 14, proposito: 50, miedo: 10 } }),
       ];
-      // avg social = floor(24/2) = 12 < 20 → conflicto; víctima determinista = (1,1) (menor x).
-      let s = mkTestState({ npcs, tick: 479, terrainTags: { '1,1': ['bosque'] } });
+      // avg social = floor(24/2) = 12 < 20; con 2 días previos de tensión el
+      // 3er amanecer estalla (semántica Sprint 03: no instantáneo).
+      // Víctima determinista = (1,1) (menor x).
+      let s = mkTestState({ npcs, tick: 479, terrainTags: { '1,1': ['bosque'] }, consecutiveLowSocialDays: 2 });
       s = { ...s, npcs: withFood(s.npcs, 60) }; // comida OK para no mezclar con hunger
 
       const pre = JSON.stringify(s);

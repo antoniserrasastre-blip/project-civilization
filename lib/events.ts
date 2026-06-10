@@ -303,7 +303,9 @@ function checkSocialColapso(state: GameState): { state: GameState; triggered: bo
 
   // Un "conflicto interno" necesita al menos dos vivos: un NPC solitario
   // con socialización baja no puede pelearse consigo mismo.
-  const trigger = (avgSocial < 20 || prevConsec >= 30) && alive.length >= 2;
+  // Sprint 03: el conflicto fatal NO es instantáneo — requiere 3 amaneceres
+  // consecutivos de tensión (media < 20). La crisis avisa antes de matar.
+  const trigger = (newConsec >= 3 || prevConsec >= 30) && alive.length >= 2;
   if (!trigger) {
     return { state: { ...state, village }, triggered: false };
   }

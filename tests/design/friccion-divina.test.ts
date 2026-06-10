@@ -184,21 +184,33 @@ describe('Fricción Divina — tickFractures (pure, deterministic, per spec)', (
     expect(hasConf).toBe(true);
   });
 
-  it('Social avg calc exact: 10/20/30 → floor(20) not <20; 10/19 → <20 triggers', () => {
+  it('Social avg calc exact: 10/20/30 → floor(20) not <20; 10/19 → tensión que estalla al 3er día (Sprint 03)', () => {
+    // floor(60/3)=20, NO <20: ni siquiera acumula tensión aunque traiga días previos.
     const s1 = mkTestState({ npcs: [
       makeTestNPC({ id: '1', stats: { socializacion: 10 } }),
       makeTestNPC({ id: '2', stats: { socializacion: 20 } }),
       makeTestNPC({ id: '3', stats: { socializacion: 30 } }),
-    ], consecutiveLowSocialDays: 0, tick: 479 });
+    ], consecutiveLowSocialDays: 2, tick: 479 });
     const r1 = tickFractures(s1);
     expect(r1.fractures.some((f: any) => f.type === 'social_conflict')).toBe(false);
+    expect(r1.state.village.consecutiveLowSocialDays).toBe(0); // día sano resetea
 
+    // floor(29/2)=14 <20: el 1er amanecer solo cuenta tensión, no mata…
     const s2 = mkTestState({ npcs: [
       makeTestNPC({ id: '1', stats: { socializacion: 10 } }),
       makeTestNPC({ id: '2', stats: { socializacion: 19 } }),
     ], consecutiveLowSocialDays: 0, tick: 479 });
     const r2 = tickFractures(s2);
-    expect(r2.fractures.some((f: any) => f.type === 'social_conflict')).toBe(true);
+    expect(r2.fractures.some((f: any) => f.type === 'social_conflict')).toBe(false);
+    expect(r2.state.village.consecutiveLowSocialDays).toBe(1);
+
+    // …y el 3er amanecer consecutivo estalla.
+    const s3 = mkTestState({ npcs: [
+      makeTestNPC({ id: '1', stats: { socializacion: 10 } }),
+      makeTestNPC({ id: '2', stats: { socializacion: 19 } }),
+    ], consecutiveLowSocialDays: 2, tick: 479 });
+    const r3 = tickFractures(s3);
+    expect(r3.fractures.some((f: any) => f.type === 'social_conflict')).toBe(true);
   });
 
   it('Cold: winter + consec>=5 + !shelter (no REFUGIO/DESPENSA) → sv- miedo+ , chronicle frio', () => {
@@ -312,7 +324,8 @@ describe('Fricción Divina — tickFractures (pure, deterministic, per spec)', (
   it('Tie-break: 2 NPCs same stats diff (x,y) → always same victim (min x then y then id)', () => {
     const nA = makeTestNPC({ id: 'a', position: { x: 5, y: 0 }, stats: { socializacion: 5 } });
     const nB = makeTestNPC({ id: 'b', position: { x: 1, y: 10 }, stats: { socializacion: 5 } });
-    const s = mkTestState({ npcs: [nA, nB], consecutiveLowSocialDays: 0, tick: 479 });
+    // Sprint 03: el conflicto requiere 3 amaneceres de tensión — 2 previos + este.
+    const s = mkTestState({ npcs: [nA, nB], consecutiveLowSocialDays: 2, tick: 479 });
     const res = tickFractures(s);
     const dead = res.state.npcs.find((n: any) => !n.alive);
     expect(dead?.id).toBe('b'); // smaller x

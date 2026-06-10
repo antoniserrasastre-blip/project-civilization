@@ -71,10 +71,27 @@ export const DAWN_PIPELINE: readonly DawnStep[] = [
   },
   {
     name: 'consolidar-xp',
-    // Stub — Sprint 03: la XP ganada durante el día se consolida en skills
-    // (skill_efectiva = base + xp ± memoria; la memoria ya es transitoria, v2).
+    // Sprint 03: la XP de actividad del día (centésimas enteras) se consolida
+    // en las skills almacenadas; el resto (<100) se conserva para mañana.
+    // skill_efectiva = base(+xp consolidada) ± memoria(transitoria, v2).
     run(state) {
-      return state;
+      const npcs = state.npcs.map((n) => {
+        if (!n.alive || !n.skillXP) return n;
+        const skills = { ...n.skills };
+        const rest: Partial<typeof n.skills> = {};
+        let changed = false;
+        for (const key of Object.keys(n.skillXP) as (keyof typeof n.skills)[]) {
+          const xp = n.skillXP[key] ?? 0;
+          const whole = Math.floor(xp / 100);
+          if (whole > 0) {
+            skills[key] = Math.max(0, Math.min(100, skills[key] + whole));
+            changed = true;
+          }
+          rest[key] = xp % 100;
+        }
+        return changed || Object.keys(rest).length > 0 ? { ...n, skills, skillXP: rest } : n;
+      });
+      return { ...state, npcs };
     },
   },
   {

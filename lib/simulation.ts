@@ -8,7 +8,7 @@ import { findPath } from './pathfinding';
 import type { GameState, ChronicleEntry } from './game-state';
 import { CHRONICLE_MAX } from './game-state';
 import type { NPC, NPCInventory } from './npcs';
-import { CASTA, updateNpcStats, VOCATION } from './npcs';
+import { CASTA, updateNpcStats, VOCATION, accrueSkillXP } from './npcs';
 import { tickResources, TICKS_PER_DAY } from './resources';
 import { tickInfluence } from './influence';
 import { tickHarvests } from './harvest';
@@ -677,12 +677,10 @@ function tryAutoBuild(state: GameState): GameState {
         // Bonus por Vocación: El Sabio (ingenio) y el Simplezas (práctica) aprenden más rápido
         if (n.vocation === VOCATION.SABIO || n.vocation === VOCATION.SIMPLEZAS) learningMult += 0.3;
 
-        const xpGain = 0.05 * learningMult;
+        // XP por actividad (Sprint 03): centésimas enteras al acumulador
+        // (consolidación al amanecer). Mata el float `crafting + 0.05` (§A4).
         const updated = updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 });
-        return {
-          ...updated,
-          skills: { ...updated.skills, crafting: Math.min(100, updated.skills.crafting + xpGain) }
-        };
+        return accrueSkillXP(updated, 'crafting', Math.round(5 * learningMult));
       }
       return n;
     });

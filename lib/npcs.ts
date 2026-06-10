@@ -61,6 +61,27 @@ export type Archetype = (typeof ARCHETYPE)[keyof typeof ARCHETYPE];
 export const ASSIGNMENT_DOMAINS = ['recoleccion', 'exploracion', 'construccion'] as const;
 export type AssignmentDomain = (typeof ASSIGNMENT_DOMAINS)[number];
 
+/** Skills que cada designio enfoca (×1.5 XP — Sprint 03). `exploracion →
+ *  hunting` es aproximación PoC (rastreo/caza) hasta que exista skill propia. */
+export const DESIGNIO_SKILLS: Record<AssignmentDomain, readonly (keyof NPCSkills)[]> = {
+  recoleccion: ['gathering', 'fishing'],
+  exploracion: ['hunting'],
+  construccion: ['crafting'],
+};
+
+/** Acumula XP de práctica (centésimas enteras) en la copia del NPC, aplicando
+ *  el foco del designio. Puro: devuelve NPC nuevo, no muta. */
+export function accrueSkillXP(npc: NPC, skill: keyof NPCSkills, centesimas: number): NPC {
+  const focused = npc.designio && DESIGNIO_SKILLS[npc.designio].includes(skill)
+    ? Math.round((centesimas * 3) / 2)
+    : Math.round(centesimas);
+  if (focused <= 0) return npc;
+  return {
+    ...npc,
+    skillXP: { ...(npc.skillXP ?? {}), [skill]: ((npc.skillXP?.[skill] ?? 0) + focused) },
+  };
+}
+
 /** Stats individuales 0-100 — §3.3 vision-primigenia. La economía
  *  relacional (tercera dimensión) vive fuera del NPC, en el grafo
  *  `state.relations` (Sprint 4.4). */
@@ -202,9 +223,14 @@ export interface NPC {
   /** Cultura material — herramienta/reliquia equipada. */
   equippedItemId: string | null;
   /** Designio divino asignado en la fase de preparación (Sprint 02, línea C).
-   *  Opcional por compatibilidad con saves previos. La modulación de
-   *  comportamiento llega en el sprint 03; aquí solo se almacena/persiste. */
+   *  Opcional por compatibilidad con saves previos. Desde el Sprint 03 actúa
+   *  como FOCO de aprendizaje (×1.5 XP en las skills de su dominio). */
   designio?: AssignmentDomain | null;
+  /** XP por actividad (Sprint 03): centésimas ENTERAS de skill acumuladas
+   *  durante el día. Se consolidan al amanecer (paso 'consolidar-xp' del
+   *  DAWN_PIPELINE): skills += floor(xp/100), el resto se conserva.
+   *  Las skills almacenadas NUNCA cambian intra-día. Opcional (compat). */
+  skillXP?: Partial<NPCSkills>;
   /** Tick en que se reprodujo por última vez. null = nunca. Cooldown
    *  de reproducción calculado en `lib/reproduction.ts`. */
   lastReproducedTick: number | null;

@@ -3,6 +3,7 @@
  */
 
 import type { NPC } from './npcs';
+import { accrueSkillXP } from './npcs';
 import {
   RESOURCE,
   type ResourceId,
@@ -134,11 +135,12 @@ export function tickHarvests(
       if (npc.vocation === 'guerrero' && skillToGain === 'hunting') learningMult += 0.5;
       if (npc.vocation === 'simplezas' && (skillToGain === 'gathering' || skillToGain === 'fishing')) learningMult += 0.5;
 
-      const xpGain = 0.05 * learningMult;
-      // Memoria Mecánica v2: las skills ALMACENADAS jamás incluyen bonos de
-      // memoria (el bonus es transitorio vía effectiveSkill en el punto de uso).
-      const newVal = npc.skills[skillToGain] + xpGain;
-      npc.skills[skillToGain] = Math.min(100, Math.max(0, Math.round(newVal)));
+      // XP por actividad (Sprint 03): centésimas ENTERAS al acumulador; las
+      // skills almacenadas no cambian intra-día (consolidación al amanecer).
+      // 5 = 0.05 skill/práctica en centésimas; designio = foco ×1.5.
+      const xpCentesimas = Math.round(5 * learningMult);
+      const accrued = accrueSkillXP(npc, skillToGain, xpCentesimas);
+      npc.skillXP = accrued.skillXP;
 
       // EVOLUCIÓN DE ARTEFACTO (XP por uso)
       if (npc.equippedItemId) {

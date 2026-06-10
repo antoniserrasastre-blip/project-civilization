@@ -23,10 +23,12 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
   `applyAssignments` puro (3 dominios), pipeline del amanecer explícito (`DAWN_PIPELINE`,
   orden como dato), historial de designios (partida = seed + historial), UI mínima
   (toggle Fases + botón Amanecer). 16 tests de diseño; ciclo de 5 días byte-idéntico.
-- [ ] **Sprint 03 — XP por actividad**: progresión ganada consolidada al amanecer
-  (`skill_efectiva = base + xp ± memoria`). Incluye arreglar el XP de práctica muerto por
-  redondeo en harvest, la semántica de muerte social instantánea y el e2e de wisdom tautológico.
-- [ ] **Sprint 04 — UI de preparación**: cartas de NPC + informe del amanecer (plan vs resultado).
+- [x] **Sprint 03 — XP por actividad**: `NPC.skillXP` (centésimas enteras) acumula práctica
+  intra-día (harvest + construcción — muertos el redondeo y el float §A4); consolidación al
+  amanecer (paso `consolidar-xp`); designio = foco ×1.5 en su dominio. Muerte social ya no es
+  instantánea (3 amaneceres de tensión). Modelo completo: skill_efectiva = base(+xp) ± memoria.
+- [ ] **Sprint 04 — UI de preparación**: cartas de NPC + informe del amanecer (plan vs
+  resultado) + movimiento modulado por designio (visible en mapa) + e2e wisdom real.
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
