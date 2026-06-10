@@ -36,14 +36,16 @@ export function findPath(
 
   if (from.x === to.x && from.y === to.y) return { path: [from], next: prng };
 
-  // Check if start or end are impassable
-  const startTile = world.tiles[from.y * world.width + from.x];
+  // Solo el DESTINO intransitable invalida el path. El origen puede ser agua
+  // (un NPC empujado allí por error): el A* solo expande vecinos transitables,
+  // así que el primer paso lo saca y no puede volver a entrar — sin esto, el
+  // varado se quedaba clavado hasta morir (auditoría-agua C2).
   const endTile = world.tiles[to.y * world.width + to.x];
   const isPassableTile = (tile: number) => {
     if (options.passable) return options.passable(tile);
     return tile !== 0; // 0 = WATER
   };
-  if (!isPassableTile(startTile) || !isPassableTile(endTile)) return { path: null, next: prng };
+  if (!isPassableTile(endTile)) return { path: null, next: prng };
 
   const open: Node[] = [];
   const closed = new Set<number>();

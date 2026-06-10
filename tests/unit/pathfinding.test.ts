@@ -80,10 +80,19 @@ describe('A* — bloqueos', () => {
     expect(r.path).toBeNull();
   });
 
-  it('start sobre tile no pasable → null', () => {
+  // Contrato cambiado en sprint 05 (auditoría-agua C2): el origen intransitable
+  // NO invalida el path — un NPC empujado al agua por error debe poder salir.
+  // El A* solo expande vecinos transitables: sale en el primer paso y no reentra.
+  it('start sobre tile no pasable → path que sale y no vuelve a pisar intransitable', () => {
     const world = mkWorld(['X....', '.....', '.....', '.....', '.....']);
     const r = findPath(world, { x: 0, y: 0 }, { x: 4, y: 4 }, seedState(1));
-    expect(r.path).toBeNull();
+    expect(r.path).not.toBeNull();
+    const steps = r.path!.slice(1); // todos los pasos POSTERIORES al origen
+    expect(steps.length).toBeGreaterThan(0);
+    for (const s of steps) {
+      expect(world.tiles[s.y * world.width + s.x], `paso (${s.x},${s.y})`).not.toBe(0);
+    }
+    expect(steps[steps.length - 1]).toEqual({ x: 4, y: 4 });
   });
 
   it('end sobre tile no pasable → null', () => {

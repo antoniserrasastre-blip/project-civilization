@@ -215,8 +215,16 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
     } else {
       const distToForeman = Math.abs(npc.position.x - foreman.position.x) + Math.abs(npc.position.y - foreman.position.y);
       const vector = foremanPaths.get(`${dest.x},${dest.y}`);
-      if (distToForeman <= FOREMAN_FOLLOW_RADIUS && vector) nextStep = { x: npc.position.x + vector.x, y: npc.position.y + vector.y };
-      else {
+      if (distToForeman <= FOREMAN_FOLLOW_RADIUS && vector) {
+        // El vector del capataz se valida contra el mundo del SEGUIDOR:
+        // copiarlo a ciegas lo empujaba fuera del mapa o al agua (auditoría-agua C1).
+        const cand = { x: npc.position.x + vector.x, y: npc.position.y + vector.y };
+        const inBounds = cand.x >= 0 && cand.x < state.world.width && cand.y >= 0 && cand.y < state.world.height;
+        if (inBounds && isMovementPassable(state.world.tiles[cand.y * state.world.width + cand.x] as TileId)) {
+          nextStep = cand;
+        }
+      }
+      if (!nextStep) {
         const r = findPath(state.world, npc.position, dest, currentPrng);
         currentPrng = r.next;
         if (r.path && r.path.length > 1) nextStep = r.path[1];
