@@ -9,10 +9,12 @@
 
 import { useState } from 'react';
 import type { Assignments } from '@/lib/dawn';
+import { UMBRAL_CUMPLIDO } from '@/lib/dawn';
 import type { DawnReport, GameState, MotivoFallo } from '@/lib/game-state';
 import type { NPC, AssignmentDomain } from '@/lib/npcs';
 import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
 import { TICKS_PER_DAY } from '@/lib/resources';
+import { obraPendiente } from '@/lib/simulation';
 import { RESOURCE_LABEL, type ResourceId } from '@/lib/world-state';
 
 const DOMAIN_LABEL: Record<AssignmentDomain, string> = {
@@ -28,6 +30,23 @@ const SKILL_LABEL: Record<keyof NPC['skills'], string> = {
   crafting: 'Artesanía',
   fishing: 'Pesca',
   healing: 'Sanación',
+};
+
+/** 05e: la skill que gobierna cada dominio — el selector la enseña para que
+ *  elegir sea decisión, no formulario ("¿Elionor es mejor exploradora?"). */
+const DOMINIO_SKILL: Record<AssignmentDomain, keyof NPC['skills']> = {
+  recoleccion: 'gathering',
+  construccion: 'crafting',
+  exploracion: 'exploration',
+};
+
+/** Nombre legible de cada crafteable para la línea de obra. */
+const OBRA_LABEL: Record<string, string> = {
+  fogata_permanente: 'fogata permanente',
+  stockpile_wood: 'leñera',
+  stockpile_stone: 'cantera',
+  despensa: 'despensa',
+  refugio: 'refugio',
 };
 
 /** Color de retrato-placeholder por linaje (los 8 vientos). */
@@ -58,13 +77,24 @@ const MOTIVO_LABEL: Record<MotivoFallo, string> = {
  *  el LLM no pinta nada aquí. */
 function vozDelClan(report: DawnReport): { frase: string; fallos: string[] } {
   const { designiosCumplidos: c, designiosDados: d } = report.clan;
+  // 05e: el "corto" se cuantifica — el playtest pedía el umbral de referencia
+  // ("¿cuánto necesitaba hacer para que contara?").
+  const ACTIVIDAD: Record<AssignmentDomain, 'harvested' | 'built' | 'discovered'> = {
+    recoleccion: 'harvested',
+    construccion: 'built',
+    exploracion: 'discovered',
+  };
   const fallos = report.npcs
     .filter((n) => n.cumplido === 'fallido')
-    .map(
-      (n) =>
-        `${n.name} no pudo con ${DOMAIN_LABEL[n.designio!].toLowerCase()}` +
-        (n.motivo ? ` — ${MOTIVO_LABEL[n.motivo]}` : ''),
-    );
+    .map((n) => {
+      const motivo =
+        n.motivo === 'corto'
+          ? ` — se quedó corto (${n[ACTIVIDAD[n.designio!]]}/${UMBRAL_CUMPLIDO[n.designio!]})`
+          : n.motivo
+            ? ` — ${MOTIVO_LABEL[n.motivo]}`
+            : '';
+      return `${n.name} no pudo con ${DOMAIN_LABEL[n.designio!].toLowerCase()}${motivo}`;
+    });
   if (d === 0) return { frase: 'No nos diste designio. El clan siguió su instinto.', fallos };
   if (c === d) return { frase: 'Hicimos lo que pediste. Todos tus designios se cumplieron.', fallos };
   if (c === 0) return { frase: 'Te fallamos: ninguno de tus designios se cumplió.', fallos };
@@ -193,8 +223,41 @@ export function PreparationScreen({
           )}
         </section>
 
-        {/* CARTAS */}
-        <section className="grid flex-1 auto-rows-min grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3 overflow-y-auto p-5">
+        {/* CARTAS + ESTADO DE LA OBRA */}
+        <section className="flex min-w-0 flex-1 flex-col overflow-y-auto p-5">
+          {(() => {
+            // 05e: el panel deja de ser un formulario a ciegas — qué se
+            // construye o qué falta, ANTES de asignar Construcción.
+            const obra = obraPendiente(state);
+            return (
+              <div data-testid="obra-status" className="mb-3 border border-stone-800 bg-stone-900/40 px-3 py-2 text-xs">
+                {obra.tipo === 'activa' && (
+                  <span className="text-amber-200">
+                    🏗 En obra: {OBRA_LABEL[obra.kind] ?? obra.kind} — {Math.min(100, Math.round((obra.progreso / obra.requerido) * 100))}%
+                  </span>
+                )}
+                {obra.tipo === 'siguiente' && Object.keys(obra.faltantes).length === 0 && (
+                  <span className="text-emerald-300">
+                    🏗 Siguiente obra: {OBRA_LABEL[obra.kind] ?? obra.kind} — materiales listos, arranca sola
+                  </span>
+                )}
+                {obra.tipo === 'siguiente' && Object.keys(obra.faltantes).length > 0 && (
+                  <span className="text-orange-300">
+                    🏗 El {OBRA_LABEL[obra.kind] ?? obra.kind} espera: faltan{' '}
+                    {Object.entries(obra.faltantes)
+                      .map(([k, v]) => `${v} ${labelRecurso(k)}`)
+                      .join(', ')}
+                  </span>
+                )}
+                {obra.tipo === 'nada' && (
+                  <span className="text-stone-500">
+                    🏗 Sin obra pendiente — el designio de Construcción fallará hoy
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+          <div className="grid auto-rows-min grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
           {alive.map((n) => (
             <div key={n.id} data-testid={`npc-card-${n.id}`} className="border border-stone-700 bg-stone-900/60 p-3">
               <button className="flex w-full items-center gap-2 text-left" onClick={() => onNpcClick(n.id)}>
@@ -221,11 +284,14 @@ export function PreparationScreen({
               >
                 <option value="">Libre</option>
                 {ASSIGNMENT_DOMAINS.map((d) => (
-                  <option key={d} value={d}>{DOMAIN_LABEL[d]}</option>
+                  <option key={d} value={d}>
+                    {DOMAIN_LABEL[d]} · {SKILL_LABEL[DOMINIO_SKILL[d]]} {n.skills[DOMINIO_SKILL[d]]}
+                  </option>
                 ))}
               </select>
             </div>
           ))}
+          </div>
         </section>
       </div>
 

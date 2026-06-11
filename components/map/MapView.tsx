@@ -416,12 +416,39 @@ function renderNPCs(
       const action = actionStateFor(npc, badges as string[], isMoving, resourceTileSet.has(tileIdx));
       drawSprite(ctx, img, cx, cy, spriteSize, i, now, action, npc.linaje);
     } else {
-      // Simplificado: círculo/diamante sin animación
+      // Simplificado: círculo/diamante sin animación. 05e — IDENTIDAD: el
+      // relleno es el COLOR DE LINAJE (mismo mapa que las cartas) + inicial
+      // del nombre dentro; el playtest veía "cuatro diamantes anónimos".
       if (npc.casta === 'elegido') {
-        drawDiamond(ctx, cx, cy, spriteSize * 0.8, marker.colors.fill, marker.colors.outline, 1);
+        drawDiamond(ctx, cx, cy, spriteSize * 0.8, marker.linajeBorderColor, marker.colors.outline, 1);
       } else {
-        drawCircle(ctx, cx, cy, spriteSize * 0.7, marker.colors.fill, marker.colors.outline, 1);
+        drawCircle(ctx, cx, cy, spriteSize * 0.7, marker.linajeBorderColor, marker.colors.outline, 1);
       }
+      if (spriteSize >= 10) {
+        ctx.save();
+        ctx.font = `bold ${Math.max(7, Math.floor(spriteSize * 0.5))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#0b0b0b';
+        ctx.fillText(npc.name.charAt(0), cx, cy + 1);
+        ctx.restore();
+      }
+    }
+
+    // Nombre flotante: a zoom alto, o SIEMPRE con clan pequeño (≤6 vivos —
+    // el laboratorio). 05e: también a detalle medio (antes el `continue` de
+    // abajo lo mataba y el playtest a ~16px/tile no veía nombres).
+    if (tilePx >= 30 || placements.length <= 6) {
+      const firstName = npc.name.split(' ')[0];
+      const fontSize = Math.max(8, Math.min(12, tilePx * 0.3));
+      ctx.save();
+      ctx.font = `bold ${fontSize}px monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,0.8)';
+      ctx.fillText(firstName, cx + 1, cy - spriteSize * 0.8 + 1);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(firstName, cx, cy - spriteSize * 0.8);
+      ctx.restore();
     }
 
     if (isMedDetail) continue;
@@ -440,22 +467,6 @@ function renderNPCs(
     // 4. Burbujas de estado
     if (badges.length > 0) {
       drawBubble(ctx, cx, cy, spriteSize, badges[0], sprites);
-    }
-
-    // Nombre flotante a zoom alto — o SIEMPRE con clanes pequeños (≤6 vivos,
-    // el caso laboratorio): "no sé cuál es Sebastià" mató la conexión en el
-    // playtest 11-06-2026; con 4 NPCs el nombre es la identidad.
-    if (tilePx >= 30 || placements.length <= 6) {
-      const firstName = npc.name.split(' ')[0];
-      const fontSize = Math.max(8, Math.min(12, tilePx * 0.3));
-      ctx.save();
-      ctx.font = `bold ${fontSize}px monospace`;
-      ctx.textAlign = 'center';
-      ctx.fillStyle = 'rgba(0,0,0,0.8)';
-      ctx.fillText(firstName, cx + 1, cy - spriteSize * 0.8 + 1);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(firstName, cx, cy - spriteSize * 0.8);
-      ctx.restore();
     }
   }
 }

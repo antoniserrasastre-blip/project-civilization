@@ -327,11 +327,15 @@ export function HUD({
         )}
 
         {/* 05b: la meta de la era, siempre a la vista — "¿qué persigue el clan?"
-            era irrespondible en el playtest. Datos del SSOT de lib/monument. */}
+            era irrespondible en el playtest. Datos del SSOT de lib/monument.
+            05e: la meta es PROMESA, no contador ("no dicen qué desbloquean"). */}
         {eraGoal && (
-          <div data-testid="era-goal" className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 border-amber-500/20 shadow-lg text-right">
+          <div data-testid="era-goal" className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 border-amber-500/20 shadow-lg text-right max-w-[230px]">
             <div>🔥 Noches al fuego: {eraGoal.nights}/{eraGoal.nightsGoal}</div>
             <div>🏗 Umbral de era: {eraGoal.craftablesBuilt}/{eraGoal.craftablesGoal} construcciones</div>
+            <div className="mt-1 italic text-stone-400 normal-case">
+              Con ambos completos, el clan alzará el Monumento y entrará en la siguiente Era.
+            </div>
           </div>
         )}
       </div>

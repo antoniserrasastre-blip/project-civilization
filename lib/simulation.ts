@@ -77,6 +77,30 @@ export function nextBuildPriority(state: GameState): CraftableId | undefined {
   return undefined;
 }
 
+/** Estado de la obra para la UI (05e): qué se construye o qué falta para la
+ *  siguiente. Puro — el panel de designios deja de ser un formulario a ciegas
+ *  ("Construcción falló 3 días sin que pudieras saber que no había obra"). */
+export type ObraStatus =
+  | { tipo: 'activa'; kind: CraftableId; progreso: number; requerido: number }
+  | { tipo: 'siguiente'; kind: CraftableId; faltantes: Partial<Record<keyof NPCInventory, number>> }
+  | { tipo: 'nada' };
+
+export function obraPendiente(state: GameState): ObraStatus {
+  if (state.buildProject) {
+    const { kind, progress, required } = state.buildProject;
+    return { tipo: 'activa', kind, progreso: progress, requerido: required };
+  }
+  const kind = nextBuildPriority(state);
+  if (!kind) return { tipo: 'nada' };
+  const inv = clanInventoryTotal(state.npcs, state.structures);
+  const faltantes: Partial<Record<keyof NPCInventory, number>> = {};
+  for (const [k, need] of Object.entries(RECIPES[kind].inputs) as [keyof NPCInventory, number][]) {
+    const falta = need - (inv[k] ?? 0);
+    if (falta > 0) faltantes[k] = falta;
+  }
+  return { tipo: 'siguiente', kind, faltantes };
+}
+
 // EL MAR (05c): todo tile es transitable — el agua profunda ya no es pared,
 // el A* la cobra con coste (lib/pathfinding.ts) y nadar ralentiza y drena.
 function isMovementPassable(_tile: TileId): boolean {
