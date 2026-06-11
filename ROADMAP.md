@@ -1,8 +1,8 @@
 # ROADMAP — Proyecto Civilización (Guerrilla Edition)
 
 > Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 12-06-2026
-> (05d "El Reloj" cerrado: ciclo solar único, calendario por tick, noche al 20%, depósito
-> del recolector vivo; suite 920/920; queda re-pasar el protocolo de 15 pruebas)._
+> (05e "La cara y el horizonte" cerrado 12-06-2026: identidad de linaje en el marcador, panel
+> de designios como decisión, promesa del Monumento; suite 925/925; queda el re-protocolo)._
 
 ## Dirección (decidida 10-06-2026): C — "El Loop primero"
 Dos fases: **día** (simulación determinista) ↔ **preparación** (pausa al anochecer; el jugador
@@ -86,10 +86,16 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
   el nodo pisado (oscilación entre bayales), y el recolector ahora DEPOSITA como parte del
   oficio. Era-loop sincerado (su clan vivía del exploit del agua: comida ×10). 5 design
   tests nuevos; 5 fixtures re-anclados de lotería a invariantes.
+- [x] **Sprint 05e — "La cara y el horizonte"** (12-06-2026, las 3 prioridades del 2º playtest):
+  identidad visual (color de linaje + inicial en el marcador a detalle medio; nombres también
+  ahí — el fix de 05b moría en el continue del LOD); panel de designios como decisión (skill
+  por dominio en cada opción, línea de obra con obraPendiente() — activa con %, siguiente con
+  faltantes, o aviso de fallo seguro — y el 'corto' cuantificado «(8/15)»); la meta como
+  promesa («el clan alzará el Monumento») en el HUD. 5 design tests del helper puro.
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo (suite 920/920, tsc=0, eslint=0 errores, e2e ciclo verde)
+- Motor Determinista (§A4): ✅ Operativo (suite 925/925, tsc=0, eslint=0 errores, e2e ciclo verde)
 - Features-flags por subsistema: ✅ Operativo (laboratorio = casi todo OFF; clásico intacto)
 - Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
   (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
