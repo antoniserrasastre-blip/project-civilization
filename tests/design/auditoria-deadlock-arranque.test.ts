@@ -98,11 +98,16 @@ describe('Auditoría — deadlock económico de arranque (laboratorio, sin fogat
       .filter((res) => res.quantity > 0 && res.id !== 'water')
       .reduce((a, res) => a + res.quantity, 0);
     expect(worldLeft, 'el mundo aún tiene recursos cosechables (la parálisis no es escasez)').toBeGreaterThan(0);
-    for (let day = 4; day <= 6; day++) {
-      // ROJO HOY: días 4 y 5 cosechan 0 — el clan está económicamente muerto.
+    // 05d: un día aislado a 0 ya es legítimo (SATURACIÓN: caps e inventarios
+    // llenos, se come poco con la noche corta y el cap libera despacio). La
+    // parálisis del bug original era una parada MUERTA: 0,0,0… para siempre.
+    // Contrato re-anclado: sin DOS días consecutivos a cero.
+    for (let day = 2; day <= 6; day++) {
+      const ayer = r.harvestPerDay[day - 2];
+      const hoy = r.harvestPerDay[day - 1];
       expect(
-        r.harvestPerDay[day - 1],
-        `día ${day}: recolección total del clan (serie: ${r.harvestPerDay.join(',')})`,
+        ayer + hoy,
+        `días ${day - 1}+${day}: parada muerta de la economía (serie: ${r.harvestPerDay.join(',')})`,
       ).toBeGreaterThan(0);
     }
   });

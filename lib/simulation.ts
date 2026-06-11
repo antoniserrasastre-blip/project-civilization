@@ -172,6 +172,10 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
     const ctx: DestinationContext = {
       world: state.world, npcs: state.npcs, firePosition: fire?.position,
       currentTick: state.tick, ticksPerDay: TICKS_PER_DAY,
+      // 05d: sin esto, TODA rama de depósito de decideDestination estaba
+      // muerta (ctx.structures siempre undefined) — el recolector lleno
+      // se aparcaba en vez de ir al almacén.
+      structures: state.structures,
       isReachable: makeNpcReachabilityChecker(state), items: state.items ?? [],
       synergies: computeActiveSynergies(state.npcs), buildSitePosition: state.buildProject?.position,
       nextBuildPriority: buildPrio, prng: currentPrng,

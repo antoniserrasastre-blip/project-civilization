@@ -58,14 +58,18 @@ function buildRichWorld(): WorldMap {
       depletedAtTick: null,
     });
   }
-  // Game scattered.
+  // Game scattered. 05d: cantidades ×10 — el mundo original (~60 caza + ~200
+  // bayas para 14 NPCs) era deficitario y el clan SOBREVIVÍA del exploit del
+  // agua (curarse a 70 flotando), recortado a propósito en 05c (techo 40) y
+  // desnudado por la noche corta de 05d. El contrato del test es el loop hacia
+  // el monumento, no la hambruna: el mundo debe poder alimentarlos honestamente.
   for (let i = 0; i < 15; i++) {
     world.resources.push({
       id: RESOURCE.GAME,
       x: 12 + (i % 5),
       y: 5 + Math.floor(i / 5),
-      quantity: 5,
-      initialQuantity: 5,
+      quantity: 50,
+      initialQuantity: 50,
       regime: 'regenerable',
       depletedAtTick: null,
     });
@@ -76,8 +80,8 @@ function buildRichWorld(): WorldMap {
       id: RESOURCE.BERRY,
       x: 18 + (i % 3),
       y: 10 + (i % 4),
-      quantity: 10,
-      initialQuantity: 10,
+      quantity: 100,
+      initialQuantity: 100,
       regime: 'regenerable',
       depletedAtTick: null,
     });

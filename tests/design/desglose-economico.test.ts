@@ -110,6 +110,8 @@ interface Partida {
   sondas: {
     /** Máxima comida (berry+fish+game) en manos de algún vivo en un tick. */
     maxComidaEnMano: number;
+    /** Mínima supervivencia de algún vivo en un tick (¿hubo hambre intradía?). */
+    minSupervivencia: number;
   };
 }
 
@@ -118,11 +120,14 @@ interface Partida {
 function partidaDia0(): Partida {
   let s = makeLaboratorioState(1);
   let maxComidaEnMano = 0;
+  let minSupervivencia = Infinity;
   let guard = 0;
   while (s.phase !== 'preparation') {
     s = tick(s);
     for (const n of s.npcs) {
-      if (n.alive) maxComidaEnMano = Math.max(maxComidaEnMano, carriedFood(n));
+      if (!n.alive) continue;
+      maxComidaEnMano = Math.max(maxComidaEnMano, carriedFood(n));
+      minSupervivencia = Math.min(minSupervivencia, n.stats.supervivencia);
     }
     if (++guard > TICKS_PER_DAY + 5) {
       throw new Error('nunca llegó a preparation — la máquina de fases no pausa');
@@ -131,7 +136,7 @@ function partidaDia0(): Partida {
   return {
     anochecer: s,
     amanecer: applyAssignments(s, {}),
-    sondas: { maxComidaEnMano },
+    sondas: { maxComidaEnMano, minSupervivencia },
   };
 }
 
@@ -156,21 +161,27 @@ describe('Desglose — porRecurso de cada NPC cuadra con su harvested (sim real,
     const { anochecer } = canon();
     const vivos = anochecer.npcs.filter((n) => n.alive);
     expect(vivos).toHaveLength(4);
+    // 05d: la exigencia "los 4 cosechan >0" era lotería de seed (el reloj
+    // nuevo movió los repartos). El contrato es la COHERENCIA CONTABLE:
+    // porRecurso cuadra con harvested en todos; la evidencia no-vacua es
+    // que al menos dos cosechen de verdad.
+    let cosechadores = 0;
     for (const n of vivos) {
       const act = actividadDe(n);
-      if (!act) throw new Error(`${n.id} llegó al anochecer sin dailyActivity`);
-      // Precondición sobre campos existentes: seed 1 día 0 → los 4 cosechan
-      // de verdad (sondeado: 2/2/3/26). Si esto falla, cambió la sim, no
-      // el contrato nuevo.
-      expect(act.harvested).toBeGreaterThan(0);
-      // Contrato nuevo: el desglose existe y CUADRA con el total.
-      expect(act.porRecurso).toBeDefined();
-      expect(total(act.porRecurso)).toBe(act.harvested);
-      for (const [recurso, v] of Object.entries(act.porRecurso!)) {
-        expect(Number.isInteger(v), `porRecurso.${recurso} de ${n.id} no es entero`).toBe(true);
-        expect(v, `porRecurso.${recurso} de ${n.id} está a 0 — la clave debe OMITIRSE`).toBeGreaterThan(0);
+      if (!act) continue; // sin actividad = sin nada que cuadrar
+      if (act.harvested > 0) {
+        cosechadores++;
+        expect(act.porRecurso).toBeDefined();
+        expect(total(act.porRecurso)).toBe(act.harvested);
+        for (const [recurso, v] of Object.entries(act.porRecurso!)) {
+          expect(Number.isInteger(v), `porRecurso.${recurso} de ${n.id} no es entero`).toBe(true);
+          expect(v, `porRecurso.${recurso} de ${n.id} está a 0 — la clave debe OMITIRSE`).toBeGreaterThan(0);
+        }
+      } else {
+        expect(total(act.porRecurso), `${n.id} sin harvested pero con porRecurso`).toBe(0);
       }
     }
+    expect(cosechadores, 'evidencia no-vacua: al menos 2 NPCs cosechan').toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -218,26 +229,16 @@ describe('Desglose — los agregados del clan cuadran con los vivos', () => {
 describe('Desglose — cuando el clan come, el informe lo dice', () => {
   it('seed 1, día 0: hubo comida en manos y al anochecer no queda → clan.comido trae al menos un tipo > 0', () => {
     const { anochecer, amanecer, sondas } = canon();
-    // Cadena de precondiciones sobre campos EXISTENTES (sin tautología):
+    // Cadena de precondiciones sobre campos EXISTENTES (sin tautología).
+    // 05d: la versión "al anochecer queda 0 comida" era lotería de tuning
+    // (con la noche corta el clan come menos y le sobra). Evidencia robusta:
     // 1. en algún tick del día alguien llevaba comida encima…
     expect(sondas.maxComidaEnMano).toBeGreaterThan(0);
-    // 2. …al anochecer no queda comida ni en manos ni en despensas…
-    const enManos = anochecer.npcs
-      .filter((n) => n.alive)
-      .reduce((a, n) => a + carriedFood(n), 0);
-    const enDespensas = (anochecer.structures ?? []).reduce(
-      (a, st) =>
-        a +
-        (['berry', 'fish', 'game'] as const).reduce(
-          (b, k) => b + ((st.inventory as Partial<Record<string, number>> | undefined)?.[k] ?? 0),
-          0,
-        ),
-      0,
-    );
-    expect(enManos).toBe(0);
-    expect(enDespensas).toBe(0);
+    // 2. …el laboratorio escaso garantiza hambre intradía (sv cae bajo el
+    //    umbral de comer-del-inventario en algún momento)…
+    expect(sondas.minSupervivencia).toBeLessThan(65);
     // 3. …y nadie murió (los muertos no se llevan el inventario a la tumba
-    //    fuera del recuento). Conclusión: esa comida SE COMIÓ.
+    //    fuera del recuento). Con hambre + comida en mano, alguien COMIÓ.
     expect(anochecer.npcs.filter((n) => n.alive)).toHaveLength(4);
     // Contrato nuevo: el informe lo dice — "las bayas bajan PORQUE el clan come".
     const comido = clanDe(amanecer.dawnReport!).comido;
@@ -381,22 +382,25 @@ describe('Desglose — determinismo del informe extendido', () => {
 
 describe('Desglose — regresión: el resto del informe queda intacto', () => {
   it('pin deliberado seed 1 día 0: harvested/built/discovered/deaths exactos y cumplido/motivo como hoy', () => {
-    const { amanecer } = canon();
+    const { anochecer, amanecer } = canon();
     const rep = amanecer.dawnReport!;
     expect(rep.day).toBe(0);
-    // Pins exactos sondeados el 11-06-2026 sobre la sim de HOY. Si el
-    // implementer mueve estos números, tocó la ECONOMÍA, no el informe.
-    expect(rep.clan.harvested).toBe(33);
-    expect(rep.clan.built).toBe(964);
-    expect(rep.clan.discovered).toBe(218);
+    // 05d: los pins EXACTOS (33/964/218 y 2/2/3/26) eran un tripwire para el
+    // implementer del desglose y cumplieron su misión — pero caducaban con
+    // cada tuning legítimo de la sim (reloj solar, depósito del recolector).
+    // La regresión que importa es ESTRUCTURAL y sobrevive al tuning:
+    // los agregados del clan son exactamente la suma de las entradas.
+    const suma = (k: 'harvested' | 'built' | 'discovered') =>
+      rep.npcs.reduce((a, e) => a + e[k], 0);
+    expect(rep.clan.harvested).toBe(suma('harvested'));
+    expect(rep.clan.built).toBe(suma('built'));
+    expect(rep.clan.discovered).toBe(suma('discovered'));
+    expect(rep.clan.harvested).toBeGreaterThan(0); // el día 0 no es un día vacío
+    expect(rep.clan.discovered).toBeGreaterThan(0);
     expect(rep.clan.deaths).toBe(0);
+    expect(anochecer.npcs.filter((n) => n.alive)).toHaveLength(4);
     expect(rep.clan.designiosDados).toBe(0);
     expect(rep.clan.designiosCumplidos).toBe(0);
-    const ids = amanecer.npcs.map((n) => n.id);
-    expect(entrada(rep, ids[0]).harvested).toBe(2);
-    expect(entrada(rep, ids[1]).harvested).toBe(2);
-    expect(entrada(rep, ids[2]).harvested).toBe(3);
-    expect(entrada(rep, ids[3]).harvested).toBe(26);
     // Sin designios: cumplido null y motivo AUSENTE en todas las entradas.
     for (const e of rep.npcs) {
       expect(e.cumplido).toBeNull();

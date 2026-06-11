@@ -44,7 +44,9 @@ import { DebugOverlay } from '@/components/debug/DebugOverlay';
 import { useGameStore } from '@/lib/game-store';
 import { PerformanceStats } from '@/components/debug/PerformanceStats';
 
-const TICK_INTERVAL_MS = 250;
+// 05d: 250→150ms — a ×1 el día pasa de 120s a 72s de reloj (el playtest:
+// "los días duran mucho"); la sim computa el tick en <1ms, el cuello es este.
+const TICK_INTERVAL_MS = 150;
 
 const TILE_LABEL: Record<TileId, string> = {
   [TILE.WATER]:            'agua profunda',

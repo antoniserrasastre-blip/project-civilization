@@ -4,6 +4,7 @@
 
 import type { NPC, NPCInventory, Vocation } from './npcs';
 import { bumpComido, updateNpcStats, VOCATION } from './npcs';
+import { isNightTick } from './solar';
 import {
   RESOURCE,
   TILE,
@@ -53,9 +54,11 @@ export const FOOD_NUTRITION: Record<'berry' | 'fish' | 'game', number> = {
 const COOKED_FOOD_MULTIPLIER = 1.5;
 const COOKED_FOOD_SOCIAL_BONUS = 5;
 
-/** Segunda mitad del día = noche. Mismo criterio en destino, miedo y sagas. */
+/** Noche del SSOT solar (05d): el último 20% del día — antes era la mitad
+ *  entera y el clan vivía media vida en modo nocturno. Mismo criterio en
+ *  destino, miedo y sagas; idéntico al que pinta la UI (TimeOrbit). */
 function isNight(ctx: { currentTick: number; ticksPerDay: number }): boolean {
-  return (ctx.currentTick % ctx.ticksPerDay) > (ctx.ticksPerDay / 2);
+  return isNightTick(ctx.currentTick, ctx.ticksPerDay);
 }
 
 function manhattan(ax: number, ay: number, bx: number, by: number): number {
@@ -113,11 +116,14 @@ function nearestResource(
     // MEMORIA COLECTIVA: Solo conocemos recursos en tiles descubiertos
     if (ctx.fog && !isDiscovered(ctx.fog, r.x, r.y, ctx.fogBuffer)) continue;
 
-    // Si ya estoy encima del recurso y el inventario está lleno para ese tipo, ignorarlo
-    // (evita que el NPC se quede pegado al tile porque "ya está en su destino")
-    if (r.x === from.x && r.y === from.y && targetNpc) {
+    // Inventario lleno para ese TIPO → ningún nodo del tipo es objetivo (05d):
+    // antes solo se filtraba el nodo pisado y el NPC lleno oscilaba entre
+    // bayales que no podía cosechar, sin llegar jamás a la rama de depósito.
+    if (targetNpc) {
       const key = resourceInventoryKey(r.id);
-      if (key && targetNpc.inventory[key] >= INVENTORY_CAP_PER_TYPE - 1) continue;
+      if (key && targetNpc.inventory[key] >= INVENTORY_CAP_PER_TYPE) continue;
+      // Pisándolo, el margen es 1 menos (evita quedarse pegado al tile).
+      if (r.x === from.x && r.y === from.y && key && targetNpc.inventory[key] >= INVENTORY_CAP_PER_TYPE - 1) continue;
     }
 
     const pos = { x: r.x, y: r.y };
@@ -357,6 +363,21 @@ export function decideDestination(npc: NPC, ctx: DestinationContext): DecisionRe
       }
       const res = nearestResource(npc.position, ctx.world.resources, isGatherable, ctx, undefined, id);
       if (res) return { position: res, next: currentPrng };
+      // DEPOSITAR es parte del oficio (05d): sin nodo cosechable a la vista
+      // (caps llenos / niebla), el recolector lleva su carga al almacén que la
+      // acepta y vuelve al ciclo. Sin esto se aparcaba con el inventario al cap
+      // (auditoría: harvested=0 tres días con dos almacenes construidos al lado)
+      // — la rama de depósito genérica nunca dispara (umbral 70% de TODOS los
+      // tipos ≈ 154 ítems, deuda registrada).
+      if (ctx.structures?.length) {
+        const deposito = ctx.structures
+          .filter((s) => (STORAGE_SPECIALTY[s.kind] ?? []).some((k) => npc.inventory[k] > 0))
+          .sort((a, b) =>
+            manhattan(npc.position.x, npc.position.y, a.position.x, a.position.y) -
+            manhattan(npc.position.x, npc.position.y, b.position.x, b.position.y),
+          )[0];
+        if (deposito) return { position: deposito.position, next: currentPrng };
+      }
     }
     if (npc.designio === 'exploracion' && ctx.fogBuffer) {
       const frontier = nearestUndiscoveredTile(npc.position, ctx);

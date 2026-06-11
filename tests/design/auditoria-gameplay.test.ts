@@ -73,15 +73,21 @@ describe('Auditoría — movilidad y miedo (multi-día, mundo real)', () => {
     };
     const npcs = [0, 1].map((i) => ({ ...makeTestNPC({ id: `g${i}`, position: { x: 12, y: 12 } }), designio: 'recoleccion' as const }));
     let s = initialGameState(5, npcs, world, 'stone', { skipSpawning: true });
+    // 05d: el compromiso se mide MIENTRAS pueden cosechar — al llegar al cap
+    // de bayas (20, hacia el tick ~25) soltar el nodo es lo correcto (ningún
+    // nodo del tipo lleno es objetivo; sin almacén aquí, buscan otra cosa).
     const dests: string[][] = [[], []];
     for (let t = 0; t < 40; t++) {
       s = tick(s);
-      s.npcs.forEach((n, i) => dests[i].push(`${n.destination?.x},${n.destination?.y}`));
+      s.npcs.forEach((n, i) => {
+        if (n.inventory.berry < 20) dests[i].push(`${n.destination?.x},${n.destination?.y}`);
+      });
     }
     dests.forEach((d, i) => {
       let flips = 0;
       for (let k = 1; k < d.length; k++) if (d[k] !== d[k - 1]) flips++;
-      expect(flips, `g${i}: cambios de destino en 40 ticks`).toBeLessThanOrEqual(4);
+      expect(flips, `g${i}: cambios de destino con cap libre (${d.length} ticks medidos)`).toBeLessThanOrEqual(4);
+      expect(d.length, `g${i}: ventana de medición no vacía`).toBeGreaterThan(10);
     });
     expect(s.npcs.some((n) => (n.dailyActivity?.harvested ?? 0) > 0)).toBe(true);
   });

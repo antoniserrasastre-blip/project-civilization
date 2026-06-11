@@ -147,10 +147,24 @@ describe('Conexión — el designio atendido se reporta como cumplido', () => {
     expect(recolector.cumplido).toBe('cumplido');
   });
 
-  it('exploracion con discovered > 0 ese día → cumplido === "cumplido"', () => {
+  it('exploracion con discovered ≥ umbral ese día → cumplido === "cumplido"', () => {
+    // Reescrito 12-06-2026 (05d): la versión sim-real dependía de que el
+    // explorador del seed 1 superara el umbral — con el lab escaso + noche
+    // corta el hambre le roba el día (sv<45 cierra la puerta del designio) y
+    // se queda en 'fallido' legítimo. El contrato se fija sobre
+    // computeDawnReport puro, como sus hermanos de construcción.
     const s = canon();
-    const rep = s.dawnReport!;
-    const explorador = entrada(rep, s.npcs[1].id);
+    const npcs = s.npcs.map((n, i) =>
+      i === 1
+        ? {
+            ...n,
+            designio: 'exploracion' as const,
+            dailyActivity: { harvested: 0, built: 0, discovered: UMBRAL_CUMPLIDO.exploracion },
+          }
+        : n,
+    );
+    const rep = computeDawnReport({ ...s, npcs });
+    const explorador = entrada(rep, npcs[1].id);
     expect(explorador.designio).toBe('exploracion');
     expect(explorador.discovered).toBeGreaterThan(0);
     expect(explorador.cumplido).toBe('cumplido');

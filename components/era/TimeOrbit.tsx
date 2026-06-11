@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import { TICKS_PER_DAY } from '@/lib/resources';
+import { currentDay, solarPhase, type SolarPhase } from '@/lib/solar';
 import type { ClimateState } from '@/lib/world-state';
 
 interface TimeOrbitProps {
@@ -23,21 +24,26 @@ const SEASON_ICON = {
   winter: '❄️',
 };
 
+const PHASE_VISUAL: Record<SolarPhase, { label: string; color: string }> = {
+  amanecer: { label: 'Amanecer', color: 'text-orange-300' },
+  dia: { label: 'Día', color: 'text-yellow-100' },
+  ocaso: { label: 'Ocaso', color: 'text-red-400' },
+  noche: { label: 'Noche', color: 'text-blue-400' },
+};
+
 export function TimeOrbit({ tick, climate }: TimeOrbitProps) {
   const dayProgress = (tick % TICKS_PER_DAY) / TICKS_PER_DAY;
 
-  // Determinar fase del día (useMemo antes de cualquier return para cumplir reglas de hooks)
-  const phase = useMemo(() => {
-    if (dayProgress < 0.15) return { label: 'Amanecer', color: 'text-orange-300' };
-    if (dayProgress < 0.60) return { label: 'Día', color: 'text-yellow-100' };
-    if (dayProgress < 0.80) return { label: 'Ocaso', color: 'text-red-400' };
-    return { label: 'Noche', color: 'text-blue-400' };
-  }, [dayProgress]);
+  // 05d: UN solo reloj — la fase viene del SSOT solar (el mismo que usa el
+  // sim para miedo/fuego/forrajeo). Antes la UI decía "Día" hasta el 60%
+  // mientras el sim era nocturno desde el 50%.
+  const phase = useMemo(() => PHASE_VISUAL[solarPhase(tick)], [tick]);
 
   if (!climate) return null;
 
-  const year = Math.floor(climate.dayOfYear / 60) + 1;
-  const dayOfSeason = (climate.dayOfYear % 15) + 1;
+  // 05d: el calendario deriva del TICK, no del clima — con el flag climate
+  // OFF (laboratorio) el dayOfYear está congelado y los días "no avanzaban".
+  const day = currentDay(tick);
 
   return (
     <div className="pixel-box bg-stone-900/90 p-3 flex flex-col gap-1 min-w-[120px] pointer-events-auto border-wb-stone/40">
@@ -57,8 +63,8 @@ export function TimeOrbit({ tick, climate }: TimeOrbitProps) {
       <div className="flex items-center gap-2">
         <span className="text-xl">{SEASON_ICON[climate.season]}</span>
         <div className="flex flex-col">
-          <span className="text-[11px] font-bold text-white/90">{SEASON_LABEL[climate.season]}</span>
-          <span className="text-[9px] text-wb-stone/60">Día {dayOfSeason} del Año {year}</span>
+          <span className="text-[11px] font-bold text-white/90">Día {day}</span>
+          <span className="text-[9px] text-wb-stone/60">{SEASON_LABEL[climate.season]}</span>
         </div>
       </div>
     </div>
