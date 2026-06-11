@@ -38,7 +38,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tick } from '@/lib/simulation';
-import { applyAssignments } from '@/lib/dawn';
+import { applyAssignments, computeDawnReport } from '@/lib/dawn';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { makeLaboratorioState } from '@/lib/laboratorio';
 import type { DawnReport, GameState } from '@/lib/game-state';
@@ -162,12 +162,20 @@ describe('Conexión — el designio atendido se reporta como cumplido', () => {
 // ————————————————————————————————————————————————————————————————
 
 describe('Conexión — el designio desatendido se reporta como fallido', () => {
+  // Reescritos 11-06-2026 (decisión de spec 05b): la versión original dependía
+  // de la sonda "seed 1, día 1: el constructor acaba con built=0", y la escasez
+  // del laboratorio (05b.3) movió esa lotería de la sim. El contrato se fija
+  // ahora directamente sobre computeDawnReport (pura) con la actividad montada
+  // a mano — mismo contrato, sin depender del caos de la sim.
   it('construccion con built === 0 ese día → cumplido === "fallido"', () => {
     const s = canon();
-    const rep = s.dawnReport!;
-    const constructor = entrada(rep, s.npcs[3].id);
-    // Precondición: tenía designio de construcción y NO construyó nada
-    // (seed 1: sin obra activa para este NPC ese día — verificado en sim real).
+    const npcs = s.npcs.map((n, i) =>
+      i === 3
+        ? { ...n, designio: 'construccion' as const, dailyActivity: { harvested: 0, built: 0, discovered: 0 } }
+        : n,
+    );
+    const rep = computeDawnReport({ ...s, npcs });
+    const constructor = entrada(rep, npcs[3].id);
     expect(constructor.designio).toBe('construccion');
     expect(constructor.built).toBe(0);
     expect(constructor.cumplido).toBe('fallido');
@@ -175,9 +183,13 @@ describe('Conexión — el designio desatendido se reporta como fallido', () => 
 
   it('la actividad en OTROS dominios no salva el designio (cosechó pero su designio era construir)', () => {
     const s = canon();
-    const rep = s.dawnReport!;
-    const constructor = entrada(rep, s.npcs[3].id);
-    // El NPC hizo cosas (cosechó/exploró) — pero NO en su dominio.
+    const npcs = s.npcs.map((n, i) =>
+      i === 3
+        ? { ...n, designio: 'construccion' as const, dailyActivity: { harvested: 12, built: 0, discovered: 7 } }
+        : n,
+    );
+    const rep = computeDawnReport({ ...s, npcs });
+    const constructor = entrada(rep, npcs[3].id);
     expect(constructor.harvested + constructor.discovered).toBeGreaterThan(0);
     expect(constructor.built).toBe(0);
     expect(constructor.cumplido).toBe('fallido');

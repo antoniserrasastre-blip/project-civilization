@@ -9,6 +9,7 @@ import { initialGameState, type FeatureFlags, type GameState } from './game-stat
 import { generateWorld } from './world-gen';
 import { startDraft, pickArchetype, setSex, finalizeBlockA } from './drafting';
 import { ARCHETYPE, SEX, type Archetype, type Sex } from './npcs';
+import { isFoodResource } from './resources';
 
 /** Las 8 flags del contrato, todas OFF. El núcleo no tiene flag. */
 export const LABORATORIO_FEATURES: FeatureFlags = {
@@ -30,11 +31,28 @@ const LABORATORIO_PICKS: ReadonlyArray<{ archetype: Archetype; sex: Sex }> = [
   { archetype: ARCHETYPE.SCOUT, sex: SEX.F },
 ];
 
+/** Escasez de comida del laboratorio (auditoría de riesgo, 11-06-2026): a
+ *  abundancia natural (×1) el clan no puede sufrir jamás — 190 de comida para
+ *  4 NPCs son ~6 días de despensa gratis y "dirigir mal" no cuesta nada. A
+ *  ×0.25 el hambre asoma el día 2-3 sin matar: el mordisco que hace que los
+ *  designios importen. Entero en centésimas para mantener §A4. */
+const ESCASEZ_COMIDA_PCT = 25;
+
 /** Partida de laboratorio lista: mundo 32×32 pangea (jugable a ese tamaño),
  *  4 elegidos drafteados desde el seed (patrón handleQuickStart, sin bloque B),
- *  spawn en tierra firme, phasedMode y las 8 flags OFF. Pura y determinista. */
+ *  spawn en tierra firme, phasedMode, las 8 flags OFF y comida escasa.
+ *  Pura y determinista. */
 export function makeLaboratorioState(seed: number): GameState {
-  const world = generateWorld(seed, { width: 32, height: 32, type: 'pangea' });
+  const generated = generateWorld(seed, { width: 32, height: 32, type: 'pangea' });
+  const world = {
+    ...generated,
+    resources: generated.resources.map((r) => {
+      if (!isFoodResource(r.id)) return r;
+      const quantity = Math.max(1, Math.floor((r.quantity * ESCASEZ_COMIDA_PCT) / 100));
+      const initialQuantity = Math.max(1, Math.floor((r.initialQuantity * ESCASEZ_COMIDA_PCT) / 100));
+      return { ...r, quantity, initialQuantity };
+    }),
+  };
 
   let draft = startDraft(seed);
   LABORATORIO_PICKS.forEach((p, i) => {
