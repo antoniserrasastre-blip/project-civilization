@@ -1,8 +1,8 @@
 # ROADMAP — Proyecto Civilización (Guerrilla Edition)
 
-> Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 11-06-2026
-> (sprint 05 "El Laboratorio" COMPLETO en código: flags + quickstart 🔬 + 5 fixes auditados +
-> conexión; suite 858/858, e2e ciclo completo verde; falta el playtest de validación de Toni)._
+> Estado vivo del proyecto. Se reescribe, no se acumula. _Última actualización: 12-06-2026
+> (05d "El Reloj" cerrado: ciclo solar único, calendario por tick, noche al 20%, depósito
+> del recolector vivo; suite 920/920; queda re-pasar el protocolo de 15 pruebas)._
 
 ## Dirección (decidida 10-06-2026): C — "El Loop primero"
 Dos fases: **día** (simulación determinista) ↔ **preparación** (pausa al anochecer; el jugador
@@ -78,10 +78,18 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
   Mata la clase entera de bugs "varado en agua". Regalo del TDD: bug latente del A* (selfIdx
   pisado → bucle infinito en reconstructPath) cazado. 11 design tests + auditoría-agua
   invertida + 5 pins del mundo-pared reescritos.
+- [x] **Sprint 05d — "El Reloj"** (12-06-2026, playtest: "los días no avanzan; las noches son
+  eternas"): `lib/solar.ts` SSOT del ciclo (noche = último 20%, antes 50%; sim y UI leen el
+  MISMO reloj); calendario derivado del tick, jamás del clima (el lab lo congelaba); tick a
+  150ms (72s/día a ×1). La noche corta desnudó 3 agujeros reales: ctx.structures nunca
+  llegaba a decideDestination (toda rama de depósito muerta), el filtro de cap solo miraba
+  el nodo pisado (oscilación entre bayales), y el recolector ahora DEPOSITA como parte del
+  oficio. Era-loop sincerado (su clan vivía del exploit del agua: comida ×10). 5 design
+  tests nuevos; 5 fixtures re-anclados de lotería a invariantes.
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo (suite 915/915, tsc=0, eslint=0 errores, e2e ciclo verde)
+- Motor Determinista (§A4): ✅ Operativo (suite 920/920, tsc=0, eslint=0 errores, e2e ciclo verde)
 - Features-flags por subsistema: ✅ Operativo (laboratorio = casi todo OFF; clásico intacto)
 - Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
   (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
