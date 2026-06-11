@@ -8,9 +8,10 @@
  *
  * Contrato (decidido por el orquestador, Sprint 05 — sim-side):
  *  - `lib/laboratorio.ts` exporta:
- *    · `LABORATORIO_FEATURES: FeatureFlags` — las 8 claves a false
+ *    · `LABORATORIO_FEATURES: FeatureFlags` — las 9 claves a false
  *      (climate, animals, reproduction, items, legends, miracles,
- *      influence, fractures). El núcleo no tiene flag y siempre corre.
+ *      influence, fractures, tech — Sprint 05b.4: el laboratorio nace
+ *      sin la máquina de premios). El núcleo no tiene flag y siempre corre.
  *    · `makeLaboratorioState(seed: number): GameState` — PURA. Partida
  *      lista: mundo 32×32 determinista, exactamente 4 NPCs vivos
  *      drafteados desde el seed (patrón elegidos-sin-ciudadanos de
@@ -44,6 +45,7 @@ const FLAG_KEYS = [
   'miracles',
   'influence',
   'fractures',
+  'tech',
 ] as const;
 
 /** Espejo de los criterios REALES del motor (ambos privados hoy):
@@ -73,11 +75,11 @@ function correHastaAnochecer(s: GameState): GameState {
 }
 
 // ————————————————————————————————————————————————————————————————
-// 1. Forma: 32×32, 4 NPCs vivos, phasedMode, las 8 flags OFF
+// 1. Forma: 32×32, 4 NPCs vivos, phasedMode, las 9 flags OFF
 // ————————————————————————————————————————————————————————————————
 
 describe('Laboratorio — forma del estado', () => {
-  it('LABORATORIO_FEATURES tiene exactamente las 8 claves del contrato, todas a false', () => {
+  it('LABORATORIO_FEATURES tiene exactamente las 9 claves del contrato, todas a false', () => {
     expect(Object.keys(LABORATORIO_FEATURES).sort()).toEqual([...FLAG_KEYS].sort());
     for (const key of FLAG_KEYS) {
       expect(LABORATORIO_FEATURES[key]).toBe(false);
@@ -100,7 +102,7 @@ describe('Laboratorio — forma del estado', () => {
     expect(s.tick).toBe(0);
   });
 
-  it('features = LABORATORIO_FEATURES (las 8 OFF, explícitas en el estado)', () => {
+  it('features = LABORATORIO_FEATURES (las 9 OFF, explícitas en el estado)', () => {
     const s = makeLaboratorioState(7);
     expect(s.features).toEqual(LABORATORIO_FEATURES);
     for (const key of FLAG_KEYS) {

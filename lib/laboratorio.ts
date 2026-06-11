@@ -11,7 +11,7 @@ import { startDraft, pickArchetype, setSex, finalizeBlockA } from './drafting';
 import { ARCHETYPE, SEX, type Archetype, type Sex } from './npcs';
 import { isFoodResource } from './resources';
 
-/** Las 8 flags del contrato, todas OFF. El núcleo no tiene flag. */
+/** Las 9 flags del contrato, todas OFF. El núcleo no tiene flag. */
 export const LABORATORIO_FEATURES: FeatureFlags = {
   climate: false,
   animals: false,
@@ -21,6 +21,7 @@ export const LABORATORIO_FEATURES: FeatureFlags = {
   miracles: false,
   influence: false,
   fractures: false,
+  tech: false,
 };
 
 /** Draft fijo del laboratorio: 3+3+2+2 = 10 = presupuesto exacto, 2M+2F. */

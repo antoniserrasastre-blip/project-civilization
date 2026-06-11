@@ -146,6 +146,9 @@ export function GameShell({ seed }: GameShellProps) {
 
   const handleLabStart = () => {
     initializeLaboratorio(seed);
+    // A escala laboratorio el tick es ~0.2ms: a ×1 el día son 2 min de espera
+    // artificial (playtest 11-06-2026). ×5 por defecto; el jugador puede bajar.
+    setSpeed(5);
     setDraftDone(true);
   };
 
@@ -334,8 +337,10 @@ export function GameShell({ seed }: GameShellProps) {
         </div>
       )}
 
-      {/* CAPA 1: ZONA A (Top Bar) */}
-      <HUD
+      {/* CAPA 1: ZONA A (Top Bar). En PREPARACIÓN no se renderiza: la pantalla
+          de preparación ES la fase — sin esto, el HUD (z-100) y los eurekas
+          sangraban por encima/debajo del overlay (playtest 11-06-2026). */}
+      {!inPreparation && <HUD
         day={day} tick={state.tick} climate={state.climate}
         gratitude={state.village.gratitude} faith={state.village.faith}
         activeMessage={state.village.activeMessage} aliveCount={aliveCount}
@@ -348,7 +353,7 @@ export function GameShell({ seed }: GameShellProps) {
         onOpenCodex={() => setCodexOpen(true)}
         godType={state.godType} unlockedKinds={state.unlockedItemKinds.filter(k => !dismissedEurekas.has(k))}
         onDismissEureka={handleDismissEureka}
-      />
+      />}
 
       {/* CAPA 2: ZONA B (Sidebar Izquierda - Gestión) */}
       <aside className="pointer-events-none fixed inset-y-0 left-0 z-[110] flex w-[420px] flex-col p-4 pt-24">
@@ -370,7 +375,7 @@ export function GameShell({ seed }: GameShellProps) {
       </aside>
 
       {/* CAPA 3: ZONA D (Sidebar Derecha - Registro Histórico y Alertas) */}
-      <aside className="pointer-events-none fixed inset-y-0 right-0 z-[80] flex w-[320px] flex-col items-end gap-4 p-4 pt-36">
+      {!inPreparation && <aside className="pointer-events-none fixed inset-y-0 right-0 z-[80] flex w-[320px] flex-col items-end gap-4 p-4 pt-36">
         <div className="pointer-events-auto w-full">
           <ChronicleFeed 
             activeMessage={state.village.activeMessage} 
@@ -387,10 +392,10 @@ export function GameShell({ seed }: GameShellProps) {
             icon: '/ui/bubble_work.svg',
           }))} onDismiss={handleDismissEureka} />
         </div>
-      </aside>
+      </aside>}
 
       {/* CAPA 4: ZONA C (Bottom Center - Tesorería y Controles) */}
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center p-6 gap-3">
+      {!inPreparation && <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center p-6 gap-3">
            {/* Botón de Susurro */}
            <div className="pointer-events-auto flex justify-center mb-1">
              <button
@@ -402,7 +407,7 @@ export function GameShell({ seed }: GameShellProps) {
            </div>
            
            <div className="pointer-events-auto w-full max-w-4xl flex justify-center">
-             <ResourceMonitor 
+             <ResourceMonitor
               resources={Object.entries(communalInventory)
                 .filter(([_, amount]) => amount > 0)
                 .map(([id, amount]) => ({
@@ -411,10 +416,10 @@ export function GameShell({ seed }: GameShellProps) {
                   amount,
                   icon: `/resources/${id}.svg`,
                   trend: 'stable'
-                }))} 
+                }))}
             />
            </div>
-      </div>
+      </div>}
 
       {/* MODALES TÉCNICOS (Prioridad 100) */}
       {selectorOpen && (

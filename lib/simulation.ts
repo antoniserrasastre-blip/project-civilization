@@ -380,7 +380,9 @@ function tickClanSystems(state: GameState, fogBuffer: Uint8Array): GameState {
 function tickDevelopment(state: GameState): GameState {
   let nextState = tryAutoBuild(state);
   if (isFeatureOn(nextState, 'items')) nextState = tryAutoCraftItems(nextState);
-  nextState = tickTech(nextState); // Activar investigación
+  // 'tech' OFF apaga la máquina de premios entera: unlocks, eurekas,
+  // crónica de descubrimiento e identidades (todo nace en tickTech).
+  if (isFeatureOn(nextState, 'tech')) nextState = tickTech(nextState);
   return nextState;
 }
 

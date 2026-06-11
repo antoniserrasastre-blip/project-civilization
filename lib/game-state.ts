@@ -31,6 +31,9 @@ export interface FeatureFlags {
   miracles: boolean;
   influence: boolean;
   fractures: boolean;
+  /** Emergencia tecnológica entera: unlocks, eurekas, crónica de
+   *  descubrimiento e identidades del clan (tickTech). Sprint 05b. */
+  tech: boolean;
 }
 
 export const DEFAULT_FEATURES: FeatureFlags = {
@@ -42,6 +45,7 @@ export const DEFAULT_FEATURES: FeatureFlags = {
   miracles: true,
   influence: true,
   fractures: true,
+  tech: true,
 };
 
 /** Accessor puro: true si `features` está ausente o la clave no está. */

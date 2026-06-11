@@ -3,12 +3,18 @@
  *
  * Contrato (decidido por el orquestador, Sprint 05.1):
  *  - `GameState.features?: FeatureFlags` — OPCIONAL (compat saves viejos, mismo
- *    patrón que `dawnReport`). 8 claves booleanas exactas:
- *    climate, animals, reproduction, items, legends, miracles, influence, fractures.
+ *    patrón que `dawnReport`). 9 claves booleanas exactas:
+ *    climate, animals, reproduction, items, legends, miracles, influence,
+ *    fractures, tech (Sprint 05b.4).
  *  - `isFeatureOn(state, key)` — accessor puro: true si `features` está ausente
  *    o la clave no está (default todo ON); el valor del flag si está.
- *  - `DEFAULT_FEATURES` — las 8 claves a true.
+ *  - `DEFAULT_FEATURES` — las 9 claves a true.
  *  - Gating real en tick()/dawn(): cada flag OFF apaga SU subsistema y nada más.
+ *  - `tech` OFF (Sprint 05b.4, contrato del orquestador) → `tickTech` NO corre:
+ *    sin unlocks nuevos (state.tech idéntico), sin eurekas (unlockedItemKinds
+ *    idéntico), sin crónica de descubrimiento/identidad nueva, sin avance de
+ *    prng por ese paso. Razón playtest: 7 ¡EUREKA! + 5 "el clan domina:" +
+ *    2 "ha forjado su carácter" en los primeros 30s del laboratorio.
  *  - Compat crítico: estado SIN `features` ≡ estado con DEFAULT_FEATURES,
  *    byte a byte (módulo el propio campo). El juego clásico no cambia.
  *  - Milagros OFF — comportamiento mínimo especificado aquí tras leer
@@ -49,6 +55,7 @@ const FLAG_KEYS = [
   'miracles',
   'influence',
   'fractures',
+  'tech',
 ] as const;
 
 function mkFlatWorld(w = 32, h = 32): WorldMap {
@@ -108,7 +115,7 @@ function mkWolf(x: number, y: number): Animal {
 // ————————————————————————————————————————————————————————————————
 
 describe('Sprint 05 — features flags: contrato base (isFeatureOn + DEFAULT_FEATURES)', () => {
-  it('DEFAULT_FEATURES tiene exactamente las 8 claves del contrato, todas a true', () => {
+  it('DEFAULT_FEATURES tiene exactamente las 9 claves del contrato, todas a true', () => {
     expect(Object.keys(DEFAULT_FEATURES).sort()).toEqual([...FLAG_KEYS].sort());
     for (const key of FLAG_KEYS) {
       expect(DEFAULT_FEATURES[key]).toBe(true);
@@ -123,11 +130,12 @@ describe('Sprint 05 — features flags: contrato base (isFeatureOn + DEFAULT_FEA
       miracles: true,
       influence: true,
       fractures: true,
+      tech: true,
     };
     expect(full).toEqual(DEFAULT_FEATURES);
   });
 
-  it('estado sin features → isFeatureOn devuelve true para las 8 claves (default todo ON)', () => {
+  it('estado sin features → isFeatureOn devuelve true para las 9 claves (default todo ON)', () => {
     const s = mkState();
     expect(s.features).toBeUndefined(); // compat: initialGameState clásico no lo trae… o lo trae; lo que NO puede es romper el default ON
     for (const key of FLAG_KEYS) {
@@ -138,7 +146,7 @@ describe('Sprint 05 — features flags: contrato base (isFeatureOn + DEFAULT_FEA
   it('features parcial → clave presente devuelve su valor, clave ausente devuelve true', () => {
     const s = { ...mkState(), features: { animals: false } as Partial<FeatureFlags> as FeatureFlags };
     expect(isFeatureOn(s, 'animals')).toBe(false);
-    // Las otras 7 no están en el objeto parcial → default ON.
+    // Las otras 8 no están en el objeto parcial → default ON.
     for (const key of FLAG_KEYS.filter((k) => k !== 'animals')) {
       expect(isFeatureOn(s, key)).toBe(true);
     }
@@ -407,5 +415,63 @@ describe('Sprint 05 — features flags: gating de milagros', () => {
     const ana = granted.npcs.find((n) => n.id === 'ana')!;
     expect(ana.traits).toContain(MIRACLES_CATALOG[MIRACLE.HAMBRE_SAGRADA].traitId);
     expect(granted.village.gratitude).toBe(100 - MIRACLES_CATALOG[MIRACLE.HAMBRE_SAGRADA].cost);
+  });
+});
+
+// ————————————————————————————————————————————————————————————————
+// 8. Gating de tech (Sprint 05b.4 — la máquina de premios)
+// ————————————————————————————————————————————————————————————————
+
+describe('Sprint 05b — features flags: gating de tech', () => {
+  // Fixture: clan ya en su día 3 (daysAlive >= 3), arrancando UN tick después
+  // del boundary para no pisar el dawn inline. tickTech solo evalúa cada
+  // TECH_CHECK_INTERVAL = 20 ticks → 25 ticks cruzan seguro un check (tick
+  // 1460), donde FOOD_PRESERVATION ('El clan almacena más de lo que come en
+  // un día', daysAlive >= 3) emerge SÍ o SÍ con tech ON — sin depender de
+  // tradiciones ni de items previos. Es el mismo premio que inunda el
+  // laboratorio en el playtest.
+  const N_TICKS = 25;
+
+  function mkDia3(): GameState {
+    return { ...mkState(37), tick: 3 * TICKS_PER_DAY + 1 };
+  }
+
+  function corre(s: GameState, n = N_TICKS): GameState {
+    for (let i = 0; i < n; i++) s = tick(s);
+    return s;
+  }
+
+  /** Las entradas de crónica que SOLO fabrica tickTech: descubrimiento
+   *  ("El clan domina:") e identidad ("ha forjado su carácter"). */
+  function cronicaDeTech(s: GameState) {
+    return s.chronicle.filter(
+      (e) => e.text.includes('El clan domina:') || e.text.includes('ha forjado su carácter'),
+    );
+  }
+
+  it('tech OFF → tickTech no corre: tech, unlockedItemKinds y crónica de descubrimiento/identidad idénticos tras N ticks', () => {
+    const base = mkDia3();
+    expect(cronicaDeTech(base)).toEqual([]); // el fixture entra limpio
+
+    const off = corre(conFlags(base, { tech: false }));
+    expect(off.tech).toEqual(base.tech);
+    expect(off.unlockedItemKinds).toEqual(base.unlockedItemKinds);
+    expect(cronicaDeTech(off)).toEqual([]);
+  });
+
+  it('sanity (no-vacuo): el mismo fixture con tech ON SÍ desbloquea (unlock + eureka + crónica)', () => {
+    const base = mkDia3();
+    const on = corre(conFlags(base, {}));
+    // FOOD_PRESERVATION emerge en el primer check del día 3…
+    expect(on.tech.unlocked.length).toBeGreaterThan(base.tech.unlocked.length);
+    // …trae eureka ('despensa' entra en unlockedItemKinds)…
+    expect(on.unlockedItemKinds.length).toBeGreaterThan(base.unlockedItemKinds.length);
+    // …y grita su ¡DESCUBRIMIENTO! en la crónica.
+    expect(cronicaDeTech(on).length).toBeGreaterThan(0);
+  });
+
+  it('determinismo con tech OFF: mismo seed + mismos flags → estado final byte-idéntico', () => {
+    const run = () => JSON.stringify(corre(conFlags(mkDia3(), { tech: false }), 40));
+    expect(run()).toBe(run());
   });
 });
