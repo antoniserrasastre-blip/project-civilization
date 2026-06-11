@@ -30,6 +30,8 @@ export interface ChronicleFeedProps {
   messageHistory: readonly { day: number; intent: MessageChoice }[];
   chronicle: readonly ChronicleEntry[];
   legends: LegendState;
+  /** 05b: con el sistema de leyendas OFF (laboratorio) el tab no se muestra. */
+  showLegends?: boolean;
 }
 
 interface Row {
@@ -80,12 +82,12 @@ export function ChronicleFeed(props: ChronicleFeedProps) {
         >
           Crónica
         </button>
-        <button 
+        {(props.showLegends ?? true) && <button
           onClick={() => setActiveTab('legends')}
           className={`flex-1 p-3 text-[9px] uppercase font-black transition-colors ${activeTab === 'legends' ? 'text-wb-gold bg-white/5 border-b-2 border-wb-gold' : 'text-wb-stone/30'}`}
         >
           Leyendas
-        </button>
+        </button>}
       </div>
 
       {/* List */}

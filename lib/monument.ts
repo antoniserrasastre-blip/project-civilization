@@ -18,7 +18,8 @@ import type { VillageState } from './village';
 import { TICKS_PER_DAY } from './resources';
 
 // Sprint 15: Logística añade stockpiles; 4 estructuras umbral para la Fase 6.
-const REQUIRED_CRAFTABLES: CraftableId[] = [
+// Exportado (05b): la UI pinta el progreso hacia el monumento desde este SSOT.
+export const REQUIRED_CRAFTABLES: CraftableId[] = [
   CRAFTABLE.REFUGIO,
   CRAFTABLE.FOGATA_PERMANENTE,
   CRAFTABLE.STOCKPILE_WOOD,

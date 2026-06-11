@@ -16,7 +16,9 @@ import { DivineLogPanel, type DivineLogEntry } from '@/components/era/DivineLogP
 import { ResourceMonitor } from '@/components/ui/ResourceMonitor';
 import { EurekaToast } from '@/components/ui/EurekaToast';
 import type { GameState } from '@/lib/game-state';
+import { isFeatureOn } from '@/lib/game-state';
 import { applyAssignments } from '@/lib/dawn';
+import { MIN_CONSECUTIVE_NIGHTS, REQUIRED_CRAFTABLES } from '@/lib/monument';
 import { PreparationScreen } from '@/components/era/PreparationScreen';
 import { applyPlayerIntent, type MessageChoice, WHISPER_ES } from '@/lib/messages';
 import { TICKS_PER_DAY } from '@/lib/resources';
@@ -27,7 +29,7 @@ import {
 import { summarizeClanState } from '@/lib/clan-context';
 import { grantMiracle, type MiracleId } from '@/lib/miracles';
 import { decideDestination, NEED_THRESHOLDS, carriedFood } from '@/lib/needs';
-import { firstStructureOfKind } from '@/lib/structures';
+import { firstStructureOfKind, hasStructure } from '@/lib/structures';
 import { clanInventoryTotal, CRAFTABLE, RECIPES } from '@/lib/crafting';
 import type { NPC, NPCInventory } from '@/lib/npcs';
 import { RESOURCE, TILE, RESOURCE_LABEL, type TileId, type ResourceId } from '@/lib/world-state';
@@ -131,6 +133,17 @@ export function GameShell({ seed }: GameShellProps) {
   // Loop de simulación centralizado. En PREPARACIÓN la pausa es real (sin
   // ticks al worker): evita la carrera worker-vs-applyAssignments y ahorra CPU.
   const inPreparation = state.phase === 'preparation';
+
+  // 05b: órganos de sistemas apagados se ocultan; la meta de era siempre a la
+  // vista (SSOT lib/monument — "¿qué persigue el clan?" era irrespondible).
+  const showDivine = isFeatureOn(state, 'miracles');
+  const showCodex = isFeatureOn(state, 'tech');
+  const eraGoal = useMemo(() => ({
+    nights: state.village.consecutiveNightsAtFire,
+    nightsGoal: MIN_CONSECUTIVE_NIGHTS,
+    craftablesBuilt: REQUIRED_CRAFTABLES.filter((k) => hasStructure(state.structures, k)).length,
+    craftablesGoal: REQUIRED_CRAFTABLES.length,
+  }), [state.village.consecutiveNightsAtFire, state.structures]);
   useEffect(() => {
     if (!draftDone || paused || inPreparation) return;
     const base = isTabActive ? TICK_INTERVAL_MS : TICK_INTERVAL_MS * 4;
@@ -353,6 +366,7 @@ export function GameShell({ seed }: GameShellProps) {
         onOpenCodex={() => setCodexOpen(true)}
         godType={state.godType} unlockedKinds={state.unlockedItemKinds.filter(k => !dismissedEurekas.has(k))}
         onDismissEureka={handleDismissEureka}
+        showDivine={showDivine} showCodex={showCodex} eraGoal={eraGoal}
       />}
 
       {/* CAPA 2: ZONA B (Sidebar Izquierda - Gestión) */}
@@ -377,11 +391,12 @@ export function GameShell({ seed }: GameShellProps) {
       {/* CAPA 3: ZONA D (Sidebar Derecha - Registro Histórico y Alertas) */}
       {!inPreparation && <aside className="pointer-events-none fixed inset-y-0 right-0 z-[80] flex w-[320px] flex-col items-end gap-4 p-4 pt-36">
         <div className="pointer-events-auto w-full">
-          <ChronicleFeed 
-            activeMessage={state.village.activeMessage} 
-            messageHistory={state.village.messageHistory} 
-            chronicle={state.chronicle} 
+          <ChronicleFeed
+            activeMessage={state.village.activeMessage}
+            messageHistory={state.village.messageHistory}
+            chronicle={state.chronicle}
             legends={state.legends}
+            showLegends={isFeatureOn(state, 'legends')}
           />
         </div>
         <div className="pointer-events-auto">
@@ -396,15 +411,16 @@ export function GameShell({ seed }: GameShellProps) {
 
       {/* CAPA 4: ZONA C (Bottom Center - Tesorería y Controles) */}
       {!inPreparation && <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex flex-col items-center p-6 gap-3">
-           {/* Botón de Susurro */}
-           <div className="pointer-events-auto flex justify-center mb-1">
+           {/* Botón de Susurro — fuera cuando la intervención divina (miracles)
+               está OFF: en el laboratorio el canal del dios son los designios. */}
+           {showDivine && <div className="pointer-events-auto flex justify-center mb-1">
              <button
                 onClick={() => setSelectorOpen(true)}
                 className="pixel-box bg-wb-gold/90 px-8 py-2.5 text-xs text-black font-black hover:bg-white transition-colors shadow-2xl border-black/30 tracking-widest"
               >
                 {state.village.activeMessage ? `✨ SUSURRANDO: ${WHISPER_ES[state.village.activeMessage]}` : '🕯️ HABLAR AL CLAN'}
               </button>
-           </div>
+           </div>}
            
            <div className="pointer-events-auto w-full max-w-4xl flex justify-center">
              <ResourceMonitor

@@ -442,8 +442,10 @@ function renderNPCs(
       drawBubble(ctx, cx, cy, spriteSize, badges[0], sprites);
     }
 
-    // Nombre flotante a zoom alto
-    if (tilePx >= 30) {
+    // Nombre flotante a zoom alto — o SIEMPRE con clanes pequeños (≤6 vivos,
+    // el caso laboratorio): "no sé cuál es Sebastià" mató la conexión en el
+    // playtest 11-06-2026; con 4 NPCs el nombre es la identidad.
+    if (tilePx >= 30 || placements.length <= 6) {
       const firstName = npc.name.split(' ')[0];
       const fontSize = Math.max(8, Math.min(12, tilePx * 0.3));
       ctx.save();

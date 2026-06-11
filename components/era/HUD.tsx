@@ -109,6 +109,17 @@ export interface HUDProps {
   currentWind?: string;
   unlockedKinds?: string[];
   onDismissEureka?: (id: string) => void;
+  /** 05b: los órganos de sistemas apagados por flags se ocultan (laboratorio).
+   *  showDivine ← miracles (fe/gratitud/intervención); showCodex ← tech. */
+  showDivine?: boolean;
+  showCodex?: boolean;
+  /** 05b: la meta de la era, visible — progreso hacia el monumento. */
+  eraGoal?: {
+    nights: number;
+    nightsGoal: number;
+    craftablesBuilt: number;
+    craftablesGoal: number;
+  } | null;
 }
 
 function pct(progress: number): number {
@@ -202,6 +213,9 @@ export function HUD({
   currentWind = 'Tramuntana',
   unlockedKinds = [],
   onDismissEureka = () => {},
+  showDivine = true,
+  showCodex = true,
+  eraGoal = null,
 }: HUDProps) {
   // Mapear inventario para el monitor
   const resources: ResourceData[] = Object.entries(communalInventory)
@@ -258,23 +272,23 @@ export function HUD({
 
   return (
     <header className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex h-24 items-start justify-between p-4">
-      {/* IZQUIERDA: Status Divino y Códice */}
+      {/* IZQUIERDA: Status Divino y Códice — ocultos si sus sistemas están OFF */}
       <div className="pointer-events-auto flex items-start gap-4">
-        <DivineHeader
+        {showDivine && <DivineHeader
           godType={godType as any}
           faith={faith}
           maxFaith={FAITH_CAP}
           gratitude={gratitude}
           maxGratitude={GRATITUDE_CEILING}
           currentWind={currentWind}
-        />
-        <button 
+        />}
+        {showCodex && <button
           onClick={onOpenCodex}
           className="pixel-box bg-stone-900/90 p-3 text-wb-gold hover:bg-stone-800 transition-colors flex flex-col items-center gap-1 border-wb-gold/30 shadow-xl"
         >
           <span className="text-[10px] font-black italic uppercase tracking-tighter">Códice</span>
           <span className="text-[8px] opacity-60 font-bold uppercase">Tribu</span>
-        </button>
+        </button>}
       </div>
 
       {/* DERECHA: Tiempo y Velocidad */}
@@ -309,6 +323,15 @@ export function HUD({
         {showProgress && monumentProgress < 100 && (
           <div className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 border-amber-500/20 shadow-lg">
             Obra Monumental: {Math.round((monumentProgress / 480) * 100)}%
+          </div>
+        )}
+
+        {/* 05b: la meta de la era, siempre a la vista — "¿qué persigue el clan?"
+            era irrespondible en el playtest. Datos del SSOT de lib/monument. */}
+        {eraGoal && (
+          <div data-testid="era-goal" className="pixel-box bg-stone-900/80 p-2 text-[10px] text-amber-200 border-amber-500/20 shadow-lg text-right">
+            <div>🔥 Noches al fuego: {eraGoal.nights}/{eraGoal.nightsGoal}</div>
+            <div>🏗 Umbral de era: {eraGoal.craftablesBuilt}/{eraGoal.craftablesGoal} construcciones</div>
           </div>
         )}
       </div>
