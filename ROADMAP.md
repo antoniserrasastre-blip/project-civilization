@@ -71,10 +71,17 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
     🏗 umbral M/4, SSOT lib/monument); HUD podado por flags; sección Economía en el informe
     (aportes por NPC/recurso + «comimos X» — dailyActivity.porRecurso/comido).
   - [ ] Re-pasar el protocolo de 15 pruebas (nodo ICM) → luego la validación de los 10 días.
+- [x] **Sprint 05c — "El Mar"** (decisión de diseño 11-06-2026): el agua profunda se NADA —
+  coste A* 80 vs 10 (solo se nada cuando compensa; las islas son alcanzables), 1 mov/3 ticks,
+  −0.5 sv/tick sin recuperación en profundo, ahogamiento con crónica «se lo llevó el mar», y
+  techo de recuperación pasiva por agua 70→40 GLOBAL (el hambre de ayer sigue ahí mañana).
+  Mata la clase entera de bugs "varado en agua". Regalo del TDD: bug latente del A* (selfIdx
+  pisado → bucle infinito en reconstructPath) cazado. 11 design tests + auditoría-agua
+  invertida + 5 pins del mundo-pared reescritos.
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo (suite 904/904, tsc=0, eslint=0 errores, e2e ciclo verde)
+- Motor Determinista (§A4): ✅ Operativo (suite 915/915, tsc=0, eslint=0 errores, e2e ciclo verde)
 - Features-flags por subsistema: ✅ Operativo (laboratorio = casi todo OFF; clásico intacto)
 - Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
   (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
