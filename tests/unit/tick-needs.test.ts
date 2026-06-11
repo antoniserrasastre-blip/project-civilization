@@ -121,20 +121,33 @@ describe('Recovery on-the-spot', () => {
     expect(game.stats.supervivencia).toBeCloseTo(59.85);
   });
 
-  it('agua SÍ cura on-tile, y se suma al decay', () => {
-    // Agua suma 5. Decay resta 0.15. Neto +4.85.
+  it('agua cura on-tile pero satura en 40 — la sed cubierta no es comida (05c)', () => {
+    // Techo 40 (El Mar): el agua recupera (+5) solo bajo 40 y CLAMPEA en 40 —
+    // un día de hambre ya no se borra durmiendo junto al agua.
     const world = mkWorld();
     world.resources.push({
       id: RESOURCE.WATER, x: 5, y: 5,
       quantity: 999, initialQuantity: 999, regime: 'continuous', depletedAtTick: null,
     });
-    const npc39 = makeTestNPC({
-      id: 'n1',
+    const mk = (id: string, sv: number) => makeTestNPC({
+      id,
       position: { x: 5, y: 5 },
-      stats: { supervivencia: 39, socializacion: 60, proposito: 100, miedo: 20 },
+      stats: { supervivencia: sv, socializacion: 60, proposito: 100, miedo: 20 },
     });
-    const [after39] = tickNeeds([npc39], { world, npcs: [npc39], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
-    expect(after39.stats.supervivencia).toBeCloseTo(43.85); // 39 - 0.15 + 5
+    const ctx = (npc: ReturnType<typeof makeTestNPC>) =>
+      ({ world, npcs: [npc], prng: { seed: 1, cursor: 0 }, currentTick: 0, ticksPerDay: 100, synergies: [] });
+
+    const npc39 = mk('n1', 39);
+    const [after39] = tickNeeds([npc39], ctx(npc39));
+    expect(after39.stats.supervivencia).toBeCloseTo(40); // min(40, 38.85 + 5): clamp en el techo
+
+    const npc30 = mk('n2', 30);
+    const [after30] = tickNeeds([npc30], ctx(npc30));
+    expect(after30.stats.supervivencia).toBeCloseTo(34.85); // 30 - 0.15 + 5, bajo el techo
+
+    const npc50 = mk('n3', 50);
+    const [after50] = tickNeeds([npc50], ctx(npc50));
+    expect(after50.stats.supervivencia).toBeCloseTo(49.85); // sobre 40: solo decay, sin recorte
   });
 });
 

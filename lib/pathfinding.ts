@@ -2,8 +2,13 @@
  * Pathfinding A* determinista sobre grid 2D.
  */
 
-import type { WorldMap } from './world-state';
+import { TILE, type WorldMap } from './world-state';
 import type { PRNGState } from './prng';
+
+// EL MAR (05c): el agua profunda ya no es pared — se nada, pero el A* la
+// cobra a 8× el paso base (80 vs 10). La heurística manhattan ×10 sigue
+// siendo admisible sin reescalar.
+const WATER_MOVE_COST = 80;
 
 interface Node {
   x: number;
@@ -36,14 +41,13 @@ export function findPath(
 
   if (from.x === to.x && from.y === to.y) return { path: [from], next: prng };
 
-  // Solo el DESTINO intransitable invalida el path. El origen puede ser agua
-  // (un NPC empujado allí por error): el A* solo expande vecinos transitables,
-  // así que el primer paso lo saca y no puede volver a entrar — sin esto, el
-  // varado se quedaba clavado hasta morir (auditoría-agua C2).
+  // EL MAR (05c): por defecto TODO es transitable (el agua cuesta, no bloquea).
+  // Un `options.passable` custom de otros callers sigue mandando: solo el
+  // DESTINO intransitable según ese predicado invalida el path.
   const endTile = world.tiles[to.y * world.width + to.x];
   const isPassableTile = (tile: number) => {
     if (options.passable) return options.passable(tile);
-    return tile !== 0; // 0 = WATER
+    return true;
   };
   if (!isPassableTile(endTile)) return { path: null, next: prng };
 
@@ -92,13 +96,13 @@ export function findPath(
 
       const tile = world.tiles[nbIdx];
       if (options.passable && !options.passable(tile)) continue;
-      if (tile === 0) continue; // 0 = WATER por defecto
 
       // LÓGICA DE RUTAS DE DESEO:
       // El coste base es 10. Si hay mucho tráfico, el coste baja (máximo -5).
+      // El agua profunda cuesta 80 fijo (sin descuento: en el mar no hay rutas).
       const trafficValue = traffic ? (traffic[nbIdx] || 0) : 0;
       const trafficDiscount = Math.min(5, Math.floor(trafficValue / 200));
-      const moveCost = 10 - trafficDiscount;
+      const moveCost = tile === TILE.WATER ? WATER_MOVE_COST : 10 - trafficDiscount;
 
       const g = current.g + moveCost;
       const h = manhattan(nb, to);
@@ -118,7 +122,10 @@ export function findPath(
       };
 
       if (existingInOpen) {
-        Object.assign(existingInOpen, newNode);
+        // El nodo ya vive en `all` en su índice original: conservar selfIdx.
+        // Pisarlo con all.length corrompía la cadena de padres (ciclo infinito
+        // en reconstructPath) — latente con coste uniforme, frecuente con agua=80.
+        Object.assign(existingInOpen, newNode, { selfIdx: existingInOpen.selfIdx });
       } else {
         open.push(newNode);
         all.push(newNode);

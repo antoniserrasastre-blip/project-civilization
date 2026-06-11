@@ -77,8 +77,10 @@ export function nextBuildPriority(state: GameState): CraftableId | undefined {
   return undefined;
 }
 
-function isMovementPassable(tile: TileId): boolean {
-  return tile !== TILE.WATER;
+// EL MAR (05c): todo tile es transitable — el agua profunda ya no es pared,
+// el A* la cobra con coste (lib/pathfinding.ts) y nadar ralentiza y drena.
+function isMovementPassable(_tile: TileId): boolean {
+  return true;
 }
 
 const REACHABILITY_BFS_LIMIT = 25000;
@@ -221,9 +223,11 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
       if (distToForeman <= FOREMAN_FOLLOW_RADIUS && vector) {
         // El vector del capataz se valida contra el mundo del SEGUIDOR:
         // copiarlo a ciegas lo empujaba fuera del mapa o al agua (auditoría-agua C1).
+        // EL MAR (05c): aunque WATER sea transitable, el vector NUNCA empuja al
+        // mar — nadar es decisión del A* del propio NPC (cae a su findPath).
         const cand = { x: npc.position.x + vector.x, y: npc.position.y + vector.y };
         const inBounds = cand.x >= 0 && cand.x < state.world.width && cand.y >= 0 && cand.y < state.world.height;
-        if (inBounds && isMovementPassable(state.world.tiles[cand.y * state.world.width + cand.x] as TileId)) {
+        if (inBounds && state.world.tiles[cand.y * state.world.width + cand.x] !== TILE.WATER) {
           nextStep = cand;
         }
       }
@@ -236,9 +240,9 @@ function tickMovement(state: GameState, fogBuffer: Uint8Array): GameState {
     
     if (!nextStep) { newNPCs.push({ ...npc, destination: dest }); continue; }
 
-    // Movimiento lento en agua poco profunda — solo puede moverse 1 de cada 3 ticks
+    // Movimiento lento en agua (poco profunda o profunda) — 1 de cada SWIM_TICK_INTERVAL ticks
     const currentTile = state.world.tiles[npc.position.y * state.world.width + npc.position.x];
-    if (currentTile === TILE.SHALLOW_WATER && (state.tick % 3) !== 0) {
+    if ((currentTile === TILE.SHALLOW_WATER || currentTile === TILE.WATER) && (state.tick % SWIM_TICK_INTERVAL) !== 0) {
       newNPCs.push({ ...npc, destination: dest });
       fog = markDiscovered(fog, npc.position.x, npc.position.y, npc.visionRadius);
       continue;
@@ -525,7 +529,10 @@ function tickCultureAndSocial(state: GameState, prevState: GameState): GameState
     if (!prev.alive) continue;
     const cur = npcs.find(n => n.id === prev.id);
     if (cur && !cur.alive) {
-      const entry = narrate({ type: 'death', npcName: cur.name, cause: 'agotamiento', tick: state.tick });
+      // EL MAR (05c): morir sobre agua profunda es ahogarse — la crónica lo nombra.
+      const deathTile = world.tiles[cur.position.y * world.width + cur.position.x];
+      const cause = deathTile === TILE.WATER ? 'se lo llevó el mar' : 'agotamiento';
+      const entry = narrate({ type: 'death', npcName: cur.name, cause, tick: state.tick });
       chronicle = addChronicleEntry(chronicle, entry, state.tick);
       const posKey = `${cur.position.x},${cur.position.y}`;
       if (!nextTags[posKey]) nextTags[posKey] = [];

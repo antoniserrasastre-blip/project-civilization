@@ -36,6 +36,7 @@ const HYSTERESIS = 5;
 
 export const NEED_TICK_RATES = {
   supervivenciaDecay: 0.15, // Mucho más lento (antes era 2.0, un error)
+  supervivenciaMarDrain: 0.5, // EL MAR (05c): drenaje extra por tick sobre agua profunda
   supervivenciaRecover: 2,
   socializacionAlone: 0.1,
   socializacionNear: 0.2,
@@ -542,9 +543,18 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
       }
     }
 
-    // 2. Agua (Recuperación pasiva) — solo cuando sv está baja, no como estación permanente
-    if (recoveryResourceAtPosition(npc.position, ctx.world) === RESOURCE.WATER && sv < 70) {
-      sv = Math.min(70, sv + 5);
+    // EL MAR (05c): nadar drena — el agua profunda cobra −0.5 sv/tick.
+    const tileBajoNpc = ctx.world.tiles[npc.position.y * ctx.world.width + npc.position.x];
+    const enMarProfundo = tileBajoNpc === TILE.WATER;
+    if (enMarProfundo) {
+      sv -= NEED_TICK_RATES.supervivenciaMarDrain;
+    }
+
+    // 2. Agua (Recuperación pasiva) — solo cuando sv está baja, no como estación
+    // permanente. Techo 40 (05c): un día de hambre ya no se borra durmiendo junto
+    // al manantial. En el mar profundo no se descansa: NO opera la recuperación.
+    if (!enMarProfundo && recoveryResourceAtPosition(npc.position, ctx.world) === RESOURCE.WATER && sv < 40) {
+      sv = Math.min(40, sv + 5);
     }
 
     // 3. Socialización

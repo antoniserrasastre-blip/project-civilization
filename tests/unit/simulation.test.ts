@@ -168,7 +168,9 @@ describe('tick — movimiento hacia comida', () => {
     expect(s.npcs[0].inventory.fish).toBeGreaterThan(0);
   });
 
-  it('NPC no puede cruzar agua profunda', () => {
+  // EL MAR (05c): el agua profunda se nada (con coste, lentitud y drenaje).
+  // El pin viejo ("no puede cruzar") murió por decisión de diseño 11-06-2026.
+  it('NPC cruza el agua profunda nadando y llega a la comida', () => {
     const world = mkFlatWorld(5, 3);
     world.tiles[1] = TILE.WATER;
     world.tiles[6] = TILE.WATER;
@@ -189,10 +191,10 @@ describe('tick — movimiento hacia comida', () => {
       stats: { supervivencia: 30, socializacion: 80, proposito: 70, miedo: 20 },
     });
     let s = initialGameState(1, [npc], world);
-    for (let i = 0; i < 5; i++) s = tick(s);
+    for (let i = 0; i < 12; i++) s = tick(s);
 
-    expect(s.npcs[0].position).toEqual({ x: 0, y: 0 });
-    expect(s.npcs[0].inventory.fish).toBe(0);
+    expect(s.npcs[0].position).toEqual({ x: 2, y: 0 });
+    expect(s.npcs[0].inventory.fish).toBeGreaterThan(0);
   });
 });
 

@@ -64,20 +64,26 @@ describe('A* — happy paths sobre mini fixture', () => {
   });
 });
 
-describe('A* — bloqueos', () => {
-  it('agua bloquea el paso → rodea', () => {
+// EL MAR (05c): el agua ya no bloquea — cuesta 80 vs 10. Estos pins fijan la
+// ECONOMÍA del nado: se cruza cuando el rodeo sale más caro, y las islas
+// dejaron de estar aisladas.
+describe('A* — el agua cuesta, no bloquea', () => {
+  it('cruza el tile mojado cuando el rodeo es más caro (1×80 < 10 pasos ×10)', () => {
     const world = mkWorld(['.....', '.....', 'XXXX.', '.....', '.....']);
     const r = findPath(world, { x: 0, y: 1 }, { x: 0, y: 3 }, seedState(1));
     expect(r.path).not.toBeNull();
-    // El camino óptimo sube, bordea y baja. Longitud Manhattan
-    // directa sería 2, el rodeo debe añadir pasos.
-    expect(r.path!.length).toBeGreaterThan(3);
+    expect(r.path!).toHaveLength(3); // directo: (0,1)→(0,2 agua)→(0,3)
+    const mojados = r.path!.filter((p) => world.tiles[p.y * world.width + p.x] === 0);
+    expect(mojados).toHaveLength(1);
   });
 
-  it('sin ruta (isla aislada) → null', () => {
+  it('la isla aislada ya no existe: se nada el estrecho (1 solo tile mojado)', () => {
     const world = mkWorld(['.....', 'XXXXX', '.....', '.....', '.....']);
     const r = findPath(world, { x: 0, y: 0 }, { x: 0, y: 4 }, seedState(1));
-    expect(r.path).toBeNull();
+    expect(r.path).not.toBeNull();
+    expect(r.path![r.path!.length - 1]).toEqual({ x: 0, y: 4 });
+    const mojados = r.path!.filter((p) => world.tiles[p.y * world.width + p.x] === 0);
+    expect(mojados).toHaveLength(1);
   });
 
   // Contrato cambiado en sprint 05 (auditoría-agua C2): el origen intransitable
@@ -95,10 +101,17 @@ describe('A* — bloqueos', () => {
     expect(steps[steps.length - 1]).toEqual({ x: 4, y: 4 });
   });
 
-  it('end sobre tile no pasable → null', () => {
+  it('destino en el agua: nadable por defecto; null solo con passable custom', () => {
     const world = mkWorld(['.....', '.....', '.....', '.....', '....X']);
+    // 05c: el agua es destino válido (se puede nadar hasta allí).
     const r = findPath(world, { x: 0, y: 0 }, { x: 4, y: 4 }, seedState(1));
-    expect(r.path).toBeNull();
+    expect(r.path).not.toBeNull();
+    expect(r.path![r.path!.length - 1]).toEqual({ x: 4, y: 4 });
+    // El contrato de options.passable sigue mandando para callers custom.
+    const rCustom = findPath(world, { x: 0, y: 0 }, { x: 4, y: 4 }, seedState(1), {
+      passable: (tile) => tile !== 0,
+    });
+    expect(rCustom.path).toBeNull();
   });
 });
 
