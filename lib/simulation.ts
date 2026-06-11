@@ -699,18 +699,23 @@ function tryAutoBuild(state: GameState): GameState {
     const progress = state.buildProject.progress + Math.round((activeBuilders.length + totalCraftingSkill) * mult);
     
     const builderIds = new Set(activeBuilders.map((b) => b.id));
+    const obra = state.buildProject.position;
     const nextNpcs = state.npcs.map((n) => {
       if (builderIds.has(n.id)) {
         // Ganancia de experiencia en crafting (ADN: Fuerza + Sabiduría)
         let learningMult = 1 + ((n.attributes.strength + n.attributes.wisdom) / 200) * 0.5;
-        
+
         // Bonus por Vocación: El Sabio (ingenio) y el Simplezas (práctica) aprenden más rápido
         if (n.vocation === VOCATION.SABIO || n.vocation === VOCATION.SIMPLEZAS) learningMult += 0.3;
 
         // XP por actividad (Sprint 03): centésimas enteras al acumulador
         // (consolidación al amanecer). Mata el float `crafting + 0.05` (§A4).
         const updated = updateNpcStats(n, { proposito: (n.stats.proposito ?? 100) - 5 });
-        return bumpDailyActivity(accrueSkillXP(updated, 'crafting', Math.round(5 * learningMult)), 'built', 1);
+        const conXP = accrueSkillXP(updated, 'crafting', Math.round(5 * learningMult));
+        // built honesto (Sprint 05b): solo cuenta AL PIE de la obra
+        // (Chebyshev ≤ 1, posición post-movimiento) — caminar hacia ella no es construir.
+        const distObra = Math.max(Math.abs(n.position.x - obra.x), Math.abs(n.position.y - obra.y));
+        return distObra <= 1 ? bumpDailyActivity(conXP, 'built', 1) : conXP;
       }
       return n;
     });

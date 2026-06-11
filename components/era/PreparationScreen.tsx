@@ -9,7 +9,7 @@
 
 import { useState } from 'react';
 import type { Assignments } from '@/lib/dawn';
-import type { DawnReport, GameState } from '@/lib/game-state';
+import type { DawnReport, GameState, MotivoFallo } from '@/lib/game-state';
 import type { NPC, AssignmentDomain } from '@/lib/npcs';
 import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
 import { TICKS_PER_DAY } from '@/lib/resources';
@@ -45,6 +45,13 @@ function ageDays(npc: NPC, tick: number): number {
   return Math.max(0, Math.floor((tick - npc.birthTick) / TICKS_PER_DAY));
 }
 
+/** Traducción del porqué del fallo (Sprint 05b) — el estado lleva el código. */
+const MOTIVO_LABEL: Record<MotivoFallo, string> = {
+  'sin-obra-pendiente': 'no había obra pendiente',
+  'sin-frontera': 'no quedaba tierra por descubrir',
+  corto: 'se quedó corto',
+};
+
 /** La voz del clan (CONEXIÓN, sprint 05): el informe le habla AL dios en 2ª
  *  persona sobre SUS designios. Plantillas deterministas sobre el estado —
  *  el LLM no pinta nada aquí. */
@@ -52,7 +59,11 @@ function vozDelClan(report: DawnReport): { frase: string; fallos: string[] } {
   const { designiosCumplidos: c, designiosDados: d } = report.clan;
   const fallos = report.npcs
     .filter((n) => n.cumplido === 'fallido')
-    .map((n) => `${n.name} no pudo con ${DOMAIN_LABEL[n.designio!].toLowerCase()}`);
+    .map(
+      (n) =>
+        `${n.name} no pudo con ${DOMAIN_LABEL[n.designio!].toLowerCase()}` +
+        (n.motivo ? ` — ${MOTIVO_LABEL[n.motivo]}` : ''),
+    );
   if (d === 0) return { frase: 'No nos diste designio. El clan siguió su instinto.', fallos };
   if (c === d) return { frase: 'Hicimos lo que pediste. Todos tus designios se cumplieron.', fallos };
   if (c === 0) return { frase: 'Te fallamos: ninguno de tus designios se cumplió.', fallos };

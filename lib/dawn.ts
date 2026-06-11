@@ -19,7 +19,7 @@
  *   7. clima             — transición climática del nuevo día (consume PRNG)
  */
 
-import type { DawnReport, FeatureFlags, GameState } from './game-state';
+import type { DawnReport, FeatureFlags, GameState, MotivoFallo } from './game-state';
 import { isFeatureOn } from './game-state';
 import type { NPC, AssignmentDomain } from './npcs';
 import { ASSIGNMENT_DOMAINS } from './npcs';
@@ -35,6 +35,7 @@ import { tickFractures } from './events';
 import { tickClimate } from './climate';
 import { firstStructureOfKind } from './structures';
 import { CRAFTABLE } from './crafting';
+import { decodeFogBitmap } from './fog';
 
 /** Designios de un anochecer: npcId → dominio (asigna) o null (LIMPIA — vuelta a libre). */
 export type Assignments = Readonly<Record<string, AssignmentDomain | null>>;
@@ -46,6 +47,41 @@ const DOMINIO_ACTIVIDAD: Record<AssignmentDomain, 'harvested' | 'built' | 'disco
   exploracion: 'discovered',
 };
 
+/** El ✓ tiene precio (Sprint 05b): cumplido ⟺ actividad-del-dominio ≥ umbral.
+ *  Sondeados en el laboratorio escaso (seeds 1/3/5/7, 11-06-2026): separan al
+ *  rozador drive-by (0-14 / ≤46 / 56-72) del trabajador real (19+ / 100+ / 246+). */
+export const UMBRAL_CUMPLIDO: Record<AssignmentDomain, number> = {
+  recoleccion: 15,
+  construccion: 100,
+  exploracion: 50,
+};
+
+/** ¿Queda al menos un tile oculto? Early-exit sobre el bitmap (barato). */
+function quedaNiebla(state: GameState): boolean {
+  const bytes = decodeFogBitmap(state.fog.bitmap);
+  const total = state.fog.width * state.fog.height;
+  for (let i = 0; i < total; i++) {
+    if ((bytes[i >> 3] & (1 << (i & 7))) === 0) return true;
+  }
+  return false;
+}
+
+/** El fallo dice por qué (Sprint 05b). Solo se llama con cumplido === 'fallido'. */
+function motivoDelFallo(
+  state: GameState,
+  designio: AssignmentDomain,
+  hecho: { harvested: number; built: number; discovered: number },
+  hayNiebla: () => boolean,
+): MotivoFallo {
+  if (designio === 'construccion' && state.buildProject === null && hecho.built === 0) {
+    return 'sin-obra-pendiente'; // el designio no tenía objeto
+  }
+  if (designio === 'exploracion' && !hayNiebla()) {
+    return 'sin-frontera'; // mapa 100% descubierto: no quedaba tierra
+  }
+  return 'corto'; // hubo donde trabajar, no llegó al umbral
+}
+
 /** Informe del día que cierra (clan + por-NPC + cumplimiento de designios).
  *  Puro; lee dailyActivity, así que debe correr ANTES de reset-diario. Lo usan
  *  el paso 'informe-amanecer' y el boundary del anochecer en tick() (phasedMode):
@@ -53,6 +89,9 @@ const DOMINIO_ACTIVIDAD: Record<AssignmentDomain, 'harvested' | 'built' | 'disco
 export function computeDawnReport(state: GameState): DawnReport {
   const day = Math.floor(state.tick / TICKS_PER_DAY);
   const alive = state.npcs.filter((n) => n.alive);
+  // Popcount del fog: lazy + memo — solo si algún explorador falló.
+  let niebla: boolean | null = null;
+  const hayNiebla = () => (niebla ??= quedaNiebla(state));
   const npcs = alive.map((n) => {
     const designio = n.designio ?? null;
     const hecho = {
@@ -60,15 +99,26 @@ export function computeDawnReport(state: GameState): DawnReport {
       built: n.dailyActivity?.built ?? 0,
       discovered: n.dailyActivity?.discovered ?? 0,
     };
-    // Conexión (Sprint 05): ¿cumplió el designio? Solo cuenta la
-    // actividad en SU dominio; sin designio → null (no 'fallido').
+    // Conexión (Sprint 05): ¿cumplió el designio? Solo cuenta la actividad
+    // en SU dominio, y desde 05b el ✓ exige el umbral (no el roce > 0);
+    // sin designio → null (no 'fallido').
     const cumplido =
       designio === null
         ? null
-        : hecho[DOMINIO_ACTIVIDAD[designio]] > 0
+        : hecho[DOMINIO_ACTIVIDAD[designio]] >= UMBRAL_CUMPLIDO[designio]
           ? ('cumplido' as const)
           : ('fallido' as const);
-    return { id: n.id, name: n.name, designio, cumplido, ...hecho };
+    // motivo SOLO en fallidos — clave AUSENTE en el resto (round-trip limpio).
+    return {
+      id: n.id,
+      name: n.name,
+      designio,
+      cumplido,
+      ...hecho,
+      ...(cumplido === 'fallido'
+        ? { motivo: motivoDelFallo(state, designio!, hecho, hayNiebla) }
+        : {}),
+    };
   });
   const clan = npcs.reduce(
     (acc, n) => ({

@@ -60,9 +60,10 @@ describe('Sprint 04a — exploración, actividad diaria e informe', () => {
     expect(rep.day).toBe(0);
     expect(rep.clan.harvested).toBe(7);
     expect(rep.clan.discovered).toBe(3);
-    // `cumplido` llegó en sprint 05 (conexión): designio recoleccion + harvested 7 → cumplido.
+    // `cumplido` llegó en sprint 05 (conexión); en 05b el ✓ ganó precio:
+    // harvested 7 < UMBRAL_CUMPLIDO.recoleccion (15) → fallido, con su porqué.
     expect(rep.npcs).toEqual([
-      { id: 'ana', name: npc.name, designio: 'recoleccion', harvested: 7, built: 0, discovered: 3, cumplido: 'cumplido' },
+      { id: 'ana', name: npc.name, designio: 'recoleccion', harvested: 7, built: 0, discovered: 3, cumplido: 'fallido', motivo: 'corto' },
     ]);
     expect(out.npcs[0].dailyActivity).toBeUndefined(); // reset diario
     expect(JSON.parse(JSON.stringify(out))).toEqual(out); // round-trip

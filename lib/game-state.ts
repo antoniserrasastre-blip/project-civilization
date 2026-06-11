@@ -109,6 +109,10 @@ export interface GameState {
 /** Fase del loop línea C. */
 export type GamePhase = 'day' | 'preparation';
 
+/** Por qué falló un designio (Sprint 05b): el fallo dice su porqué.
+ *  La UI traduce; el estado lleva el CÓDIGO. */
+export type MotivoFallo = 'sin-obra-pendiente' | 'sin-frontera' | 'corto';
+
 /** Informe del amanecer (Sprint 04a): qué pasó en el día que cierra.
  *  Es ESTADO (determinista, serializable) — la UI solo lo pinta. */
 export interface DawnReport {
@@ -126,8 +130,12 @@ export interface DawnReport {
     id: string;
     name: string;
     designio: AssignmentDomain | null;
-    /** null ⟺ sin designio ese día; 'cumplido' ⟺ actividad > 0 en su dominio. */
+    /** null ⟺ sin designio ese día; 'cumplido' ⟺ actividad ≥ UMBRAL_CUMPLIDO
+     *  en su dominio (Sprint 05b: el ✓ tiene precio). */
     cumplido: 'cumplido' | 'fallido' | null;
+    /** SOLO presente cuando cumplido === 'fallido' (clave ausente en el resto
+     *  — round-trip JSON limpio). */
+    motivo?: MotivoFallo;
     harvested: number;
     built: number;
     discovered: number;

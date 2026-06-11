@@ -38,7 +38,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { tick } from '@/lib/simulation';
-import { applyAssignments, computeDawnReport } from '@/lib/dawn';
+import { applyAssignments, computeDawnReport, UMBRAL_CUMPLIDO } from '@/lib/dawn';
 import { TICKS_PER_DAY } from '@/lib/resources';
 import { makeLaboratorioState } from '@/lib/laboratorio';
 import type { DawnReport, GameState } from '@/lib/game-state';
@@ -220,13 +220,15 @@ describe('Conexión — contadores del clan cuadran con las entradas', () => {
   });
 
   it('coherencia entrada a entrada: cumplido se deduce del designio y la actividad del dominio', () => {
+    // 05b: el ✓ tiene precio — cumplido ⟺ actividad ≥ UMBRAL_CUMPLIDO[dominio]
+    // (antes > 0, que regalaba el ✓ por rozar el dominio de pasada).
     const rep = canon().dawnReport!;
     for (const n of rep.npcs) {
       if (n.designio === null) {
         expect(n.cumplido).toBeNull();
       } else {
         const actividad = n[DOMINIO_A_ACTIVIDAD[n.designio]];
-        expect(n.cumplido).toBe(actividad > 0 ? 'cumplido' : 'fallido');
+        expect(n.cumplido).toBe(actividad >= UMBRAL_CUMPLIDO[n.designio] ? 'cumplido' : 'fallido');
       }
     }
     // Los dos contadores son exactamente los conteos sobre las entradas.
