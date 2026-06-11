@@ -57,10 +57,24 @@ la estrategia y ver que se cumple. El detalle vive fuera del repo (nodo ICM, ver
     («Hicimos lo que pediste» / «Te fallamos en…») + ✓/✗ por NPC. e2e ciclo completo verde.
   - [ ] **Validación de los 10 días EN EL LABORATORIO** (playtest de Toni; criterios en el nodo ICM).
   - Diferido: TICK_BATCH (solo si el modo clásico lo pide), telemetría dev, consola divina (06).
+- [x] **Sprint 05b — "Que se vea"** (triple playtest 11-06-2026: "las decisiones no tienen peso").
+  Código completo 11-06-2026:
+  - [x] Agencia: "Libre" limpia designios (null explícito; antes un designio era para siempre).
+  - [x] Informe honesto: `built` = logro (obra que avanza + Chebyshev ≤1, no presencia);
+    UMBRAL_CUMPLIDO por dominio (rec 15 / expl 50 / obra 100, sondeados); `motivo` del fallo
+    ('sin-obra-pendiente' / 'sin-frontera' / 'corto') pronunciado por la voz del clan.
+  - [x] Riesgo: comida del laboratorio ×0.25 — hambre visible día 2-3, cero muertes (antes el
+    sufrimiento era matemáticamente inalcanzable: auto-forrajeo + auto-comer + suelo de agua).
+  - [x] Ruido: flag `tech` (9ª clave — eurekas/identidades OFF en lab); preparación sin
+    HUD/sangrado; ×5 default en lab.
+  - [x] Legibilidad: nombres flotantes siempre con clan ≤6; meta de era en HUD (🔥 noches N/10 ·
+    🏗 umbral M/4, SSOT lib/monument); HUD podado por flags; sección Economía en el informe
+    (aportes por NPC/recurso + «comimos X» — dailyActivity.porRecurso/comido).
+  - [ ] Re-pasar el protocolo de 15 pruebas (nodo ICM) → luego la validación de los 10 días.
 - [ ] **Dioses Rivales** (Fase 7 original): pospuesto tras validar el loop.
 
 ## Estado Actual
-- Motor Determinista (§A4): ✅ Operativo (suite 858/858, tsc=0, eslint=0 errores, e2e ciclo verde)
+- Motor Determinista (§A4): ✅ Operativo (suite 904/904, tsc=0, eslint=0 errores, e2e ciclo verde)
 - Features-flags por subsistema: ✅ Operativo (laboratorio = casi todo OFF; clásico intacto)
 - Sistema de Tech (unlocks por condición): ✅ Operativo · ⚠️ `tech.wisdom` es contador MUERTO
   (nada lo incrementa; la generación de sabiduría SHAMAN_HUT/curanderos no existe — deuda
