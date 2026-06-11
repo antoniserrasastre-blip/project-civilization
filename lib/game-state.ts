@@ -6,7 +6,7 @@ import type { BuildProject, Structure } from './structures';
 import type { Edge } from './relations';
 import { initialVillageState, type VillageState } from './village';
 import { generateWorld } from './world-gen';
-import type { WorldMap, Animal, ClimateState } from './world-state';
+import type { WorldMap, Animal, ClimateState, ResourceId } from './world-state';
 import type { EquippableItem } from './items';
 import { initialClimateState } from './climate';
 import { findIslands, pickClanSpawn, pickLandCells } from './spawn';
@@ -125,6 +125,11 @@ export interface DawnReport {
     /** Conexión (Sprint 05): designios cumplidos / dados en el día que cierra. */
     designiosCumplidos: number;
     designiosDados: number;
+    /** Desglose económico (Sprint 05b): cosecha del clan por recurso, suma
+     *  de los VIVOS. SIEMPRE presente (aunque {}); los tipos a 0 se omiten. */
+    aportes: Partial<Record<ResourceId, number>>;
+    /** Comida consumida por el clan por tipo — misma regla que `aportes`. */
+    comido: Partial<Record<'berry' | 'fish' | 'game', number>>;
   };
   npcs: {
     id: string;
@@ -139,6 +144,9 @@ export interface DawnReport {
     harvested: number;
     built: number;
     discovered: number;
+    /** Desglose por recurso (Sprint 05b). SOLO presente si cosechó algo
+     *  (clave ausente en el resto — patrón `motivo`). */
+    porRecurso?: Partial<Record<ResourceId, number>>;
   }[];
 }
 

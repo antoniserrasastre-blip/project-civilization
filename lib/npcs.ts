@@ -10,6 +10,8 @@
  * estable — nada de funciones, Map, Set, ni undefined.
  */
 
+import type { ResourceId } from './world-state';
+
 /** Castas sociales — §3.2 vision-primigenia, decisión #4. */
 export const CASTA = {
   ELEGIDO: 'elegido',
@@ -69,6 +71,9 @@ export const DESIGNIO_SKILLS: Record<AssignmentDomain, readonly (keyof NPCSkills
   construccion: ['crafting'],
 };
 
+/** Tipos de comida del inventario (Sprint 05b — desglose económico). */
+export type FoodKind = 'berry' | 'fish' | 'game';
+
 /** Suma actividad diaria (enteros) en copia del NPC. Puro. */
 export function bumpDailyActivity(
   npc: NPC,
@@ -78,6 +83,23 @@ export function bumpDailyActivity(
   if (n <= 0) return npc;
   const d = npc.dailyActivity ?? { harvested: 0, built: 0, discovered: 0 };
   return { ...npc, dailyActivity: { ...d, [key]: d[key] + n } };
+}
+
+/** Suma cosecha por tipo de recurso (Sprint 05b). Puro; clave ausente si
+ *  nunca se cosechó ese tipo (round-trip limpio — patrón bumpDailyActivity). */
+export function bumpPorRecurso(npc: NPC, recurso: ResourceId, n: number): NPC {
+  if (n <= 0) return npc;
+  const d = npc.dailyActivity ?? { harvested: 0, built: 0, discovered: 0 };
+  const porRecurso = { ...(d.porRecurso ?? {}), [recurso]: (d.porRecurso?.[recurso] ?? 0) + n };
+  return { ...npc, dailyActivity: { ...d, porRecurso } };
+}
+
+/** Suma comida consumida por tipo (Sprint 05b). Puro; clave ausente si cero. */
+export function bumpComido(npc: NPC, kind: FoodKind, n: number): NPC {
+  if (n <= 0) return npc;
+  const d = npc.dailyActivity ?? { harvested: 0, built: 0, discovered: 0 };
+  const comido = { ...(d.comido ?? {}), [kind]: (d.comido?.[kind] ?? 0) + n };
+  return { ...npc, dailyActivity: { ...d, comido } };
 }
 
 /** Acumula XP de práctica (centésimas enteras) en la copia del NPC, aplicando
@@ -239,8 +261,17 @@ export interface NPC {
    *  como FOCO de aprendizaje (×1.5 XP en las skills de su dominio). */
   designio?: AssignmentDomain | null;
   /** Actividad del día (Sprint 04a): contadores enteros para el informe del
-   *  amanecer. Reset en el paso 'reset-diario'. Opcional (compat). */
-  dailyActivity?: { harvested: number; built: number; discovered: number };
+   *  amanecer. Reset en el paso 'reset-diario'. Opcional (compat).
+   *  Sprint 05b: desglose económico — `porRecurso` (cosechado HOY por tipo;
+   *  suma === harvested) y `comido` (comida consumida HOY por tipo). Claves
+   *  ausentes si cero (round-trip limpio). */
+  dailyActivity?: {
+    harvested: number;
+    built: number;
+    discovered: number;
+    porRecurso?: Partial<Record<ResourceId, number>>;
+    comido?: Partial<Record<FoodKind, number>>;
+  };
   /** XP por actividad (Sprint 03): centésimas ENTERAS de skill acumuladas
    *  durante el día. Se consolidan al amanecer (paso 'consolidar-xp' del
    *  DAWN_PIPELINE): skills += floor(xp/100), el resto se conserva.

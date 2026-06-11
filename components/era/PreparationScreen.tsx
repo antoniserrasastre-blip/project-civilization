@@ -13,6 +13,7 @@ import type { DawnReport, GameState, MotivoFallo } from '@/lib/game-state';
 import type { NPC, AssignmentDomain } from '@/lib/npcs';
 import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
 import { TICKS_PER_DAY } from '@/lib/resources';
+import { RESOURCE_LABEL, type ResourceId } from '@/lib/world-state';
 
 const DOMAIN_LABEL: Record<AssignmentDomain, string> = {
   recoleccion: 'Recolección',
@@ -68,6 +69,47 @@ function vozDelClan(report: DawnReport): { frase: string; fallos: string[] } {
   if (c === d) return { frase: 'Hicimos lo que pediste. Todos tus designios se cumplieron.', fallos };
   if (c === 0) return { frase: 'Te fallamos: ninguno de tus designios se cumplió.', fallos };
   return { frase: `Cumplimos ${c} de tus ${d} designios. Te fallamos en el resto.`, fallos };
+}
+
+/** Etiqueta de recurso en minúscula («12 bayas») — RESOURCE_LABEL si existe. */
+function labelRecurso(id: string): string {
+  const label = (RESOURCE_LABEL as Partial<Record<string, string>>)[id];
+  return label ? label.toLowerCase() : id;
+}
+
+/** Sección Economía (Sprint 05b): quién aportó qué y qué se comió hoy.
+ *  Plantillas deterministas sobre el informe — sin estado extra. */
+function Economia({ report }: { report: DawnReport }) {
+  // `?? {}`: saves anteriores al 05b no traen los agregados (compat).
+  const aportes = report.clan.aportes ?? {};
+  const comido = report.clan.comido ?? {};
+  const lineaAportes = Object.entries(aportes)
+    .filter(([, v]) => (v ?? 0) > 0)
+    .map(([id, total]) => {
+      const quien = report.npcs
+        .filter((n) => (n.porRecurso?.[id as ResourceId] ?? 0) > 0)
+        .map((n) => `${n.name} ${n.porRecurso![id as ResourceId]}`)
+        .join(', ');
+      return `${total} ${labelRecurso(id)}${quien ? ` (${quien})` : ''}`;
+    })
+    .join(' · ');
+  const lineaComido = Object.entries(comido)
+    .filter(([, v]) => (v ?? 0) > 0)
+    .map(([k, v]) => `${v} ${labelRecurso(k)}`)
+    .join(', ');
+  return (
+    <div data-testid="dawn-economy" className="mb-4 text-sm">
+      <h3 className="mb-1 text-amber-300">Economía</h3>
+      <ul className="space-y-1">
+        {lineaAportes !== '' && <li>Recolectado: {lineaAportes}</li>}
+        {lineaComido !== '' ? (
+          <li>Comimos: {lineaComido}</li>
+        ) : (
+          Object.keys(comido).length === 0 && <li className="text-stone-500">Nadie comió hoy.</li>
+        )}
+      </ul>
+    </div>
+  );
 }
 
 export function PreparationScreen({
@@ -128,6 +170,7 @@ export function PreparationScreen({
                 <li>Día {report.day}: recolectado {report.clan.harvested} · obra {report.clan.built} · descubierto {report.clan.discovered} tiles</li>
                 {report.clan.deaths > 0 && <li className="text-red-400">Muertes: {report.clan.deaths}</li>}
               </ul>
+              <Economia report={report} />
               <table className="w-full text-left text-xs">
                 <thead className="text-stone-500">
                   <tr><th>Quién</th><th>Tu designio</th><th>Hecho</th></tr>

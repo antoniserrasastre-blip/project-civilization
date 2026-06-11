@@ -21,8 +21,9 @@
 
 import type { DawnReport, FeatureFlags, GameState, MotivoFallo } from './game-state';
 import { isFeatureOn } from './game-state';
-import type { NPC, AssignmentDomain } from './npcs';
+import type { NPC, AssignmentDomain, FoodKind } from './npcs';
 import { ASSIGNMENT_DOMAINS } from './npcs';
+import type { ResourceId } from './world-state';
 import { TICKS_PER_DAY } from './resources';
 import {
   applyGratitudeDelta,
@@ -108,6 +109,9 @@ export function computeDawnReport(state: GameState): DawnReport {
         : hecho[DOMINIO_ACTIVIDAD[designio]] >= UMBRAL_CUMPLIDO[designio]
           ? ('cumplido' as const)
           : ('fallido' as const);
+    // Desglose económico (05b): porRecurso SOLO si cosechó algo — clave
+    // ausente en el resto (patrón `motivo`, round-trip limpio).
+    const porRecurso = n.dailyActivity?.porRecurso;
     // motivo SOLO en fallidos — clave AUSENTE en el resto (round-trip limpio).
     return {
       id: n.id,
@@ -115,11 +119,26 @@ export function computeDawnReport(state: GameState): DawnReport {
       designio,
       cumplido,
       ...hecho,
+      ...(porRecurso && Object.keys(porRecurso).length > 0
+        ? { porRecurso: { ...porRecurso } }
+        : {}),
       ...(cumplido === 'fallido'
         ? { motivo: motivoDelFallo(state, designio!, hecho, hayNiebla) }
         : {}),
     };
   });
+  // Agregados económicos del clan (05b): suma clave a clave sobre los VIVOS;
+  // los tipos a 0 se omiten. SIEMPRE presentes como objeto (aunque {}).
+  const aportes: Partial<Record<ResourceId, number>> = {};
+  const comido: Partial<Record<FoodKind, number>> = {};
+  for (const n of alive) {
+    for (const [k, v] of Object.entries(n.dailyActivity?.porRecurso ?? {})) {
+      if (v) aportes[k as ResourceId] = (aportes[k as ResourceId] ?? 0) + v;
+    }
+    for (const [k, v] of Object.entries(n.dailyActivity?.comido ?? {})) {
+      if (v) comido[k as FoodKind] = (comido[k as FoodKind] ?? 0) + v;
+    }
+  }
   const clan = npcs.reduce(
     (acc, n) => ({
       harvested: acc.harvested + n.harvested,
@@ -128,6 +147,8 @@ export function computeDawnReport(state: GameState): DawnReport {
       deaths: acc.deaths,
       designiosCumplidos: acc.designiosCumplidos + (n.cumplido === 'cumplido' ? 1 : 0),
       designiosDados: acc.designiosDados + (n.designio !== null ? 1 : 0),
+      aportes: acc.aportes,
+      comido: acc.comido,
     }),
     {
       harvested: 0,
@@ -136,6 +157,8 @@ export function computeDawnReport(state: GameState): DawnReport {
       deaths: state.village.dailyDeaths || 0,
       designiosCumplidos: 0,
       designiosDados: 0,
+      aportes,
+      comido,
     },
   );
   return { day, clan, npcs };

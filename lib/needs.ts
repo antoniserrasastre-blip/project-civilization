@@ -3,7 +3,7 @@
  */
 
 import type { NPC, NPCInventory, Vocation } from './npcs';
-import { updateNpcStats, VOCATION } from './npcs';
+import { bumpComido, updateNpcStats, VOCATION } from './npcs';
 import {
   RESOURCE,
   TILE,
@@ -509,6 +509,8 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
     if (sv < NEED_THRESHOLDS.supervivenciaEatFromInventory && carriedFood(npc) > 0) {
       const meal = consumeInventoryFood(npc, foodNutritionBonus);
       npc = meal.npc;
+      // Desglose económico (05b): registrar QUÉ comió (solo aquí se come).
+      if (meal.kind) npc = bumpComido(npc, meal.kind, 1);
       sv += ctx.firePosition ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER) : meal.nutrition;
       if (ctx.firePosition) so += COOKED_FOOD_SOCIAL_BONUS;
     } else if (sv < NEED_THRESHOLDS.supervivenciaHungry) {
@@ -516,6 +518,9 @@ export function tickNeeds(npcs: readonly NPC[], ctx: DestinationContext): NPC[] 
       if (donorIdx !== -1) {
         const meal = consumeInventoryFood(out[donorIdx], foodNutritionBonus);
         out[donorIdx] = meal.npc;
+        // Decisión 05b: el `comido` se atribuye al que COME (este npc),
+        // no al donante que puso la comida.
+        if (meal.kind) npc = bumpComido(npc, meal.kind, 1);
         sv += ctx.firePosition ? Math.round(meal.nutrition * COOKED_FOOD_MULTIPLIER) : meal.nutrition;
       } else {
         sv -= survivalDecay;
