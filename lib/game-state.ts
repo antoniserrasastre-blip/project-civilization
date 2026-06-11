@@ -130,10 +130,11 @@ export interface DawnReport {
   }[];
 }
 
-/** Registro de un anochecer: qué designios se dieron para el día `day`. */
+/** Registro de un anochecer: qué designios se dieron para el día `day`.
+ *  null explícito = limpieza aplicada ese anochecer (la clave se conserva). */
 export interface AssignmentRecord {
   day: number;
-  assignments: Record<string, AssignmentDomain>;
+  assignments: Record<string, AssignmentDomain | null>;
 }
 
 /** Construye una partida nueva. Los NPCs llegan drafteados (Sprint

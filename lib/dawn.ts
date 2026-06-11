@@ -36,8 +36,8 @@ import { tickClimate } from './climate';
 import { firstStructureOfKind } from './structures';
 import { CRAFTABLE } from './crafting';
 
-/** Designios de un anochecer: npcId → dominio. */
-export type Assignments = Readonly<Record<string, AssignmentDomain>>;
+/** Designios de un anochecer: npcId → dominio (asigna) o null (LIMPIA — vuelta a libre). */
+export type Assignments = Readonly<Record<string, AssignmentDomain | null>>;
 
 /** Conexión (Sprint 05): dominio del designio → actividad diaria que lo cumple. */
 const DOMINIO_ACTIVIDAD: Record<AssignmentDomain, 'harvested' | 'built' | 'discovered'> = {
@@ -196,21 +196,22 @@ export function dawn(state: GameState): GameState {
 
 /**
  * Arranca el día siguiente desde la fase de preparación (línea C).
- * Registra los designios válidos (NPC vivo + dominio del PoC; lo demás se
- * descarta en silencio — no-op explícito, jamás throw), guarda el historial,
- * corre el amanecer y cruza el anochecer (tick+1).
+ * Registra los designios válidos (NPC vivo + dominio del PoC, o null explícito
+ * = LIMPIEZA; lo demás se descarta en silencio — no-op explícito, jamás throw),
+ * guarda el historial, corre el amanecer y cruza el anochecer (tick+1).
  * Fuera de 'preparation' es un no-op que devuelve el estado tal cual.
  */
 export function applyAssignments(state: GameState, assignments: Assignments): GameState {
   if (state.phase !== 'preparation') return state;
 
   const aliveIds = new Set(state.npcs.filter((n) => n.alive).map((n) => n.id));
-  const valid: Record<string, AssignmentDomain> = {};
+  const valid: Record<string, AssignmentDomain | null> = {};
   // Orden estable por id (nunca por orden de inserción del objeto).
   for (const npcId of Object.keys(assignments).sort()) {
     const domain = assignments[npcId];
     if (!aliveIds.has(npcId)) continue;
-    if (!(ASSIGNMENT_DOMAINS as readonly string[]).includes(domain)) continue;
+    // null explícito = LIMPIEZA (vuelta a libre); dominio válido = asignación.
+    if (domain !== null && !(ASSIGNMENT_DOMAINS as readonly string[]).includes(domain)) continue;
     valid[npcId] = domain;
   }
 
@@ -219,9 +220,17 @@ export function applyAssignments(state: GameState, assignments: Assignments): Ga
   // mañana (Conexión, Sprint 05). Consume el tick del anochecer.
   const dawned = dawn(state);
 
-  const npcs: NPC[] = dawned.npcs.map((n) =>
-    valid[n.id] !== undefined ? { ...n, designio: valid[n.id] } : n,
-  );
+  const npcs: NPC[] = dawned.npcs.map((n) => {
+    if (!Object.prototype.hasOwnProperty.call(valid, n.id)) return n;
+    const domain = valid[n.id];
+    if (domain === null) {
+      // Limpieza: el designio se borra como clave (patrón reset-diario —
+      // round-trip JSON limpio, no null almacenado).
+      const { designio: _drop, ...rest } = n;
+      return rest;
+    }
+    return { ...n, designio: domain };
+  });
 
   const day = Math.floor((state.tick + 1) / TICKS_PER_DAY);
   return {

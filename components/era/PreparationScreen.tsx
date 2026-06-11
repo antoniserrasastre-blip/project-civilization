@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react';
+import type { Assignments } from '@/lib/dawn';
 import type { DawnReport, GameState } from '@/lib/game-state';
 import type { NPC, AssignmentDomain } from '@/lib/npcs';
 import { ASSIGNMENT_DOMAINS } from '@/lib/npcs';
@@ -64,7 +65,7 @@ export function PreparationScreen({
   onNpcClick,
 }: {
   state: GameState;
-  onDawn: (assignments: Record<string, AssignmentDomain>) => void;
+  onDawn: (assignments: Assignments) => void;
   onNpcClick: (id: string) => void;
 }) {
   const alive = state.npcs.filter((n) => n.alive);
@@ -74,8 +75,13 @@ export function PreparationScreen({
   const report = state.dawnReport ?? null;
 
   const confirm = () => {
-    const assignments: Record<string, AssignmentDomain> = {};
-    for (const [id, d] of Object.entries(pending)) if (d) assignments[id] = d;
+    const assignments: Record<string, AssignmentDomain | null> = {};
+    for (const n of alive) {
+      const d = pending[n.id] ?? null;
+      if (d) assignments[n.id] = d;
+      else if (n.designio) assignments[n.id] = null; // "Libre" sobre designio previo → limpieza explícita
+      // null sin designio previo → se omite (no ensuciar el historial con no-ops)
+    }
     onDawn(assignments);
   };
 
